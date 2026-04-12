@@ -36,9 +36,9 @@ Development Environment
 
 We use Docker Compose to simplify setup. The repository includes:
 
-myapp/frontend/ – React frontend
-myapp/backend/ – Node.js backend
-myapp/docker-compose.yml – orchestrates frontend, backend, MongoDB, Redis
+CardGame/frontend/ – React frontend
+CardGame/backend/ – Node.js backend
+CardGame/docker-compose.yml – orchestrates frontend, backend, MongoDB, Redis
 Services & Access
 Service	Local URL / Connection
 React Frontend	http://localhost:5173
