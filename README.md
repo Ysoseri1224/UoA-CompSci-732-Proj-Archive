@@ -51,25 +51,54 @@ Redis	localhost:6379
 All services are run in Docker containers, so team members do not need to install Node.js, MongoDB, or Redis locally.
 
 Setup Instructions
-Clone the repository:
+
+1. Clone the repository:
+```bash
 git clone https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine.git
 cd group-project-works-on-my-machine
-Start the Docker development environment:
-docker compose up -d
-This command pulls necessary Docker images and starts all services.
-Use docker compose stop to temporarily stop containers.
-Use docker compose down to stop and remove containers (use -v to also remove volumes).
-Access the services:
-React frontend: http://localhost:5173
-Node.js backend: http://localhost:3000
-MongoDB & Redis: connect using the local host and ports above
+```
+
+2. Configure environment variables:
+```bash
+cp CardGame/backend/.env.example CardGame/backend/.env
+# Edit .env and fill in your actual values (JWT_SECRET, etc.)
+```
+
+3. Start the Docker development environment:
+```bash
+docker compose -f CardGame/docker-compose.yml up -d
+```
+
+This command pulls necessary Docker images and starts all services (frontend, backend, MongoDB, Redis).
+
+- Use `docker compose stop` to temporarily stop containers.
+- Use `docker compose down` to stop and remove containers (`-v` to also remove volumes).
+
+4. Access the services:
+- React frontend: http://localhost:5173
+- Node.js backend: http://localhost:3000
+- MongoDB: mongodb://localhost:27017
+- Redis: localhost:6379
+
+Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/api.md](CardGame/docs/api.md) | REST API interface specification |
+| [docs/socket.md](CardGame/docs/socket.md) | Socket.io event protocol |
+| [requirement.md](requirement.md) | Full software requirements |
+
 Version Control Guidelines
-Always use feature branches for new functionality or fixes.
-Create a pull request (PR) when merging to main.
-At least one team member must review the PR before merging.
-Commit messages should be clear and descriptive.
-Keep local node_modules, build outputs, and Docker volume data out of the repository by using .gitignore.
+
+- Always use **feature branches** for new functionality or fixes.
+- Branch naming: `feature/<name>`, `fix/<name>`, `docs/<name>`
+- Commit message format: `feat:`, `fix:`, `docs:`, `refactor:` prefix (Conventional Commits)
+- Create a **pull request (PR)** when merging to main.
+- At least **one team member** must review and approve the PR before merging.
+- Keep `node_modules`, build outputs, and Docker volume data out of the repository via `.gitignore`.
+
 Additional Notes
-.env files with secrets should not be committed. Use .env.example as a template.
-For MongoDB or Redis persistent data, Docker volumes are used, which are ignored by Git.
-The project is fully Dockerized, so anyone on the team can get started with a single docker compose up -d.
+
+- `.env` files with secrets must **never** be committed. Use `.env.example` as a template.
+- For MongoDB or Redis persistent data, Docker volumes are used and ignored by Git.
+- The project is fully Dockerized — anyone on the team can get started with a single `docker compose up -d`.
