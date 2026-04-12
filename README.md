@@ -52,7 +52,7 @@ All services are run in Docker containers, so team members do not need to instal
 
 Setup Instructions
 Clone the repository:
-git clone https://github.com/your-username/group-project-works-on-my-machine.git
+git clone https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine.git
 cd group-project-works-on-my-machine
 Start the Docker development environment:
 docker compose up -d
