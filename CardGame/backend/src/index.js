@@ -1,30 +1,32 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
-const mongoose = require('mongoose');
-const redis = require('redis');
-const jwt = require('jsonwebtoken');
-const { Hand } = require('pokersolver');
+
+const connectDB = require('./db');
+const initSocket = require('./socket');
+const routes = require('./routes'); // 引入路由模块 (Node 会自动寻找 routes/index.js)
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
 const PORT = 3000;
 
-// MongoDB 连接
-mongoose.connect('mongodb://mongo:27017/cardgame', { useNewUrlParser: true, useUnifiedTopology: true });
+// 中间件：允许解析前端发来的 JSON 数据
+app.use(express.json());
 
-// Redis 客户端
-const redisClient = redis.createClient({ url: 'redis://redis:6379' });
-redisClient.connect();
+// 挂载路由模块
+app.use('/', routes); 
 
-// 示例路由
-app.get('/', (req, res) => res.send('Backend running'));
+async function start() {
+  // 1. 初始化数据库
+  await connectDB();
 
-// Socket.io 示例
-io.on('connection', (socket) => {
-  console.log('a user connected');
-});
+  // 2. 初始化 socket
+  initSocket(server);
 
-server.listen(PORT, () => console.log(`Backend listening on ${PORT}`));
+  // 3. 启动服务
+  server.listen(PORT, () => {
+    console.log(`Backend listening on ${PORT}`);
+  });
+}
+
+start();
