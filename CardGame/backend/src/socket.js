@@ -1,6 +1,6 @@
-const { Server } = require('socket.io');
+import { Server } from 'socket.io';
 
-module.exports = function initSocket(server) {
+export default function initSocket(server) {
   // 创建 Socket.io 实例，并允许跨域（方便前端连接）
   const io = new Server(server, {
     cors: {

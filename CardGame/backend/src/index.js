@@ -1,20 +1,34 @@
-const express = require('express');
-const http = require('http');
+import 'dotenv/config';
 
-const connectDB = require('./db');
-const initSocket = require('./socket');
-const routes = require('./routes'); // 引入路由模块 (Node 会自动寻找 routes/index.js)
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+
+import connectDB from './db.js';
+import initSocket from './socket.js';
+
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import matchRoutes from './routes/matches.js';
+import achievementRoutes from './routes/achievements.js';
 
 const app = express();
 const server = http.createServer(app);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// 中间件：允许解析前端发来的 JSON 数据
+// 中间件
+app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
-// 挂载路由模块
-app.use('/', routes); 
+// 路由挂载
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/matches', matchRoutes);
+app.use('/api/achievements', achievementRoutes);
+
+// 健康检查
+app.get('/', (req, res) => res.json({ success: true, message: 'Backend API is running', data: null }));
 
 async function start() {
   // 1. 初始化数据库
