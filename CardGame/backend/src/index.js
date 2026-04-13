@@ -4,7 +4,7 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 
-import connectDB from './db.js';
+import {connectDB} from './db.js';
 import initSocket from './socket.js';
 
 import authRoutes from './routes/auth.js';
