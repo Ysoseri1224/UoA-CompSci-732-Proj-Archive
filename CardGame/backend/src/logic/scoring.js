@@ -15,7 +15,7 @@ const CHIP_MAP = {
  * @param {Array} jokers - 当前持有的小丑牌序列 (文档 6.1: 有序)
  * @param {Array} heldCards - 手中未打出的牌 (用于结算钢铁牌等效果, 文档 5.1)
  */
-function calculateScore(playedCards, handLevel, jokers, heldCards = []) {
+export function calculateScore(playedCards, handLevel, jokers, heldCards = []) {
     let totalChips = handLevel.chips; // 牌型基础筹码 [cite: 35]
     let totalMult = handLevel.mult;   // 牌型基础倍率 [cite: 42]
     
@@ -89,5 +89,3 @@ function calculateScore(playedCards, handLevel, jokers, heldCards = []) {
         finalScore: Math.floor(totalChips * totalMult)
     };
 }
-
-module.exports = { calculateScore };

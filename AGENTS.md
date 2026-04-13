@@ -6,3 +6,9 @@
 
 ## PR instructions
 - Run the project's lint command before opening a pull request, using the detected package manager.
+
+## Testing workflow
+- Keep the backend test entrypoints aligned with `CardGame/backend/package.json`: `npm test`, `npm run test:unit`, `npm run test:db`, and `npm run test:api`.
+- Keep DB tests serial. Do not remove the single-concurrency setup from `test:db` unless the database isolation strategy changes.
+- Treat `TEST_MONGO_URI` as test-only. Database cleanup in `CardGame/backend/tests/db/` must only target the dedicated test database.
+- When changing test scripts, test directory layout, or DB test conventions, update `CardGame/docs/testing.md` and any README references in the same change.

@@ -1,4 +1,4 @@
-const { calculateScore } = require('../src/logic/scoring');
+import {calculateScore} from "../../src/logic/scoring.js";
 
 /**
  * 严格对齐文档的测试用例
