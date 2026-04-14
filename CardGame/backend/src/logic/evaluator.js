@@ -1,11 +1,13 @@
-const Hand = require('pokersolver').Hand;
+import PokerSolver from 'pokersolver';
+
+const {Hand} = PokerSolver;
 
 /**
  * 判定牌型名称
  * @param {Array} cards - 玩家选中的卡牌对象数组
  * @returns {string} - 对应 pokerLevels 中的键名
  */
-function evaluateHand(cards) {
+export function evaluateHand(cards) {
     // 1. 将我们的卡牌格式转换为 pokersolver 识别的格式 (如: {rank:'A', suit:'Spades'} -> 'As')
     const gameToSolverMap = { '10': 'T' }; // pokersolver 用 T 表示 10
     const solverCards = cards.map(c => {
@@ -33,5 +35,3 @@ function evaluateHand(cards) {
 
     return nameMap[solvedHand.name] || 'High Card';
 }
-
-module.exports = { evaluateHand };

@@ -1,4 +1,4 @@
-const { evaluateHand } = require('../src/logic/evaluator');
+import {evaluateHand} from "../../src/logic/evaluator.js";
 
 // 定义测试用例
 const testCases = [

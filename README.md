@@ -1,23 +1,19 @@
-CS732 Project – Team Works on My Machine
+# CS732 Project – Team Works on My Machine
 
 Welcome to the CS732 project repository. This repository contains the development environment and source code for our team project this semester.
 
 All team members have admin access. The only setup by default is branch protection on main, requiring a pull request with at least one reviewer to modify main. Please follow good version control practices, such as feature branching, to avoid conflicts and to make your contributions clear.
 
-Team Members
-Zengguang Feng (zfen773@aucklanduni.ac.nz
-)
-Zihan Zhao (zahz093@aucklanduni.ac.nz
-)
-Yi Lin (yiln257@aucklanduni.ac.nz
-)
-Manqi Wang (mwan556@aucklanduni.ac.nz
-)
-Zhixuan Wei (zwei974@aucklanduni.ac.nz
-)
-Sheng Xiao (sxia092@aucklanduni.ac.nz
-)
-Project Overview
+## Team Members
+
+Zengguang Feng (zfen773@aucklanduni.ac.nz)
+Zihan Zhao (zahz093@aucklanduni.ac.nz)
+Yi Lin (yiln257@aucklanduni.ac.nz)
+Manqi Wang (mwan556@aucklanduni.ac.nz)
+Zhixuan Wei (zwei974@aucklanduni.ac.nz)
+Sheng Xiao (sxia092@aucklanduni.ac.nz)
+
+# Project Overview
 
 This project is a multiplayer card game with the following architecture:
 
@@ -80,12 +76,26 @@ This command pulls necessary Docker images and starts all services (frontend, ba
 - MongoDB: mongodb://localhost:27017
 - Redis: localhost:6379
 
+Database Tests
+
+Run backend database/model tests against the dedicated `balatro_test` database:
+
+```bash
+cd CardGame/backend
+npm run test:db
+```
+
+The test suite uses `TEST_MONGO_URI` when provided and defaults to `mongodb://127.0.0.1:27017/balatro_test`.
+
+See [CardGame/docs/testing.md](CardGame/docs/testing.md) for the full testing workflow.
+
 Documentation
 
 | Document | Description |
 |----------|-------------|
 | [docs/api.md](CardGame/docs/api.md) | REST API interface specification |
 | [docs/socket.md](CardGame/docs/socket.md) | Socket.io event protocol |
+| [docs/testing.md](CardGame/docs/testing.md) | Backend testing workflow and directory conventions |
 | [requirement.md](requirement.md) | Full software requirements |
 
 Version Control Guidelines

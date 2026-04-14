@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const CardSchema = new mongoose.Schema({
   rank: { type: String, required: true }, // 2-10, J, Q, K, A
@@ -26,4 +26,4 @@ const CardSchema = new mongoose.Schema({
   }
 });
 
-module.exports = CardSchema;
+export default CardSchema;

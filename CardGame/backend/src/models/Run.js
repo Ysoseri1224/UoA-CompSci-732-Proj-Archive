@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const CardSchema = require('./Card');
+import mongoose from 'mongoose';
+import CardSchema from './Card.js';
 
 const RunSchema = new mongoose.Schema({
   userId: { type: String, required: true },
@@ -36,4 +36,6 @@ const RunSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-module.exports = mongoose.model('Run', RunSchema);
+const Run = mongoose.model('Run', RunSchema);
+
+export default Run;

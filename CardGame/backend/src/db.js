@@ -1,14 +1,20 @@
 import mongoose from 'mongoose';
 
-const connectDB = async () => {
+const connectDB = async (uri = process.env.MONGO_URI || 'mongodb://mongo:27017/balatro_db') => {
   try {
-    // 在 Docker Compose 网络中，主机名使用服务名 'mongo'
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://mongo:27017/balatro_db');
+    const conn = await mongoose.connect(uri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    return conn.connection;
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    process.exit(1);
+    throw error;
   }
 };
 
-export default connectDB;
+const disconnectDB = async () => {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+};
+
+export {connectDB, disconnectDB};

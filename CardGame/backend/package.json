@@ -6,6 +6,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "test": "node --test --test-concurrency=1 tests/**/*.test.js",
+    "test:unit": "node --test --test-concurrency=1 tests/unit/**/*.test.js",
+    "test:db": "node --test --test-concurrency=1 tests/db/**/*.test.js",
+    "test:api": "node --test --test-concurrency=1 tests/api/**/*.test.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
