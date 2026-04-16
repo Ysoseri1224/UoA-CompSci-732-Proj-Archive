@@ -7,6 +7,7 @@ import cors from 'cors';
 import {connectDB} from './db.js';
 import initSocket from './socket.js';
 
+import {loggerMiddleWare} from "./middleware/logger.js";
 import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
@@ -21,6 +22,9 @@ const PORT = process.env.PORT || 3000;
 // 中间件
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
+
+// logger middleware
+app.use(loggerMiddleWare);
 
 // 路由挂载
 app.use('/api/auth', authRoutes);
