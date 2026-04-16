@@ -7,6 +7,7 @@ import cors from 'cors';
 import {connectDB} from './db.js';
 import initSocket from './socket.js';
 
+import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
@@ -29,6 +30,9 @@ app.use('/api/achievements', achievementRoutes);
 
 // 健康检查
 app.get('/', (req, res) => res.json({ success: true, message: 'Backend API is running', data: null }));
+
+// 全局错误处理（必须在所有路由之后）
+app.use(errorHandler);
 
 async function start() {
   // 1. 初始化数据库
