@@ -1,4 +1,6 @@
 import express from 'express';
+import { authLimiter } from '../middleware/rateLimiter.js';
+
 const router = express.Router();
 
 /**
@@ -8,7 +10,7 @@ const router = express.Router();
  * @body   { username, email, password }
  * @return { success, message, data: { token, user } }
  */
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   res.status(501).json({ success: false, message: '待实现', data: null });
 });
 
@@ -19,7 +21,7 @@ router.post('/register', async (req, res) => {
  * @body   { email, password }
  * @return { success, message, data: { token, user } }
  */
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   res.status(501).json({ success: false, message: '待实现', data: null });
 });
 
