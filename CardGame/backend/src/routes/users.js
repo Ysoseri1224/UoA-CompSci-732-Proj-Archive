@@ -98,8 +98,52 @@ router.get('/:userId/achievements', async (req, res) => {
  * @body   { username?, avatar? }
  * @return { success, message, data: { user } }
  */
-router.put('/me', protect, async (req, res) => {
-  res.status(501).json({ success: false, message: 'Not implemented', data: null });
+router.put('/me', protect, async (req, res, next) => {
+  try {
+    const { userId } = req.user || {};
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Not authenticated', data: null });
+    }
+
+    const { username, avatar } = req.body || {};
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found', data: null });
+    }
+
+    if (typeof username === 'string' && username.trim() && username.trim() !== user.username) {
+      const existing = await User.findOne({
+        username: username.trim(),
+        _id: { $ne: userId },
+      });
+
+      if (existing) {
+        return res.status(409).json({ success: false, message: 'Username already taken', data: null });
+      }
+
+      user.username = username.trim();
+    }
+
+    if (typeof avatar === 'string') {
+      user.avatar = avatar;
+    }
+
+    const updated = await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated',
+      data: {
+        _id: updated._id,
+        username: updated.username,
+        avatar: updated.avatar,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
