@@ -8,6 +8,7 @@ import {connectDB} from './db.js';
 import initSocket from './socket.js';
 
 import errorHandler from './middleware/errorHandler.js';
+import apiRoutes from './routes/index.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
@@ -23,6 +24,7 @@ app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
 // 路由挂载
+app.use('/api', apiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
