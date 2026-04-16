@@ -1,5 +1,9 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { User } from '../models/User.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
+import { registerRules, validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -10,8 +14,46 @@ const router = express.Router();
  * @body   { username, email, password }
  * @return { success, message, data: { token, user } }
  */
-router.post('/register', authLimiter, async (req, res) => {
-  res.status(501).json({ success: false, message: '待实现', data: null });
+router.post('/register', authLimiter, registerRules, validate, async (req, res, next) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // 检查用户名或邮箱是否已被占用
+    const existing = await User.findOne({ $or: [{ username }, { email }] });
+    if (existing) {
+      const field = existing.username === username ? '用户名' : '邮箱';
+      return res.status(409).json({ success: false, message: `${field}已被占用`, data: null });
+    }
+
+    // 加密密码
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 创建用户，name 默认与 username 相同，后续可通过 PUT /users/me 修改
+    const user = await User.create({ name: username, username, email, passwordHash });
+
+    // 签发 JWT
+    const token = jwt.sign(
+      { userId: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: '注册成功',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
