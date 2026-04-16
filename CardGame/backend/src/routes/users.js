@@ -13,8 +13,35 @@ const router = express.Router();
  * @access Public
  * @return { success, message, data: { username, avatar, createdAt, totalWins, totalGames, achievements } }
  */
-router.get('/:userId', async (req, res) => {
-  res.status(501).json({ success: false, message: 'Not implemented', data: null });
+router.get('/:userId', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid userId', data: null });
+    }
+
+    const user = await User.findById(userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found', data: null });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'OK',
+      data: {
+        username: user.username,
+        avatar: user.avatar ?? 'default',
+        createdAt: user.createdAt,
+        totalGames: user?.stats?.totalGames ?? 0,
+        totalWins: user?.stats?.totalWins ?? 0,
+        achievements: user.achievements ?? [],
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
