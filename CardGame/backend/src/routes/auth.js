@@ -110,7 +110,35 @@ router.post('/login', authLimiter, async (req, res) => {
  * @return { success, message, data: { token } }
  */
 router.post('/refresh', async (req, res) => {
-  res.status(501).json({ success: false, message: '待实现', data: null });
+  try {
+    const { refreshToken } = req.body || {};
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    const { userId, username } = decoded || {};
+    if (!userId || !username) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    const newToken = jwt.sign(
+      { userId, username },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.status(200).json({ token: newToken });
+  } catch {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
