@@ -101,7 +101,6 @@ router.post('/login', authLimiter, loginRules, validate, async (req, res, next) 
       message: '登录成功',
       data: {
         accessToken,
-        refreshToken,
         user: {
           id: user._id,
           username: user.username,
