@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
-import { registerRules, validate } from '../middleware/validate.js';
+import { registerRules, loginRules, validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -63,13 +63,9 @@ router.post('/register', authLimiter, registerRules, validate, async (req, res, 
  * @body   { email, password }
  * @return { success, message, data: { token, user } }
  */
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', authLimiter, loginRules, validate, async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
+    const { email, password } = req.body;
 
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
@@ -98,7 +94,7 @@ router.post('/login', authLimiter, async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 });
 
