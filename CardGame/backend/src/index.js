@@ -5,6 +5,7 @@ import http from 'http';
 import cors from 'cors';
 
 import {connectDB} from './db.js';
+import {connectRedis} from './redis.js';
 import initSocket from './socket.js';
 
 import errorHandler from './middleware/errorHandler.js';
@@ -38,10 +39,13 @@ async function start() {
   // 1. 初始化数据库
   await connectDB();
 
-  // 2. 初始化 socket
+  // 2. 初始化 Redis
+  await connectRedis();
+
+  // 3. 初始化 socket
   initSocket(server);
 
-  // 3. 启动服务
+  // 4. 启动服务
   server.listen(PORT, () => {
     console.log(`Backend listening on ${PORT}`);
   });

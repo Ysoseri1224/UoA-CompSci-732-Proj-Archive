@@ -37,17 +37,14 @@ export const registerRules = [
     .withMessage('密码至少 8 个字符'),
 ];
 
-/**
- * POST /api/auth/login 校验规则
- */
 export const loginRules = [
   body('email')
     .isEmail()
-    .withMessage('邮箱格式不正确')
+    .withMessage('Please provide a valid email')
     .normalizeEmail(),
   body('password')
     .notEmpty()
-    .withMessage('密码不能为空'),
+    .withMessage('Password is required'),
 ];
 
 export { validate };
