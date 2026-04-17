@@ -16,12 +16,12 @@ const UserSchema = new Schema({
     timestamps: {createdAt: 'createdAt', updatedAt: 'updatedAt'},
 });
 
-const User = mongoose.model('User', UserSchema);
-
 // Compare a plaintext password with the stored password hash.
 UserSchema.methods.comparePassword = async function (candidatePassword) {
     if (!this.passwordHash) return false;
     return bcrypt.compare(candidatePassword, this.passwordHash);
 };
+
+const User = mongoose.model('User', UserSchema);
 
 export {UserSchema, User}

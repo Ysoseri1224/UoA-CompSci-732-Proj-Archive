@@ -2,10 +2,14 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { redisClient } from '../redis.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
+import { protect } from '../middleware/auth.js';
 import { registerRules, loginRules, validate } from '../middleware/validate.js';
 
 const router = express.Router();
+
+const REFRESH_TTL = 7 * 24 * 60 * 60; // 7 天（秒）
 
 /**
  * @route  POST /api/auth/register
@@ -67,30 +71,43 @@ router.post('/login', authLimiter, loginRules, validate, async (req, res, next) 
   try {
     const { email, password } = req.body;
 
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
-
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: '邮箱或密码错误', data: null });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: '邮箱或密码错误', data: null });
     }
 
-    const token = jwt.sign(
+    // 签发短效 access token（15分钟）
+    const accessToken = jwt.sign(
       { userId: user._id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
     );
 
+    // 签发长效 refresh token（7天），存入 Redis
+    const refreshToken = jwt.sign(
+      { userId: user._id, username: user.username },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh',
+      { expiresIn: '7d' }
+    );
+    await redisClient.set(`refresh:${refreshToken}`, String(user._id), { EX: REFRESH_TTL });
+
     return res.status(200).json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
+      success: true,
+      message: '登录成功',
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
       },
     });
   } catch (err) {
@@ -105,35 +122,41 @@ router.post('/login', authLimiter, loginRules, validate, async (req, res, next) 
  * @body   { refreshToken }
  * @return { success, message, data: { token } }
  */
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', async (req, res, next) => {
   try {
     const { refreshToken } = req.body || {};
-
     if (!refreshToken) {
-      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+      return res.status(401).json({ success: false, message: 'refresh token 不能为空', data: null });
     }
 
+    // 验证 refresh token 签名
     let decoded;
     try {
-      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh');
     } catch {
-      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+      return res.status(401).json({ success: false, message: 'refresh token 无效或已过期', data: null });
     }
 
-    const { userId, username } = decoded || {};
-    if (!userId || !username) {
-      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    // 查 Redis，确认 token 未被登出撤销
+    const stored = await redisClient.get(`refresh:${refreshToken}`);
+    if (!stored) {
+      return res.status(401).json({ success: false, message: 'refresh token 已失效，请重新登录', data: null });
     }
 
-    const newToken = jwt.sign(
-      { userId, username },
+    // 签发新 access token
+    const accessToken = jwt.sign(
+      { userId: decoded.userId, username: decoded.username },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
     );
 
-    return res.status(200).json({ token: newToken });
-  } catch {
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(200).json({
+      success: true,
+      message: 'token 已刷新',
+      data: { accessToken },
+    });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -143,8 +166,16 @@ router.post('/refresh', async (req, res) => {
  * @access 需 JWT
  * @return { success, message, data: null }
  */
-router.post('/logout', async (req, res) => {
-  res.status(501).json({ success: false, message: '待实现', data: null });
+router.post('/logout', protect, async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body || {};
+    if (refreshToken) {
+      await redisClient.del(`refresh:${refreshToken}`);
+    }
+    return res.status(200).json({ success: true, message: '已登出', data: null });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
