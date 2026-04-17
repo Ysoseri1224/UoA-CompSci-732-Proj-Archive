@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
  * @query  sort (winRate | totalWins, 默认 winRate), page (默认1), limit (默认20)
  * @return { success, message, data: { rankings: [], total, page } }
  */
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', async (req, res, next) => {
   try {
     let {sort = 'winRate', page = '1', limit = '20'} = req.query;
 
@@ -50,6 +50,7 @@ router.get('/leaderboard', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid sort parameter',
+        data: null
       });
     }
 
@@ -104,11 +105,8 @@ router.get('/leaderboard', async (req, res) => {
         page: pageNum,
       },
     });
-  } catch {
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+  } catch (err) {
+    next(err);
   }
 });
 
