@@ -107,10 +107,10 @@ describe('Auth API Endpoints', () => {
       assert.equal(status, 201);
       assert.equal(body.success, true);
       assert.equal(body.message, '注册成功');
-      assert.ok(body.data.token, 'Token 应该存在');
+      assert.ok(body.data.accessToken, 'Token 应该存在');
       assert.equal(body.data.user.username, validUser.username);
       //Verify token payload
-      const decoded = jwt.verify(body.data.token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(body.data.accessToken, process.env.JWT_SECRET);
       assert.ok(decoded.userId);
       assert.equal(decoded.username, validUser.username);
       //Password hashes should not be exposed
