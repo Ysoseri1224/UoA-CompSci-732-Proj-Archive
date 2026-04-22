@@ -1,15 +1,15 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * JWT 认证中间件
- * 从请求头 Authorization: Bearer <token> 中提取并验证 JWT
- * 验证通过后将解码的用户信息挂载到 req.user
+ * JWT authentication middleware.
+ * Extracts and verifies the token from the Authorization: Bearer <token> header.
+ * Attaches the decoded user payload to req.user on success.
  */
 const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: '未提供认证 Token', data: null });
+    return res.status(401).json({ success: false, message: 'Authentication token is required', data: null });
   }
 
   const token = authHeader.split(' ')[1];
@@ -19,7 +19,7 @@ const protect = (req, res, next) => {
     req.user = decoded;
     next();
   } catch {
-    return res.status(401).json({ success: false, message: 'Token 无效或已过期', data: null });
+    return res.status(401).json({ success: false, message: 'Invalid or expired token', data: null });
   }
 };
 

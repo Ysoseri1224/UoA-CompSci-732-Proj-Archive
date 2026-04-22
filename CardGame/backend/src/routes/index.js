@@ -9,9 +9,9 @@ router.get('/', (req, res) => {
 
 /**
  * @route  GET /api/leaderboard
- * @desc   获取全局排行榜
- * @access 公开
- * @query  sort (winRate | totalWins, 默认 winRate), page (默认1), limit (默认20)
+ * @desc   Get global leaderboard
+ * @access Public
+ * @query  sort (winRate | totalWins, default winRate), page (default 1), limit (default 20)
  * @return { success, message, data: { rankings: [], total, page } }
  */
 router.get('/leaderboard', async (req, res, next) => {
