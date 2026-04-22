@@ -1,5 +1,8 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { protect } from '../middleware/auth.js';
+import { User } from '../models/User.js';
+
 const router = express.Router();
 
 /**
@@ -18,8 +21,35 @@ router.get('/:userId', async (req, res) => {
  * @access Public
  * @return { success, message, data: { totalGames, winRate, avgDuration, topSkills, bestSkill } }
  */
-router.get('/:userId/stats', async (req, res) => {
-  res.status(501).json({ success: false, message: 'Not implemented', data: null });
+router.get('/:userId/stats', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid userId', data: null });
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found', data: null });
+    }
+
+    const totalGames = user.stats?.totalGames ?? 0;
+    const totalWins = user.stats?.totalWins ?? 0;
+    const winRate = totalGames > 0 ? totalWins / totalGames : 0;
+
+    return res.status(200).json({
+      success: true,
+      message: 'OK',
+      data: {
+        totalGames,
+        totalWins,
+        winRate: Math.round(winRate * 10000) / 10000,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
