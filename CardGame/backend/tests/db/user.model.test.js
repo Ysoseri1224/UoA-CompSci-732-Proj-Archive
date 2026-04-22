@@ -18,6 +18,7 @@ after(async () => {
 
 test('User requires name, username, and passwordHash', async () => {
     const user = new User({
+        email: 'missing-name@example.com',
         username: 'missing-name',
     });
 
@@ -31,6 +32,7 @@ test('User requires name, username, and passwordHash', async () => {
 
 test('User stats default to zero', async () => {
     const user = await User.create({
+        email: 'alice@example.com',
         name: 'Alice',
         username: 'alice',
         passwordHash: 'hashed-password',
@@ -42,6 +44,7 @@ test('User stats default to zero', async () => {
 
 test('User creates timestamps', async () => {
     const user = await User.create({
+        email: 'bob@example.com',
         name: 'Bob',
         username: 'bob',
         passwordHash: 'hashed-password',
@@ -53,6 +56,7 @@ test('User creates timestamps', async () => {
 
 test('User username must be unique', async () => {
     await User.create({
+        email: 'alice@example.com',
         name: 'Alice',
         username: 'alice',
         passwordHash: 'hashed-password',
@@ -60,6 +64,7 @@ test('User username must be unique', async () => {
 
     await assert.rejects(
         User.create({
+            email: 'alice-2@example.com',
             name: 'Alice 2',
             username: 'alice',
             passwordHash: 'hashed-password-2',
@@ -70,4 +75,3 @@ test('User username must be unique', async () => {
         }
     );
 });
-
