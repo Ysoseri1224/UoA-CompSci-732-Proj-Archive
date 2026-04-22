@@ -3,13 +3,11 @@ import client from './client.js';
 // ---------------------------------------------------------------------------
 // Auth API — POST /api/auth/*
 //
-// BACKEND INCONSISTENCY (reported, not fixed here):
-//   POST /api/auth/register  returns  { data: { token,       user } }
-//   POST /api/auth/login     returns  { data: { accessToken, user } }
+// Both register and login return the same shape (unified in backend PR #48):
+//   { data: { accessToken, user } }
 //
-// Both functions below normalise the response to the same shape:
+// Both functions below return:
 //   { accessToken, user }
-// so that the auth store (PR 4) can handle both without branching.
 // ---------------------------------------------------------------------------
 
 /**
@@ -22,8 +20,7 @@ import client from './client.js';
 export async function register(username, email, password) {
   const res = await client.post('/api/auth/register', { username, email, password });
   return {
-    // Backend returns `token` for register — normalise to `accessToken`.
-    accessToken: res.data.data.token,
+    accessToken: res.data.data.accessToken,
     user: res.data.data.user,
   };
 }
