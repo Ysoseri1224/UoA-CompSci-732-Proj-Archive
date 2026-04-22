@@ -1,5 +1,6 @@
 ## Dev tips
 - Document public utilities in `CardGame/docs/` when you change behavior.
+- When adding logs, follow the logging API documented in CardGame/docs/logger.md.
 - Use the project's existing package manager when installing dependencies if detected (check for lockfiles: package-lock.json, yarn.lock, pnpm-lock.yaml).
 - If no package manager is detected, default to pnpm.
 - Ask for confirmation before adding new production dependencies.

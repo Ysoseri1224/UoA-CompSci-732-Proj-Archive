@@ -33,15 +33,4 @@ router.get('/:matchId/replay', protect, async (req, res) => {
   res.status(501).json({ success: false, message: '待实现', data: null });
 });
 
-/**
- * @route  GET /api/leaderboard
- * @desc   获取全局排行榜
- * @access 公开
- * @query  sort (winRate | totalWins, 默认 winRate), page (默认1), limit (默认20)
- * @return { success, message, data: { rankings: [], total, page } }
- */
-router.get('/leaderboard', async (req, res) => {
-  res.status(501).json({ success: false, message: '待实现', data: null });
-});
-
 export default router;
