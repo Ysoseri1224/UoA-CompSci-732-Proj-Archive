@@ -1,5 +1,10 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 import { protect } from '../middleware/auth.js';
+import { User } from '../models/User.js';
+import { changePasswordRules, validate } from '../middleware/validate.js';
+
 const router = express.Router();
 
 /**
@@ -50,8 +55,33 @@ router.put('/me', protect, async (req, res) => {
  * @body   { oldPassword, newPassword }
  * @return { success, message, data: null }
  */
-router.put('/me/password', protect, async (req, res) => {
-  res.status(501).json({ success: false, message: 'Not implemented', data: null });
+router.put('/me/password', protect, changePasswordRules, validate, async (req, res, next) => {
+  try {
+    const { userId } = req.user || {};
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Not authenticated', data: null });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found', data: null });
+    }
+
+    const isMatch = await user.comparePassword(oldPassword);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Old password incorrect', data: null });
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return res.status(200).json({ success: true, message: 'Password changed', data: null });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
