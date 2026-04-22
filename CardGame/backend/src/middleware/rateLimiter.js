@@ -1,11 +1,11 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * 认证接口限流
- * 默认：每个 IP 15 分钟内最多 10 次请求
- * 可通过环境变量覆盖：
- *   RATE_LIMIT_WINDOW_MS  窗口时长（毫秒）
- *   RATE_LIMIT_MAX        最大请求次数
+ * Rate limiter for authentication endpoints.
+ * Defaults: max 10 requests per IP per 15 minutes.
+ * Override via environment variables:
+ *   RATE_LIMIT_WINDOW_MS  Window duration in milliseconds
+ *   RATE_LIMIT_MAX        Maximum number of requests per window
  */
 const authLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -14,7 +14,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     success: false,
-    message: '请求过于频繁，请稍后再试',
+    message: 'Too many requests, please try again later',
     data: null,
   },
 });

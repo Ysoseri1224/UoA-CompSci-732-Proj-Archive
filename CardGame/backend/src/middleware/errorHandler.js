@@ -1,10 +1,13 @@
 /**
- * 全局错误处理中间件
- * 必须挂载在所有路由之后，参数列表必须是 (err, req, res, next) 四个才会被 Express 识别为错误处理器
+ * Global error handling middleware.
+ * Must be mounted after all routes. The four-argument signature (err, req, res, next)
+ * is required for Express to recognise this as an error handler.
  */
 const errorHandler = (err, req, res, next) => {
+  // Keep the fourth arg so Express recognizes this as an error handler.
+  void next;
   const status = err.status || err.statusCode || 500;
-  const message = err.message || '服务器内部错误';
+  const message = err.message || 'Internal server error';
 
   res.status(status).json({
     success: false,

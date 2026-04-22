@@ -47,7 +47,7 @@ POST /api/auth/register
   "success": true,
   "message": "注册成功",
   "data": {
-    "token": "<JWT>",
+    "accessToken": "<JWT>",
     "user": {
       "_id": "664a...",
       "username": "player01",
@@ -85,7 +85,7 @@ POST /api/auth/login
   "success": true,
   "message": "登录成功",
   "data": {
-    "token": "<JWT>",
+    "accessToken": "<JWT>",
     "user": {
       "_id": "664a...",
       "username": "player01",
@@ -118,7 +118,7 @@ POST /api/auth/refresh
 {
   "success": true,
   "message": "Token 已刷新",
-  "data": { "token": "<新 JWT>" }
+  "data": { "accessToken": "<新 JWT>" }
 }
 ```
 

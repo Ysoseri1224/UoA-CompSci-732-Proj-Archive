@@ -8,7 +8,9 @@ import {connectDB} from './db.js';
 import {connectRedis} from './redis.js';
 import initSocket from './socket.js';
 
+import {loggerMiddleWare} from "./middleware/logger.js";
 import errorHandler from './middleware/errorHandler.js';
+import apiRoutes from './routes/index.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
@@ -19,33 +21,36 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
-// 中间件
+// Middleware
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
-// 路由挂载
+app.use(loggerMiddleWare);
+
+// Route mounting
+app.use('/api', apiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/achievements', achievementRoutes);
 
-// 健康检查
+// Health check
 app.get('/', (req, res) => res.json({ success: true, message: 'Backend API is running', data: null }));
 
-// 全局错误处理（必须在所有路由之后）
+// Global error handler (must be after all routes)
 app.use(errorHandler);
 
 async function start() {
-  // 1. 初始化数据库
+  // 1. Connect to database
   await connectDB();
 
-  // 2. 初始化 Redis
+  // 2. Connect to Redis
   await connectRedis();
 
-  // 3. 初始化 socket
+  // 3. Initialise Socket.io
   initSocket(server);
 
-  // 4. 启动服务
+  // 4. Start server
   server.listen(PORT, () => {
     console.log(`Backend listening on ${PORT}`);
   });

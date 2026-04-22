@@ -1,10 +1,10 @@
-import { validationResult } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 
 /**
- * 校验结果检查中间件
- * 配合 express-validator 的校验规则使用：
+ * Validation result checker middleware.
+ * Used together with express-validator rule arrays:
  * router.post('/register', registerRules, validate, handler)
- * 若存在校验错误则直接返回 400，不进入业务处理函数
+ * Returns 400 with the first validation error if any rules fail.
  */
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -19,22 +19,20 @@ const validate = (req, res, next) => {
 };
 
 /**
- * POST /api/auth/register 校验规则
+ * POST /api/auth/register validation rules
  */
-import { body } from 'express-validator';
-
 export const registerRules = [
   body('username')
     .trim()
     .isLength({ min: 3, max: 20 })
-    .withMessage('用户名长度须在 3-20 个字符之间'),
+    .withMessage('Username must be between 3 and 20 characters'),
   body('email')
     .isEmail()
-    .withMessage('邮箱格式不正确')
+    .withMessage('Please provide a valid email address')
     .normalizeEmail(),
   body('password')
     .isLength({ min: 8 })
-    .withMessage('密码至少 8 个字符'),
+    .withMessage('Password must be at least 8 characters'),
 ];
 
 export const loginRules = [
@@ -45,6 +43,18 @@ export const loginRules = [
   body('password')
     .notEmpty()
     .withMessage('Password is required'),
+];
+
+/**
+ * PUT /api/users/me/password validation rules
+ */
+export const changePasswordRules = [
+  body('oldPassword')
+    .notEmpty()
+    .withMessage('Current password is required'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('New password must be at least 8 characters'),
 ];
 
 export { validate };
