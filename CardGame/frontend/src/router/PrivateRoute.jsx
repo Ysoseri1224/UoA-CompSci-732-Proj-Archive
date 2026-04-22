@@ -1,10 +1,12 @@
 import { Navigate } from 'react-router-dom';
 
+const TOKEN_KEY = 'token';
+
 // Guards a route so only authenticated users can access it.
-// In this PR we check for a token in localStorage as a simple proxy for "logged in".
-// This will be replaced with a proper authStore check in PR 4.
+// Checks for a token in localStorage as a simple proxy for "logged in".
+// Will be replaced with a proper authStore check once the auth store is in place.
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(TOKEN_KEY);
 
   if (!token) {
     // No token found — redirect to the login page.

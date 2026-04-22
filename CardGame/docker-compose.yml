@@ -9,6 +9,13 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/balatro_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=dev_jwt_secret_change_in_production
+      - JWT_REFRESH_SECRET=dev_refresh_secret_change_in_production
+      - JWT_EXPIRES_IN=15m
+      - CLIENT_ORIGIN=http://localhost:5173
     depends_on:
       - mongo
       - redis
@@ -22,6 +29,7 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
 
   mongo:
     image: mongo:7
