@@ -1,7 +1,11 @@
+import { RouterProvider } from 'react-router-dom';
+import router from './router/index.jsx';
+
 // Root application component.
-// Routing, global providers, and layout will be added in subsequent PRs.
+// Passes the router configuration to React Router's RouterProvider.
+// Global providers (auth context, error toasts, etc.) will wrap this in later PRs.
 function App() {
-  return <div>App</div>;
+  return <RouterProvider router={router} />;
 }
 
 export default App;
