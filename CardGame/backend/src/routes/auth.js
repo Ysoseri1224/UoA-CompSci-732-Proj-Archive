@@ -36,7 +36,7 @@ router.post('/register', authLimiter, registerRules, validate, async (req, res, 
     const user = await User.create({ name: username, username, email, passwordHash });
 
     // 签发 JWT
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { userId: user._id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -46,7 +46,7 @@ router.post('/register', authLimiter, registerRules, validate, async (req, res, 
       success: true,
       message: '注册成功',
       data: {
-        token,
+        accessToken,
         user: {
           id: user._id,
           username: user.username,
