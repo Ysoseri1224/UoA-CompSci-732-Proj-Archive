@@ -21,7 +21,6 @@ const validate = (req, res, next) => {
 /**
  * POST /api/auth/register validation rules
  */
-
 export const registerRules = [
   body('username')
     .trim()
