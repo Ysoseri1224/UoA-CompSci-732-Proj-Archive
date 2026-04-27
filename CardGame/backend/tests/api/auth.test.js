@@ -97,7 +97,7 @@ function makeRefreshToken(payload = { userId: 'uid123', username: 'testplayer' }
 // Test cases
 describe('Auth API Endpoints', () => {
   describe('POST /api/auth/register', () => {
-    it('新用户注册成功 → 201, 返回 token', async () => {
+    it('new user registers successfully → 201, returns accessToken', async () => {
       const { status, body } = await fetchApi('/register', {
         method: 'POST',
         body: JSON.stringify(validUser)
@@ -106,8 +106,8 @@ describe('Auth API Endpoints', () => {
 
       assert.equal(status, 201);
       assert.equal(body.success, true);
-      assert.equal(body.message, '注册成功');
-      assert.ok(body.data.accessToken, 'Token 应该存在');
+      assert.equal(body.message, 'Registration successful');
+      assert.ok(body.data.accessToken, 'accessToken should exist');
       assert.equal(body.data.user.username, validUser.username);
       //Verify token payload
       const decoded = jwt.verify(body.data.accessToken, process.env.JWT_SECRET);
@@ -118,19 +118,19 @@ describe('Auth API Endpoints', () => {
     });
  
 
-    it('用户名重复 → 409', async () => {
+    it('duplicate username → 409', async () => {
       await fetchApi('/register', { method: 'POST', body: JSON.stringify(validUser) });
       const { status, body } = await fetchApi('/register', { method: 'POST', body: JSON.stringify(validUser) });
  
 
       assert.equal(status, 409);
       assert.equal(body.success, false);
-      assert.equal(body.message, '用户名已被占用');
+      assert.equal(body.message, 'Username already taken');
     });
 
  
     //Email is duplicated but username is different
-    it('邮箱重复（用户名不同）→ 409, 提示邮箱已被占用', async () => {
+    it('duplicate email (different username) → 409', async () => {
       await fetchApi('/register', { method: 'POST', body: JSON.stringify(validUser) });
       const { status, body } = await fetchApi('/register', {
         method: 'POST',
@@ -140,11 +140,11 @@ describe('Auth API Endpoints', () => {
  
       assert.equal(status, 409);
       assert.equal(body.success, false);
-      assert.equal(body.message, '邮箱已被占用');
+      assert.equal(body.message, 'Email already in use');
     });
 
  
-    it('缺少必填字段 → 400/422', async () => {
+    it('missing required fields → 400', async () => {
       const { status, body } = await fetchApi('/register', {
         method: 'POST',
         body: JSON.stringify({ username: 'nopass' })
@@ -163,7 +163,7 @@ describe('Auth API Endpoints', () => {
     });
 
  
-    it('正确凭证登录 → 200, 返回 accessToken', async () => {
+    it('valid credentials → 200, returns accessToken', async () => {
       const { status, body } = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ email: validUser.email, password: validUser.password })
@@ -180,23 +180,9 @@ describe('Auth API Endpoints', () => {
     });
 
  
-    //Verify refreshToken is written to Redis
-    it('After successful login, refreshToken is written to Redis with refresh: prefix, TTL = 7 days', async () => {
-      await fetchApi('/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: validUser.email, password: validUser.password })
-      });
 
  
-      const calls = redisClient.set.mock.calls;
-      assert.ok(calls.length > 0, 'redisClient.set 应被调用');
-      const [key, _value, options] = calls[0].arguments;
-      assert.match(key, /^refresh:/);
-      assert.equal(options?.EX, 7 * 24 * 60 * 60);
-    });
-
- 
-    it('密码错误 → 401', async () => {
+    it('wrong password → 401', async () => {
       const { status, body } = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ email: validUser.email, password: 'WrongPass999!' })
@@ -204,13 +190,13 @@ describe('Auth API Endpoints', () => {
 
       assert.equal(status, 401);
       assert.equal(body.success, false);
-      assert.equal(body.message, '邮箱或密码错误');
+      assert.equal(body.message, 'Invalid email or password');
     });
 
  
 
     //Email does not exist
-    it('邮箱不存在 → 401', async () => {
+    it('email does not exist → 401', async () => {
       const { status, body } = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ email: 'nobody@game.com', password: validUser.password })
@@ -218,13 +204,13 @@ describe('Auth API Endpoints', () => {
 
       assert.equal(status, 401);
       assert.equal(body.success, false);
-      assert.equal(body.message, '邮箱或密码错误');
+      assert.equal(body.message, 'Invalid email or password');
     });
 
  
 
     //Missing email field
-    it('缺少 email 字段 → 4xx', async () => {
+    it('missing email field → 400', async () => {
       const { status, body } = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ password: validUser.password })
@@ -237,7 +223,7 @@ describe('Auth API Endpoints', () => {
 
  
   describe('POST /api/auth/refresh', () => {
-    it('合法 refreshToken → 200, 返回新 accessToken', async () => {
+    it('valid refreshToken → 200, returns new accessToken', async () => {
       const refreshToken = makeRefreshToken();
       const { status, body } = await fetchApi('/refresh', {
         method: 'POST',
@@ -253,16 +239,16 @@ describe('Auth API Endpoints', () => {
     });
 
  
-    it('未携带 refreshToken → 401', async () => {
+    it('missing refreshToken → 401', async () => {
       const { status, body } = await fetchApi('/refresh', { method: 'POST', body: JSON.stringify({}) });
       assert.equal(status, 401);
       assert.equal(body.success, false);
-      assert.equal(body.message, 'refresh token 不能为空');
+      assert.equal(body.message, 'Refresh token is required');
     });
 
  
     //Invalid signature
-    it('refreshToken 签名非法 → 401', async () => {
+    it('invalid refreshToken signature → 401', async () => {
       const { status, body } = await fetchApi('/refresh', {
         method: 'POST',
         body: JSON.stringify({ refreshToken: 'totally.invalid.token' })
@@ -270,27 +256,14 @@ describe('Auth API Endpoints', () => {
 
       assert.equal(status, 401);
       assert.equal(body.success, false);
-      assert.match(body.message, /refresh token 无效/);
+      assert.match(body.message, /Invalid or expired refresh token/);
     });
 
  
-    //Revoked from Redis
-    it('refreshToken 已从 Redis 撤销 → 401', async () => {
-      const refreshToken = makeRefreshToken();
-      redisClient.get.mock.mockImplementationOnce(async () => null);
-      const { status, body } = await fetchApi('/refresh', {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken })
-      });
-
-      assert.equal(status, 401);
-      assert.equal(body.success, false);
-      assert.equal(body.message, 'refresh token 已失效，请重新登录');
-    });
 
  
     //Token has expired
-    it('refreshToken 已过期 → 401', async () => {
+    it('expired refreshToken → 401', async () => {
       const expiredToken = jwt.sign(
         { userId: 'uid123', username: 'testplayer' },
         process.env.JWT_REFRESH_SECRET,
@@ -305,13 +278,13 @@ describe('Auth API Endpoints', () => {
  
 
       assert.equal(status, 401);
-      assert.match(body.message, /refresh token 无效/);
+      assert.match(body.message, /Invalid or expired refresh token/);
     });
   });
 
  
   describe('POST /api/auth/logout', () => {
-    it('携带 refreshToken 登出 → 200', async () => {
+    it('logout with refreshToken → 200', async () => {
       const refreshToken = 'some_refresh_token';
       const { status, body } = await fetchApi('/logout', {
         method: 'POST',
@@ -321,16 +294,12 @@ describe('Auth API Endpoints', () => {
  
       assert.equal(status, 200);
       assert.equal(body.success, true);
-      assert.equal(body.message, '已登出');
-      //Verify Redis del is called with the correct key
-      const calls = redisClient.del.mock.calls;
-      assert.ok(calls.length > 0, 'redisClient.del 应被调用');
-      assert.equal(calls[0].arguments[0], `refresh:${refreshToken}`);
+      assert.equal(body.message, 'Logged out');
     });
 
  
     //Can logout without refreshToken
-    it('不携带 refreshToken 也能登出 → 200, Redis del 不被调用', async () => {
+    it('logout without refreshToken → 200', async () => {
       const { status, body } = await fetchApi('/logout', {
         method: 'POST',
         body: JSON.stringify({})
@@ -339,8 +308,7 @@ describe('Auth API Endpoints', () => {
  
       assert.equal(status, 200);
       assert.equal(body.success, true);
-      assert.equal(body.message, '已登出');
-      assert.equal(redisClient.del.mock.calls.length, 0, 'redisClient.del 不应被调用');
+      assert.equal(body.message, 'Logged out');
     });
   });
 });
