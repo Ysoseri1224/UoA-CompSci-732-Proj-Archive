@@ -1,4 +1,5 @@
 import client from './client.js';
+import { getRefreshToken } from '../utils/tokenUtils.js';
 
 // ---------------------------------------------------------------------------
 // Auth API — POST /api/auth/*
@@ -40,21 +41,23 @@ export async function login(email, password) {
 }
 
 /**
- * Invalidate the current session by deleting the refresh token from Redis.
+ * Invalidate the current session.
+ * Reads the refresh token from localStorage automatically.
  * The access token itself expires naturally (15 min TTL).
- * @param {string} [refreshToken] - Pass the stored refresh token if available.
  */
-export async function logout(refreshToken) {
+export async function logout() {
+  const refreshToken = getRefreshToken();
   await client.post('/api/auth/logout', { refreshToken });
 }
 
 /**
  * Exchange a valid refresh token for a new access token.
+ * Reads the refresh token from localStorage automatically.
  * Called by the auth store's auto-refresh logic (added in PR 4).
- * @param {string} refreshToken
  * @returns {{ accessToken: string }}
  */
-export async function refreshAccessToken(refreshToken) {
+export async function refreshAccessToken() {
+  const refreshToken = getRefreshToken();
   const res = await client.post('/api/auth/refresh', { refreshToken });
   return {
     accessToken: res.data.data.accessToken,

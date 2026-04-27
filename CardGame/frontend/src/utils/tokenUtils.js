@@ -1,11 +1,8 @@
-// Helpers for reading and writing the access token in localStorage.
-// Centralising the key name here means we only need to change it in one place.
-//
-// NOTE: PrivateRoute (PR 2) currently reads localStorage.getItem('token') directly.
-// That will be replaced with authStore.isAuthenticated in PR 4; until then both
-// must use the same key — 'token'.
+// Helpers for reading and writing auth tokens in localStorage.
+// Centralising the key names here means we only need to change them in one place.
 
 const TOKEN_KEY = 'token';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 /** Return the stored access token, or null if none exists. */
 export function getToken() {
@@ -20,4 +17,19 @@ export function setToken(token) {
 /** Remove the access token from localStorage (called on logout or auth failure). */
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+/** Return the stored refresh token, or null if none exists. */
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+/** Persist the refresh token to localStorage. */
+export function setRefreshToken(token) {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+/** Remove the refresh token from localStorage. */
+export function clearRefreshToken() {
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
