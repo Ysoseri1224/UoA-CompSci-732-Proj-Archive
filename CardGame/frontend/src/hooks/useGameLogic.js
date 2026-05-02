@@ -103,6 +103,8 @@ export function useGameLogic() {
   const [bossMaxHp, setBossMaxHp] = useState(300);
   const [floor,     setFloor]     = useState(1);
   const [gameOver,  setGameOver]  = useState(null);
+  const [battlePhase, setBattlePhase] = useState(null); // null | 'player' | 'boss' | 'shield_break'
+const [bossAttacking, setBossAttacking] = useState(false);
 
   const selectedCards = useMemo(
     () => selected.map(id => hand.find(c => c.id === id)).filter(Boolean),
@@ -135,39 +137,59 @@ export function useGameLogic() {
   }, [discards, selected]);
 
   const playHand = useCallback(() => {
-    if (selected.length === 0 || gameOver) return;
-
-    const score      = evaluation.totalScore;
-    const newBossHp  = bossHp - score;
-
+    if (selected.length === 0 || gameOver || battlePhase) return;
+  
+    const score     = evaluation.totalScore;
+    const newBossHp = bossHp - score;
+  
     setLastScore(score);
     setTotalScore(prev => prev + score);
-
-    if (newBossHp <= 0) {
-      const nextFloor     = floor + 1;
-      const nextBossMaxHp = Math.round(300 * Math.pow(1.5, nextFloor - 1));
-      setBossHp(nextBossMaxHp);
-      setBossMaxHp(nextBossMaxHp);
-      setFloor(nextFloor);
-      setPlayerHp(20);
-    } else {
-        // Boss 存活 → 扣玩家血（护盾可免疫一次）
-        setBossHp(newBossHp);
+    setBattlePhase('player'); // 玩家攻击阶段
   
-        if (skillCooldowns.shield) {
-          // 护盾吸收伤害，碎裂
-          setSkillCooldowns(prev => ({ ...prev, shield: false }));
-        } else {
-          const newPlayerHp = playerHp - 5;
-          if (newPlayerHp <= 0) {
-            setPlayerHp(0);
-            setGameOver('lose');
-            return;
+    if (newBossHp <= 0) {
+      // Boss 被击杀
+      setBossHp(0);
+      setTimeout(() => {
+        const nextFloor     = floor + 1;
+        const nextBossMaxHp = Math.round(300 * Math.pow(1.5, nextFloor - 1));
+        setBossHp(nextBossMaxHp);
+        setBossMaxHp(nextBossMaxHp);
+        setFloor(nextFloor);
+        setPlayerHp(20);
+        setBattlePhase(null);
+      }, 1200);
+    } else {
+      // Boss 存活，延迟后Boss反击
+      setBossHp(newBossHp);
+  
+      setTimeout(() => {
+        setBattlePhase('boss');
+        setBossAttacking(true);
+  
+        setTimeout(() => {
+          setBossAttacking(false);
+  
+          if (skillCooldowns.shield) {
+            // 护盾吸收
+            setBattlePhase('shield_break');
+            setSkillCooldowns(prev => ({ ...prev, shield: false }));
+            setTimeout(() => setBattlePhase(null), 800);
+          } else {
+            const newPlayerHp = playerHp - 5;
+            if (newPlayerHp <= 0) {
+              setPlayerHp(0);
+              setGameOver('lose');
+              setBattlePhase(null);
+              return;
+            }
+            setPlayerHp(newPlayerHp);
+            setTimeout(() => setBattlePhase(null), 600);
           }
-          setPlayerHp(newPlayerHp);
-        }
-      }
-
+        }, 800);
+    }, 1400);
+    }
+  
+    // 补牌
     setState(prev => {
       const kept    = prev.hand.filter(c => !selected.includes(c.id));
       const needed  = HAND_SIZE - kept.length;
@@ -177,7 +199,7 @@ export function useGameLogic() {
       const rest    = newDeck.slice(needed);
       return { hand: [...kept, ...drawn], deck: rest };
     });
-
+  
     setSelected([]);
     setDiscards(MAX_DISCARDS);
     setRound(r => r + 1);
@@ -186,7 +208,7 @@ export function useGameLogic() {
       changeCost:  false,
       shield:      prev.shield,
     }));
-}, [selected, evaluation, bossHp, playerHp, floor, gameOver, skillCooldowns.shield]);
+  }, [selected, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
 
   const clearSelected = useCallback(() => setSelected([]), []);
 
@@ -310,5 +332,7 @@ export function useGameLogic() {
     skillChangeCost,
     skillActivateShield,
     breakShield,
+    battlePhase,
+bossAttacking,
   };
 }
