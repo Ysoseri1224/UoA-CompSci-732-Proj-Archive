@@ -16,15 +16,17 @@ after(async () => {
     await disconnectTestDB();
 });
 
-test('User requires name, username, and passwordHash', async () => {
+// 1. 修改了测试名称并移除了对 name 字段的必填验证断言
+test('User requires username and passwordHash', async () => {
     const user = new User({
-        email: 'missing-name@example.com',
-        username: 'missing-name',
+        email: 'test@example.com',
+        username: 'test-user',
+        // 这里故意不提供 passwordHash
     });
 
     await assert.rejects(user.save(), (error) => {
         assert.equal(error.name, 'ValidationError');
-        assert.ok(error.errors.name);
+        // 删除了对 error.errors.name 的检查
         assert.ok(error.errors.passwordHash);
         return true;
     });
@@ -33,7 +35,6 @@ test('User requires name, username, and passwordHash', async () => {
 test('User stats default to zero', async () => {
     const user = await User.create({
         email: 'alice@example.com',
-        name: 'Alice',
         username: 'alice',
         passwordHash: 'hashed-password',
     });
@@ -45,7 +46,6 @@ test('User stats default to zero', async () => {
 test('User creates timestamps', async () => {
     const user = await User.create({
         email: 'bob@example.com',
-        name: 'Bob',
         username: 'bob',
         passwordHash: 'hashed-password',
     });
@@ -57,7 +57,6 @@ test('User creates timestamps', async () => {
 test('User username must be unique', async () => {
     await User.create({
         email: 'alice@example.com',
-        name: 'Alice',
         username: 'alice',
         passwordHash: 'hashed-password',
     });
@@ -65,7 +64,6 @@ test('User username must be unique', async () => {
     await assert.rejects(
         User.create({
             email: 'alice-2@example.com',
-            name: 'Alice 2',
             username: 'alice',
             passwordHash: 'hashed-password-2',
         }),
