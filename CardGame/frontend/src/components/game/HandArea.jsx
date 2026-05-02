@@ -17,12 +17,13 @@ export default function HandArea({
       gap: 10,
       padding: '0 80px 12px 16px',
       background: `
-        linear-gradient(0deg,
-          rgba(0,0,0,0.95) 0%,
-          rgba(10,8,4,0.85) 60%,
-          transparent 100%
-        )
-      `,
+      linear-gradient(0deg,
+        rgba(0,0,0,0.7) 0%,
+        rgba(0,0,0,0.3) 40%,
+        transparent 100%
+      ),
+      url('/images/handarea.png') center/cover no-repeat
+    `,
       borderTop:  '1px solid rgba(120,80,20,0.3)',
       flexShrink: 0,
       overflow:   'visible',
