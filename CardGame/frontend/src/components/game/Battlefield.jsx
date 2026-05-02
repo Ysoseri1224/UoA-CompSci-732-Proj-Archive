@@ -23,20 +23,13 @@ function DamageFloat({ value }) {
 }
 
 export default function Battlefield({
-  playerHp, playerMaxHp,
   bossHp, bossMaxHp,
-  floor, shieldActive, lastScore,
+  floor, lastScore,
 }) {
-  const bossHpPct   = Math.max(0, (bossHp   / bossMaxHp)   * 100);
-  const playerHpPct = Math.max(0, (playerHp / playerMaxHp) * 100);
-
-  // 飘字
-  const [floats,   setFloats]   = useState([]);
-  const prevScore               = useRef(null);
-
-  // Boss 受击闪烁
-  const [bossHit,  setBossHit]  = useState(false);
-  const prevBossHp              = useRef(bossHp);
+  const [floats,  setFloats]  = useState([]);
+  const prevScore             = useRef(null);
+  const [bossHit, setBossHit] = useState(false);
+  const prevBossHp            = useRef(bossHp);
 
   useEffect(() => {
     if (lastScore && lastScore !== prevScore.current) {
@@ -70,39 +63,28 @@ export default function Battlefield({
           60%     { transform: translateX(-4px); }
           80%     { transform: translateX(4px); }
         }
-        @keyframes shieldPulse {
-          0%,100% { box-shadow: 0 0 12px rgba(59,130,246,0.4), 0 0 24px rgba(59,130,246,0.2); }
-          50%     { box-shadow: 0 0 24px rgba(59,130,246,0.8), 0 0 48px rgba(59,130,246,0.4); }
-        }
-        @keyframes shieldRing {
-          0%   { transform: scale(1);   opacity: 0.6; }
-          100% { transform: scale(1.5); opacity: 0; }
-        }
       `}</style>
 
       <div style={{
         position: 'relative', flex: 1,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
-        borderLeft:  '1px solid rgba(120,80,20,0.3)',
-        borderRight: '1px solid rgba(120,80,20,0.3)',
+        borderLeft:  '1px solid rgba(200,160,70,0.2)',
+        borderRight: '1px solid rgba(200,160,70,0.2)',
         background: `
-          radial-gradient(ellipse 70% 35% at 50% 5%,  rgba(100,20,20,0.25) 0%, transparent 100%),
-          radial-gradient(ellipse 70% 35% at 50% 95%, rgba(20,70,20,0.25)  0%, transparent 100%),
-          repeating-linear-gradient(45deg,
-            transparent, transparent 50px,
-            rgba(255,255,255,0.004) 50px, rgba(255,255,255,0.004) 51px
+          repeating-linear-gradient(
+            0deg,
+            transparent, transparent 59px,
+            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
           ),
-          linear-gradient(180deg, #08100a 0%, #0e180a 50%, #08100a 100%)
+          repeating-linear-gradient(
+            90deg,
+            transparent, transparent 59px,
+            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
+          ),
+          url('/images/battlefield.png') center/cover no-repeat
         `,
       }}>
-
-        {/* 中央分界线 */}
-        <div style={{
-          position: 'absolute', left: '6%', right: '6%', top: '50%',
-          height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(200,160,70,0.35) 30%, rgba(200,160,70,0.35) 70%, transparent)',
-        }} />
 
         {/* 层数标签 */}
         <div style={{
@@ -125,11 +107,11 @@ export default function Battlefield({
           )}
         </div>
 
-        {/* ── 上半 BOSS ── */}
+        {/* ── BOSS 区域（占满全部） ── */}
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          gap: 12, paddingBottom: 24, paddingTop: 40,
+          gap: 12, paddingTop: 40,
           position: 'relative',
         }}>
 
@@ -138,212 +120,183 @@ export default function Battlefield({
 
           {/* Boss 红色氛围光 */}
           <div style={{
-            position: 'absolute', top: '10%', left: '50%',
+            position: 'absolute', top: '20%', left: '50%',
             transform: 'translateX(-50%)',
-            width: 160, height: 160,
+            width: 200, height: 200,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(180,20,20,0.2) 0%, transparent 70%)',
-            filter: 'blur(20px)',
+            background: 'radial-gradient(circle, rgba(180,20,20,0.25) 0%, transparent 70%)',
+            filter: 'blur(24px)',
             pointerEvents: 'none',
           }} />
 
-          {/* Boss 头像 */}
+          {/* Boss 炉石风格卡牌 */}
           <div style={{
             position: 'relative',
+            width: 140, height: 190,
             animation: bossHit ? 'bossShake 0.4s ease' : 'none',
+            filter: bossHit ? 'brightness(1.6) saturate(1.3)' : 'brightness(1)',
+            transition: 'filter 0.15s',
           }}>
+            {/* 卡牌底层阴影光晕 */}
             <div style={{
-              width: 90, height: 90, borderRadius: '50%',
-              border: `2px solid ${bossHit ? '#ff4444' : '#7f1d1d'}`,
+              position: 'absolute', inset: -12,
+              borderRadius: '50%',
               background: bossHit
-                ? 'radial-gradient(circle at 40% 30%, #991b1b, #450a0a)'
-                : 'radial-gradient(circle at 40% 30%, #3a0808, #1c0404)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 42,
-              boxShadow: bossHit
-                ? '0 0 30px rgba(255,50,50,0.7), inset 0 0 20px rgba(255,0,0,0.2)'
-                : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
-              transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
-              position: 'relative',
-            }}>
-              🧙
-              <div style={{
-                position: 'absolute', bottom: -12,
-                left: '50%', transform: 'translateX(-50%)',
-                background: '#7f1d1d',
-                border: '1px solid #dc2626',
-                borderRadius: 10, padding: '1px 10px',
-                fontSize: 10, fontWeight: 800,
-                color: '#fca5a5', whiteSpace: 'nowrap',
-                letterSpacing: 1,
-              }}>
-                ATK 5
-              </div>
-            </div>
-          </div>
+                ? 'radial-gradient(ellipse, rgba(255,50,50,0.5) 0%, transparent 65%)'
+                : 'radial-gradient(ellipse, rgba(180,120,0,0.35) 0%, transparent 65%)',
+              filter: 'blur(12px)',
+              pointerEvents: 'none',
+              transition: 'background 0.2s',
+            }}/>
 
-          {/* Boss 血条 */}
-          <div style={{ width: 230, marginTop: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <span style={{ color: '#6b7280', fontSize: 10, fontFamily: 'monospace', letterSpacing: 2 }}>
-                BOSS HP
-              </span>
-              <span style={{ color: '#f87171', fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>
-                {bossHp.toLocaleString()} / {bossMaxHp.toLocaleString()}
-              </span>
-            </div>
+            {/* SVG 拱形卡框 */}
+            <svg
+              viewBox="0 0 140 190"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none' }}
+            >
+              <path
+                d="M10,50 Q10,10 70,8 Q130,10 130,50 L130,155 Q130,182 70,182 Q10,182 10,155 Z"
+                fill="none"
+                stroke={bossHit ? '#ff6666' : '#c8922a'}
+                strokeWidth="3"
+                filter="url(#glow)"
+              />
+              <path
+                d="M16,52 Q16,18 70,16 Q124,18 124,52 L124,152 Q124,174 70,174 Q16,174 16,152 Z"
+                fill="none"
+                stroke={bossHit ? '#ff9999' : '#e8c060'}
+                strokeWidth="1.5"
+                opacity="0.6"
+              />
+              <path
+                d="M30,48 Q30,24 70,22 Q110,24 110,48"
+                fill="none" stroke="#f0d070" strokeWidth="1" opacity="0.4"
+              />
+              <circle cx="16"  cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="124" cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="16"  cy="130" r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="124" cy="130" r="3" fill="#c8922a" opacity="0.7"/>
+              <defs>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+            </svg>
+
+            {/* 卡牌背景 */}
             <div style={{
-              height: 14, borderRadius: 7,
-              background: 'rgba(20,5,5,0.9)',
-              border: '1px solid rgba(100,20,20,0.5)',
-              overflow: 'hidden', position: 'relative',
-            }}>
-              <div style={{
-                height: '100%', width: `${bossHpPct}%`,
-                background: 'linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444)',
-                borderRadius: 7,
-                transition: 'width 0.6s cubic-bezier(.4,0,.2,1)',
-                boxShadow: '0 0 10px rgba(239,68,68,0.5)',
-                position: 'relative',
-              }}>
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0,
-                  height: '45%', borderRadius: '7px 7px 0 0',
-                  background: 'rgba(255,255,255,0.12)',
-                }} />
-              </div>
-            </div>
-          </div>
+              position: 'absolute', inset: 0,
+              borderRadius: 14,
+              background: 'linear-gradient(160deg, #2a1804 0%, #0e0802 100%)',
+              clipPath: 'ellipse(90% 95% at 50% 50%)',
+              zIndex: 0,
+            }}/>
 
-        </div>
-
-        {/* ── 下半 玩家 ── */}
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: 12, paddingTop: 24,
-          position: 'relative',
-        }}>
-
-          {/* 绿色氛围光 */}
-          <div style={{
-            position: 'absolute', bottom: '10%', left: '50%',
-            transform: 'translateX(-50%)',
-            width: 160, height: 160,
-            borderRadius: '50%',
-            background: shieldActive
-              ? 'radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(20,80,20,0.2) 0%, transparent 70%)',
-            filter: 'blur(20px)',
-            transition: 'background 0.5s',
-            pointerEvents: 'none',
-          }} />
-
-          {/* 玩家头像 */}
-          <div style={{ position: 'relative' }}>
-            {/* 护盾外环动画 */}
-            {shieldActive && (
-              <>
-                <div style={{
-                  position: 'absolute',
-                  inset: -18, borderRadius: '50%',
-                  border: '2px solid rgba(96,165,250,0.5)',
-                  animation: 'shieldRing 1.5s ease-out infinite',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  inset: -10, borderRadius: '50%',
-                  border: '2px solid rgba(96,165,250,0.8)',
-                  animation: 'shieldPulse 2s ease-in-out infinite',
-                }} />
-              </>
-            )}
-
+            {/* 头像椭圆区域 */}
             <div style={{
-              width: 90, height: 90, borderRadius: '50%',
-              border: `2px solid ${shieldActive ? '#60a5fa' : '#166534'}`,
-              background: shieldActive
-                ? 'radial-gradient(circle at 40% 30%, #1e3a5f, #0c1a2e)'
-                : 'radial-gradient(circle at 40% 30%, #052e16, #021409)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 42,
-              boxShadow: shieldActive
-                ? '0 0 24px rgba(59,130,246,0.5), inset 0 0 12px rgba(59,130,246,0.1)'
-                : '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
-              transition: 'all 0.3s',
-              position: 'relative',
-            }}>
-              🛡️
-              {shieldActive && (
-                <div style={{
-                  position: 'absolute', bottom: -8, right: -8,
-                  width: 26, height: 26, borderRadius: '50%',
-                  background: '#2563eb',
-                  border: '2px solid #93c5fd',
-                  display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 12,
-                  boxShadow: '0 0 12px rgba(59,130,246,0.7)',
-                }}>🛡</div>
-              )}
-            </div>
-          </div>
-
-          {/* 玩家血条 */}
-          <div style={{ width: 230 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <span style={{ color: '#6b7280', fontSize: 10, fontFamily: 'monospace', letterSpacing: 2 }}>
-                PLAYER HP
-              </span>
-              <span style={{ color: '#4ade80', fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}>
-                {playerHp} / {playerMaxHp}
-              </span>
-            </div>
-            <div style={{
-              height: 14, borderRadius: 7,
-              background: 'rgba(5,20,5,0.9)',
-              border: '1px solid rgba(20,80,20,0.5)',
+              position: 'absolute',
+              top: 18, left: '50%',
+              transform: 'translateX(-50%)',
+              width: 100, height: 110,
+              borderRadius: '50% 50% 45% 45%',
               overflow: 'hidden',
+              zIndex: 1,
+              border: `2px solid ${bossHit ? '#ff8888' : '#a07028'}`,
+              boxShadow: bossHit
+                ? '0 0 20px rgba(255,80,80,0.7)'
+                : '0 0 16px rgba(160,100,0,0.5), inset 0 2px 0 rgba(255,220,100,0.2)',
+              background: 'radial-gradient(ellipse at 50% 30%, #2a1404, #0a0502)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
             }}>
+              <img
+                src="/images/boss.png"
+                alt="boss"
+                style={{
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center top',
+                }}
+              />
               <div style={{
-                height: '100%', width: `${playerHpPct}%`,
-                background: playerHpPct > 50
-                  ? 'linear-gradient(90deg,#166534,#16a34a,#22c55e)'
-                  : playerHpPct > 25
-                    ? 'linear-gradient(90deg,#713f12,#a16207,#eab308)'
-                    : 'linear-gradient(90deg,#7f1d1d,#b91c1c,#ef4444)',
-                borderRadius: 7,
-                transition: 'width 0.5s cubic-bezier(.4,0,.2,1)',
-                boxShadow: '0 0 8px rgba(34,197,94,0.4)',
-                position: 'relative',
+                position: 'absolute', top: 0, left: 0, right: 0,
+                height: '35%',
+                background: 'linear-gradient(180deg, rgba(255,220,100,0.1) 0%, transparent 100%)',
+                borderRadius: '50% 50% 0 0',
+                pointerEvents: 'none',
+              }}/>
+            </div>
+
+            {/* 底部名字 */}
+            <div style={{
+              position: 'absolute',
+              bottom: 28, left: '50%',
+              transform: 'translateX(-50%)',
+              whiteSpace: 'nowrap',
+              zIndex: 4,
+              background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.8) 80%, transparent)',
+              padding: '3px 14px',
+            }}>
+              <span style={{
+                color: '#f0d070', fontSize: 12, fontWeight: 700,
+                letterSpacing: 2, fontFamily: 'serif',
+                textShadow: '0 0 10px rgba(240,200,80,0.6), 0 1px 3px rgba(0,0,0,0.9)',
               }}>
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0,
-                  height: '45%', borderRadius: '7px 7px 0 0',
-                  background: 'rgba(255,255,255,0.12)',
-                }} />
+                暗影领主
+              </span>
+            </div>
+
+            {/* 左下角：攻击力 */}
+            <div style={{ position: 'absolute', bottom: -6, left: -8, width: 44, height: 44, zIndex: 5 }}>
+              <div style={{
+                position: 'absolute', inset: -2, borderRadius: '50%',
+                background: 'conic-gradient(#ffd700 0%, #8b6000 50%, #ffd700 100%)',
+                filter: 'blur(3px)', opacity: 0.8,
+              }}/>
+              <div style={{
+                position: 'relative', width: '100%', height: '100%',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)',
+                border: '2px solid #ffd700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 900, fontSize: 18, color: '#fff',
+                boxShadow: '0 0 14px rgba(220,170,0,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                fontFamily: '"Cinzel", monospace',
+                textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+              }}>5</div>
+            </div>
+
+            {/* 右下角：HP */}
+            <div style={{ position: 'absolute', bottom: -6, right: -8, width: 44, height: 44, zIndex: 5 }}>
+              <div style={{
+                position: 'absolute', inset: -2, borderRadius: '50%',
+                background: 'conic-gradient(#ff4444 0%, #660000 50%, #ff4444 100%)',
+                filter: 'blur(3px)', opacity: 0.8,
+              }}/>
+              <div style={{
+                position: 'relative', width: '100%', height: '100%',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #cc2222, #550000)',
+                border: '2px solid #ff6666',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: bossHp > 999 ? 10 : 16,
+                color: '#fff',
+                boxShadow: '0 0 14px rgba(200,30,30,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                fontFamily: '"Cinzel", monospace',
+                textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+              }}>
+                {bossHp > 9999
+                  ? `${Math.round(bossHp/1000)}k`
+                  : bossHp > 999
+                    ? `${(bossHp/1000).toFixed(1)}k`
+                    : bossHp
+                }
               </div>
             </div>
 
-            {/* HP 格子 */}
-            <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
-              {Array.from({ length: playerMaxHp }).map((_, i) => (
-                <div key={i} style={{
-                  flex: 1, height: 5, borderRadius: 2,
-                  background: i < playerHp ? '#22c55e' : '#1c1c1c',
-                  boxShadow: i < playerHp ? '0 0 4px rgba(34,197,94,0.5)' : 'none',
-                  transition: 'all 0.3s',
-                }} />
-              ))}
-            </div>
-            <div style={{
-              textAlign: 'center', marginTop: 4,
-              fontSize: 10, color: '#374151',
-              fontFamily: 'monospace', letterSpacing: 1,
-            }}>
-              还能承受 {Math.floor(playerHp / 5)} 次攻击
-            </div>
           </div>
-
         </div>
 
       </div>
