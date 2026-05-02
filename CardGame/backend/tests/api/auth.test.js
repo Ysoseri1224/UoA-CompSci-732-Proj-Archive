@@ -5,7 +5,6 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import authRouter from '../../src/routes/auth.js';
 import { redisClient } from '../../src/redis.js';
-import * as authMiddleware from '../../src/middleware/auth.js';
 
  
 
