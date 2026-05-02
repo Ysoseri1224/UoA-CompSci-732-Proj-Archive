@@ -19,10 +19,10 @@ export const CARD_POOL = [
     { id: 13, name: '红-K',  cost: 13, color: 'red',   image: '/cards/card_13.png' },
   
     // ── 蓝色 (blue) 1-13 ─────────────────────────────
-    { id: 14, name: '蓝-A',  cost:  1, color: 'blue',  image: '/cards/card_14.png' },
-    { id: 15, name: '蓝-2',  cost:  2, color: 'blue',  image: '/cards/card_15.png' },
-    { id: 16, name: '蓝-3',  cost:  3, color: 'blue',  image: '/cards/card_16.png' },
-    { id: 17, name: '蓝-4',  cost:  4, color: 'blue',  image: '/cards/card_17.png' },
+    { id: 14, name: '蓝-A',  cost:  1, color: 'blue',  image: '/cards/card_14.jpg' },
+    { id: 15, name: '蓝-2',  cost:  2, color: 'blue',  image: '/cards/card_15.jpg' },
+    { id: 16, name: '蓝-3',  cost:  3, color: 'blue',  image: '/cards/card_16.jpg' },
+    { id: 17, name: '蓝-4',  cost:  4, color: 'blue',  image: '/cards/card_17.jpg' },
     { id: 18, name: '蓝-5',  cost:  5, color: 'blue',  image: '/cards/card_18.png' },
     { id: 19, name: '蓝-6',  cost:  6, color: 'blue',  image: '/cards/card_19.png' },
     { id: 20, name: '蓝-7',  cost:  7, color: 'blue',  image: '/cards/card_20.png' },

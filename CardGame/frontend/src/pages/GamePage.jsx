@@ -93,14 +93,11 @@ export default function GamePage() {
 
         {/* 中央战场 */}
         <Battlefield
-          playerHp={playerHp}
-          playerMaxHp={playerMaxHp}
-          bossHp={bossHp}
-          bossMaxHp={bossMaxHp}
-          floor={floor}
-          shieldActive={skillCooldowns.shield}
-          lastScore={lastScore}
-        />
+  bossHp={bossHp}
+  bossMaxHp={bossMaxHp}
+  floor={floor}
+  lastScore={lastScore}
+/>
 
         {/* 右侧评分面板 */}
         <ScorePanel
@@ -120,11 +117,14 @@ export default function GamePage() {
 
       {/* ── 底部手牌 ── */}
       <HandArea
-        hand={hand}
-        selected={selected}
-        onToggle={toggleSelect}
-        deckCount={deckCount}
-      />
+  hand={hand}
+  selected={selected}
+  onToggle={toggleSelect}
+  deckCount={deckCount}
+  playerHp={playerHp}
+  playerMaxHp={playerMaxHp}
+  shieldActive={skillCooldowns.shield}
+/>
 
       {/* ── 游戏结束遮罩 ── */}
       {gameOver && (

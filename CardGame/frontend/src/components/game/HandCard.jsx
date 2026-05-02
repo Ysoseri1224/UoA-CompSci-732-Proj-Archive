@@ -1,114 +1,135 @@
 // src/components/game/HandCard.jsx
+import { useState } from 'react';
 
 const COLOR_THEME = {
-    red: {
-      border:     'border-red-500',
-      borderSel:  'border-red-300',
-      glow:       'shadow-red-500/40',
-      bg:         'from-red-950 to-red-900',
-      bgSel:      'from-red-900 to-red-800',
-      dot:        'bg-red-500',
-      costBg:     'bg-red-700',
-      text:       'text-red-200',
-    },
-    blue: {
-      border:     'border-blue-500',
-      borderSel:  'border-blue-300',
-      glow:       'shadow-blue-500/40',
-      bg:         'from-blue-950 to-blue-900',
-      bgSel:      'from-blue-900 to-blue-800',
-      dot:        'bg-blue-500',
-      costBg:     'bg-blue-700',
-      text:       'text-blue-200',
-    },
-    green: {
-      border:     'border-green-500',
-      borderSel:  'border-green-300',
-      glow:       'shadow-green-500/40',
-      bg:         'from-green-950 to-green-900',
-      bgSel:      'from-green-900 to-green-800',
-      dot:        'bg-green-500',
-      costBg:     'bg-green-700',
-      text:       'text-green-200',
-    },
-  };
-  
-  // cost 数字转扑克显示符号
-  function costLabel(cost) {
-    const map = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
-    return map[cost] ?? String(cost);
-  }
-  
-  export default function HandCard({ card, isSelected, selectionIndex, onClick }) {
-    const theme = COLOR_THEME[card.color] ?? COLOR_THEME.red;
-  
-    return (
-      <div
-        onClick={onClick}
-        className={`
-          relative flex flex-col items-center
-          w-20 rounded-xl border-2 cursor-pointer select-none
-          bg-gradient-to-b transition-all duration-200
-          ${isSelected
-            ? `${theme.borderSel} ${theme.bgSel} -translate-y-5 shadow-lg ${theme.glow}`
-            : `${theme.border}   ${theme.bg}    translate-y-0`
-          }
-        `}
-        style={{ height: 120, flexShrink: 0 }}
-      >
-        {/* 选中序号 */}
-        {isSelected && (
-          <div className={`
-            absolute -top-2 -right-2 z-10
-            w-5 h-5 rounded-full flex items-center justify-center
-            text-xs font-black text-white ${theme.costBg}
-          `}>
-            {selectionIndex + 1}
-          </div>
-        )}
-  
-        {/* 费用徽章（左上角） */}
-        <div className={`
-          absolute -top-0 -left-0
-          w-7 h-7 rounded-tl-xl rounded-br-lg
-          flex items-center justify-center
-          font-black text-sm text-white ${theme.costBg}
-        `}>
-          {costLabel(card.cost)}
-        </div>
-  
-        {/* 卡牌图片区域 */}
-        <div className="w-full flex-1 mt-1 overflow-hidden rounded-t-xl">
-          {card.image ? (
+  red: {
+    border:    '#ef4444',
+    borderSel: '#fca5a5',
+    glow:      'rgba(239,68,68,0.7)',
+    costBg:    'rgba(180,30,30,0.95)',
+  },
+  blue: {
+    border:    '#3b82f6',
+    borderSel: '#93c5fd',
+    glow:      'rgba(59,130,246,0.7)',
+    costBg:    'rgba(30,60,180,0.95)',
+  },
+  green: {
+    border:    '#22c55e',
+    borderSel: '#86efac',
+    glow:      'rgba(34,197,94,0.7)',
+    costBg:    'rgba(20,120,50,0.95)',
+  },
+};
+
+export default function HandCard({ card, isSelected, selectionIndex, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  const theme = COLOR_THEME[card.color] ?? COLOR_THEME.blue;
+
+  return (
+    <>
+      {/* 悬浮大图预览 */}
+      {hovered && !isSelected && (
+        <div style={{
+          position:      'fixed',
+          bottom:        185,
+          left:          '50%',
+          transform:     'translateX(-50%)',
+          zIndex:        100,
+          pointerEvents: 'none',
+          animation:     'popIn 0.15s ease-out forwards',
+        }}>
+          <div style={{
+            width: 180, height: 260,
+            borderRadius: 16,
+            border: `2px solid ${theme.border}`,
+            overflow: 'hidden',
+            boxShadow: `0 0 40px ${theme.glow}, 0 20px 60px rgba(0,0,0,0.8)`,
+          }}>
             <img
               src={card.image}
               alt={card.name}
-              className="w-full h-full object-cover"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
-          ) : (
-            // 占位符：图片未配置时显示颜色块
-            <div className={`
-              w-full h-full flex items-center justify-center
-              bg-gradient-to-b ${theme.bg} opacity-60
-            `}>
-              <span className="text-2xl font-black text-white/30">
-                {costLabel(card.cost)}
-              </span>
-            </div>
-          )}
+          </div>
         </div>
-  
-        {/* 底部：颜色点 + 卡名 */}
-        <div className={`
-          w-full px-1 py-1
-          flex items-center gap-1
-          bg-black/40 rounded-b-xl
-        `}>
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${theme.dot}`} />
-          <span className={`text-xs truncate ${theme.text}`}>
-            {card.name}
-          </span>
-        </div>
+      )}
+
+      {/* 手牌本体 */}
+      <div
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          position:   'relative',
+          width:      96,
+          height:     140,
+          borderRadius: 12,
+          border:     `2px solid ${
+            isSelected ? theme.borderSel
+            : hovered   ? theme.border
+            : 'rgba(80,60,20,0.5)'
+          }`,
+          cursor:     'pointer',
+          flexShrink: 0,
+          transform:  isSelected
+            ? 'translateY(-28px) scale(1.05)'
+            : hovered
+              ? 'translateY(-10px) scale(1.02)'
+              : 'translateY(0) scale(1)',
+          transition: 'all 0.18s cubic-bezier(.34,1.56,.64,1)',
+          boxShadow:  isSelected
+            ? `0 12px 32px rgba(0,0,0,0.7), 0 0 20px ${theme.glow}`
+            : hovered
+              ? `0 8px 20px rgba(0,0,0,0.5), 0 0 12px ${theme.glow}`
+              : '0 4px 12px rgba(0,0,0,0.5)',
+          overflow:   'hidden',
+          userSelect: 'none',
+        }}
+      >
+        {/* 图片占满整张卡 */}
+        <img
+          src={card.image}
+          alt={card.name}
+          style={{
+            width: '100%', height: '100%',
+            objectFit: 'cover', display: 'block',
+            transition: 'transform 0.3s ease',
+            transform: hovered || isSelected ? 'scale(1.06)' : 'scale(1)',
+          }}
+        />
+
+        {/* 选中序号 */}
+        {isSelected && (
+          <div style={{
+            position:  'absolute', top: 6, right: 6, zIndex: 3,
+            width: 20, height: 20, borderRadius: '50%',
+            background: theme.costBg,
+            border:     `1px solid ${theme.borderSel}`,
+            display:   'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 900, color: '#fff',
+            boxShadow: `0 0 8px ${theme.glow}`,
+          }}>
+            {selectionIndex + 1}
+          </div>
+        )}
+
+        {/* 选中时底部发光条 */}
+        {isSelected && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: 3,
+            background: `linear-gradient(90deg, transparent, ${theme.borderSel}, transparent)`,
+          }} />
+        )}
       </div>
-    );
-  }
+
+      <style>{`
+        @keyframes popIn {
+          from { opacity: 0; transform: translateX(-50%) scale(0.85); }
+          to   { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+      `}</style>
+    </>
+  );
+}

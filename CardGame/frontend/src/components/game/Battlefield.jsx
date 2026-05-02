@@ -1,172 +1,305 @@
 // src/components/game/Battlefield.jsx
+import { useState, useEffect, useRef } from 'react';
+
+function DamageFloat({ value }) {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '15%', left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 20,
+      animation: 'floatUp 1.2s ease-out forwards',
+      pointerEvents: 'none',
+      fontFamily: 'monospace',
+      fontWeight: 900,
+      fontSize: 40,
+      color: '#ff4444',
+      textShadow: '0 0 20px rgba(255,50,50,0.9), 0 2px 4px rgba(0,0,0,0.9)',
+      whiteSpace: 'nowrap',
+    }}>
+      -{value.toLocaleString()}
+    </div>
+  );
+}
 
 export default function Battlefield({
-    playerHp,
-    playerMaxHp,
-    bossHp,
-    bossMaxHp,
-    floor,
-    shieldActive,
-    lastScore,
-  }) {
-    const bossHpPct   = Math.max(0, (bossHp   / bossMaxHp)   * 100);
-    const playerHpPct = Math.max(0, (playerHp / playerMaxHp) * 100);
-  
-    return (
-      <div
-        className="relative flex-1 flex flex-col overflow-hidden border-x border-yellow-900/30"
-        style={{
-          background: `
-            repeating-linear-gradient(
-              45deg, transparent, transparent 40px,
-              rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 41px
-            ),
-            linear-gradient(180deg, #0d1208 0%, #111a0e 50%, #0d1208 100%)
-          `,
-        }}
-      >
-        {/* 中央分界线 */}
-        <div className="absolute left-[8%] right-[8%] top-1/2 -translate-y-1/2
-                        h-px bg-gradient-to-r from-transparent via-yellow-900/50 to-transparent" />
-  
+  bossHp, bossMaxHp,
+  floor, lastScore,
+}) {
+  const [floats,  setFloats]  = useState([]);
+  const prevScore             = useRef(null);
+  const [bossHit, setBossHit] = useState(false);
+  const prevBossHp            = useRef(bossHp);
+
+  useEffect(() => {
+    if (lastScore && lastScore !== prevScore.current) {
+      prevScore.current = lastScore;
+      const id = Date.now();
+      setFloats(f => [...f, { id, value: lastScore }]);
+      setTimeout(() => setFloats(f => f.filter(x => x.id !== id)), 1300);
+    }
+  }, [lastScore]);
+
+  useEffect(() => {
+    if (bossHp < prevBossHp.current) {
+      setBossHit(true);
+      setTimeout(() => setBossHit(false), 400);
+    }
+    prevBossHp.current = bossHp;
+  }, [bossHp]);
+
+  return (
+    <>
+      <style>{`
+        @keyframes floatUp {
+          0%   { opacity: 1; transform: translateX(-50%) translateY(0px)   scale(1.3); }
+          30%  { opacity: 1; transform: translateX(-50%) translateY(-24px) scale(1.5); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-90px) scale(0.8); }
+        }
+        @keyframes bossShake {
+          0%,100% { transform: translateX(0); }
+          20%     { transform: translateX(-7px); }
+          40%     { transform: translateX(7px); }
+          60%     { transform: translateX(-4px); }
+          80%     { transform: translateX(4px); }
+        }
+      `}</style>
+
+      <div style={{
+        position: 'relative', flex: 1,
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        borderLeft:  '1px solid rgba(200,160,70,0.2)',
+        borderRight: '1px solid rgba(200,160,70,0.2)',
+        background: `
+          repeating-linear-gradient(
+            0deg,
+            transparent, transparent 59px,
+            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            transparent, transparent 59px,
+            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
+          ),
+          url('/images/battlefield.png') center/cover no-repeat
+        `,
+      }}>
+
         {/* 层数标签 */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2
-                        flex items-center gap-2
-                        bg-stone-900/80 border border-yellow-900/50
-                        rounded-full px-4 py-1">
-          <span className="text-yellow-600 text-xs tracking-widest font-mono">
+        <div style={{
+          position: 'absolute', top: 10, left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(0,0,0,0.65)',
+          border: '1px solid rgba(200,160,70,0.25)',
+          borderRadius: 20, padding: '3px 14px',
+          backdropFilter: 'blur(6px)',
+          zIndex: 5,
+        }}>
+          <span style={{ color: '#c8a040', fontSize: 11, fontFamily: 'monospace', letterSpacing: 3 }}>
             第 {floor} 层
           </span>
           {floor > 1 && (
-            <span className="text-red-500 text-xs">
-              ▲ Boss HP +{Math.round((Math.pow(1.5, floor - 1) - 1) * 100)}%
+            <span style={{ color: '#ef4444', fontSize: 10, fontWeight: 700 }}>
+              ▲ BOSS HP +{Math.round((Math.pow(1.5, floor - 1) - 1) * 100)}%
             </span>
           )}
         </div>
-  
-        {/* ── 上半：BOSS 区域 ── */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-4 pt-8">
-  
-          <div className="text-red-400/60 text-xs tracking-widest font-mono">
-            BOSS · {bossMaxHp.toLocaleString()} HP
-          </div>
-  
-          {/* Boss 头像 */}
-          <div className="relative w-20 h-20 rounded-full
-                          border-2 border-red-800
-                          bg-gradient-to-b from-red-950 to-stone-950
-                          flex items-center justify-center
-                          shadow-lg shadow-red-900/50">
-            <span className="text-4xl">🧙</span>
-            {/* 攻击力标签 */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2
-                            bg-red-900 border border-red-700
-                            rounded-full px-2 py-0.5
-                            text-red-300 text-xs font-black whitespace-nowrap">
-              ATK 5
-            </div>
-          </div>
-  
-          {/* Boss 血条 */}
-          <div className="w-52 flex flex-col gap-1 mt-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-500">HP</span>
-              <span className="text-red-400 font-mono font-bold">
-                {bossHp.toLocaleString()} / {bossMaxHp.toLocaleString()}
-              </span>
-            </div>
-            <div className="h-3 bg-stone-800 rounded-full overflow-hidden border border-stone-700">
-              <div
-                className="h-full bg-gradient-to-r from-red-900 to-red-500
-                           rounded-full transition-all duration-700"
-                style={{ width: `${bossHpPct}%` }}
+
+        {/* ── BOSS 区域（占满全部） ── */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: 12, paddingTop: 40,
+          position: 'relative',
+        }}>
+
+          {/* 伤害飘字 */}
+          {floats.map(f => <DamageFloat key={f.id} value={f.value} />)}
+
+          {/* Boss 红色氛围光 */}
+          <div style={{
+            position: 'absolute', top: '20%', left: '50%',
+            transform: 'translateX(-50%)',
+            width: 200, height: 200,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(180,20,20,0.25) 0%, transparent 70%)',
+            filter: 'blur(24px)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Boss 炉石风格卡牌 */}
+          <div style={{
+            position: 'relative',
+            width: 140, height: 190,
+            animation: bossHit ? 'bossShake 0.4s ease' : 'none',
+            filter: bossHit ? 'brightness(1.6) saturate(1.3)' : 'brightness(1)',
+            transition: 'filter 0.15s',
+          }}>
+            {/* 卡牌底层阴影光晕 */}
+            <div style={{
+              position: 'absolute', inset: -12,
+              borderRadius: '50%',
+              background: bossHit
+                ? 'radial-gradient(ellipse, rgba(255,50,50,0.5) 0%, transparent 65%)'
+                : 'radial-gradient(ellipse, rgba(180,120,0,0.35) 0%, transparent 65%)',
+              filter: 'blur(12px)',
+              pointerEvents: 'none',
+              transition: 'background 0.2s',
+            }}/>
+
+            {/* SVG 拱形卡框 */}
+            <svg
+              viewBox="0 0 140 190"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none' }}
+            >
+              <path
+                d="M10,50 Q10,10 70,8 Q130,10 130,50 L130,155 Q130,182 70,182 Q10,182 10,155 Z"
+                fill="none"
+                stroke={bossHit ? '#ff6666' : '#c8922a'}
+                strokeWidth="3"
+                filter="url(#glow)"
               />
-            </div>
-          </div>
-  
-          {/* 上次造成的伤害 */}
-          {lastScore > 0 && (
-            <div className="text-orange-400 text-xs font-mono">
-              上次造成伤害：
-              <span className="text-orange-300 font-black text-sm ml-1">
-                -{lastScore.toLocaleString()}
-              </span>
-            </div>
-          )}
-  
-        </div>
-  
-        {/* ── 下半：玩家区域 ── */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 pt-4">
-  
-          {/* 玩家头像 + 护盾 */}
-          <div className="relative">
-            {shieldActive && (
-              <>
-                <div className="absolute -inset-3 rounded-full border-2
-                                border-blue-400/60 animate-ping" />
-                <div className="absolute -inset-2 rounded-full border-2
-                                border-blue-400 shadow-lg shadow-blue-500/50" />
-              </>
-            )}
-  
-            <div className={`
-              relative w-20 h-20 rounded-full flex items-center justify-center
-              shadow-lg transition-all duration-300
-              ${shieldActive
-                ? 'border-2 border-blue-400 bg-gradient-to-b from-blue-950 to-stone-950'
-                : 'border-2 border-green-800 bg-gradient-to-b from-green-950 to-stone-950'
-              }
-            `}>
-              <span className="text-4xl">🛡️</span>
-              {shieldActive && (
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full
-                                bg-blue-500 border-2 border-blue-300
-                                flex items-center justify-center text-xs">
-                  🛡
-                </div>
-              )}
-            </div>
-          </div>
-  
-          {/* 玩家血条 */}
-          <div className="w-52 flex flex-col gap-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-stone-500">HP</span>
-              <span className="text-green-400 font-mono font-bold">
-                {playerHp} / {playerMaxHp}
-              </span>
-            </div>
-            <div className="h-3 bg-stone-800 rounded-full overflow-hidden border border-stone-700">
-              <div
-                className="h-full rounded-full transition-all duration-500"
+              <path
+                d="M16,52 Q16,18 70,16 Q124,18 124,52 L124,152 Q124,174 70,174 Q16,174 16,152 Z"
+                fill="none"
+                stroke={bossHit ? '#ff9999' : '#e8c060'}
+                strokeWidth="1.5"
+                opacity="0.6"
+              />
+              <path
+                d="M30,48 Q30,24 70,22 Q110,24 110,48"
+                fill="none" stroke="#f0d070" strokeWidth="1" opacity="0.4"
+              />
+              <circle cx="16"  cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="124" cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="16"  cy="130" r="3" fill="#c8922a" opacity="0.7"/>
+              <circle cx="124" cy="130" r="3" fill="#c8922a" opacity="0.7"/>
+              <defs>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+            </svg>
+
+            {/* 卡牌背景 */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              borderRadius: 14,
+              background: 'linear-gradient(160deg, #2a1804 0%, #0e0802 100%)',
+              clipPath: 'ellipse(90% 95% at 50% 50%)',
+              zIndex: 0,
+            }}/>
+
+            {/* 头像椭圆区域 */}
+            <div style={{
+              position: 'absolute',
+              top: 18, left: '50%',
+              transform: 'translateX(-50%)',
+              width: 100, height: 110,
+              borderRadius: '50% 50% 45% 45%',
+              overflow: 'hidden',
+              zIndex: 1,
+              border: `2px solid ${bossHit ? '#ff8888' : '#a07028'}`,
+              boxShadow: bossHit
+                ? '0 0 20px rgba(255,80,80,0.7)'
+                : '0 0 16px rgba(160,100,0,0.5), inset 0 2px 0 rgba(255,220,100,0.2)',
+              background: 'radial-gradient(ellipse at 50% 30%, #2a1404, #0a0502)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
+            }}>
+              <img
+                src="/images/boss.png"
+                alt="boss"
                 style={{
-                  width: `${playerHpPct}%`,
-                  background: playerHpPct > 50
-                    ? 'linear-gradient(90deg,#166534,#22c55e)'
-                    : playerHpPct > 25
-                      ? 'linear-gradient(90deg,#854d0e,#eab308)'
-                      : 'linear-gradient(90deg,#7f1d1d,#ef4444)',
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center top',
                 }}
               />
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                height: '35%',
+                background: 'linear-gradient(180deg, rgba(255,220,100,0.1) 0%, transparent 100%)',
+                borderRadius: '50% 50% 0 0',
+                pointerEvents: 'none',
+              }}/>
             </div>
-            {/* HP格子（直观显示剩余回合） */}
-            <div className="flex gap-1 mt-1">
-              {Array.from({ length: playerMaxHp }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 h-1.5 rounded-full transition-all duration-300
-                    ${i < playerHp ? 'bg-green-500' : 'bg-stone-700'}`}
-                />
-              ))}
+
+            {/* 底部名字 */}
+            <div style={{
+              position: 'absolute',
+              bottom: 28, left: '50%',
+              transform: 'translateX(-50%)',
+              whiteSpace: 'nowrap',
+              zIndex: 4,
+              background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.8) 80%, transparent)',
+              padding: '3px 14px',
+            }}>
+              <span style={{
+                color: '#f0d070', fontSize: 12, fontWeight: 700,
+                letterSpacing: 2, fontFamily: 'serif',
+                textShadow: '0 0 10px rgba(240,200,80,0.6), 0 1px 3px rgba(0,0,0,0.9)',
+              }}>
+                暗影领主
+              </span>
             </div>
-            <div className="text-stone-600 text-xs text-center">
-              还能承受 {Math.floor(playerHp / 5)} 次攻击
+
+            {/* 左下角：攻击力 */}
+            <div style={{ position: 'absolute', bottom: -6, left: -8, width: 44, height: 44, zIndex: 5 }}>
+              <div style={{
+                position: 'absolute', inset: -2, borderRadius: '50%',
+                background: 'conic-gradient(#ffd700 0%, #8b6000 50%, #ffd700 100%)',
+                filter: 'blur(3px)', opacity: 0.8,
+              }}/>
+              <div style={{
+                position: 'relative', width: '100%', height: '100%',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)',
+                border: '2px solid #ffd700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 900, fontSize: 18, color: '#fff',
+                boxShadow: '0 0 14px rgba(220,170,0,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                fontFamily: '"Cinzel", monospace',
+                textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+              }}>5</div>
             </div>
+
+            {/* 右下角：HP */}
+            <div style={{ position: 'absolute', bottom: -6, right: -8, width: 44, height: 44, zIndex: 5 }}>
+              <div style={{
+                position: 'absolute', inset: -2, borderRadius: '50%',
+                background: 'conic-gradient(#ff4444 0%, #660000 50%, #ff4444 100%)',
+                filter: 'blur(3px)', opacity: 0.8,
+              }}/>
+              <div style={{
+                position: 'relative', width: '100%', height: '100%',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #cc2222, #550000)',
+                border: '2px solid #ff6666',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: bossHp > 999 ? 10 : 16,
+                color: '#fff',
+                boxShadow: '0 0 14px rgba(200,30,30,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                fontFamily: '"Cinzel", monospace',
+                textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+              }}>
+                {bossHp > 9999
+                  ? `${Math.round(bossHp/1000)}k`
+                  : bossHp > 999
+                    ? `${(bossHp/1000).toFixed(1)}k`
+                    : bossHp
+                }
+              </div>
+            </div>
+
           </div>
-  
         </div>
-  
+
       </div>
-    );
-  }
+    </>
+  );
+}
