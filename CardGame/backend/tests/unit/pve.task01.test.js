@@ -6,7 +6,7 @@ import {
   PHASE,
   createInitialPveState,
   createPveMachine,
-} from "../../src/pve/index.js";
+} from "../../src/logic/pve/index.js";
 
 test("PHASE exports all iteration-1 phases", () => {
   const required = [
