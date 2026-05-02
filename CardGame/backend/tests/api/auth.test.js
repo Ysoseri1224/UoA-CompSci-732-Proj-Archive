@@ -20,13 +20,7 @@ mock.method(redisClient, 'set', async () => 'OK');
 mock.method(redisClient, 'get', async () => 'some_user_id');
 mock.method(redisClient, 'del', async () => 1);
 
- 
 
-// Intercept the auth middleware using Node's native mock.
-mock.method(authMiddleware, 'protect', (req, res, next) => {
-  req.user = { userId: 'mocked_user_id', username: 'testuser' };
-  next();
-});
 
 let server;
 let baseUrl;
