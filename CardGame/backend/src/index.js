@@ -56,4 +56,10 @@ async function start() {
   });
 }
 
-start();
+// 仅在非测试环境下自动启动服务器
+if (process.env.NODE_ENV !== 'test') {
+  start();
+}
+
+// 导出 app 供超测 (supertest) 使用
+export { app };
