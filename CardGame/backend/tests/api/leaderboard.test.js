@@ -1,6 +1,5 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
-import mongoose from 'mongoose';
 
 // 导入 app 实例和模型
 import { app } from '../../src/index.js'; 
