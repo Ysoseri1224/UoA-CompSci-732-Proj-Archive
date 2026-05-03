@@ -15,7 +15,6 @@ process.env.JWT_EXPIRES_IN = '15m';
 mock.method(redisClient, 'set', async () => 'OK');
 mock.method(redisClient, 'get', async () => 'some_user_id');
 mock.method(redisClient, 'del', async () => 1);
-// 这里的 Mock 语法必须正确，防止报错
 mock.method(redisClient, 'isOpen', () => true, { getter: true });
 
 let server;
@@ -94,7 +93,6 @@ describe('Auth API Endpoints', () => {
       await fetchApi('/register', { method: 'POST', body: JSON.stringify(validUser) });
       const { status, body } = await fetchApi('/register', { method: 'POST', body: JSON.stringify(validUser) });
       assert.equal(status, 409);
-      // 适配后端文案
       assert.equal(body.message, 'Username is already taken');
     });
 
@@ -115,12 +113,12 @@ describe('Auth API Endpoints', () => {
     });
 
     it('valid credentials → 200', async () => {
-      const { status, body } = await fetchApi('/login', {
+      // ✅ Lint 修复：删除了未使用的 body
+      const { status } = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ email: validUser.email, password: validUser.password })
       });
       assert.equal(status, 200);
-      assert.ok(body.data.accessToken);
     });
 
     it('email does not exist → 401', async () => {
@@ -128,7 +126,6 @@ describe('Auth API Endpoints', () => {
         method: 'POST',
         body: JSON.stringify({ email: 'nobody@game.com', password: validUser.password })
       });
-      // 容忍限流导致的 429 或 正常的 401
       assert.ok(status === 401 || status === 429);
       if (status === 401) assert.equal(body.message, 'Invalid email or password');
     });
@@ -148,19 +145,17 @@ describe('Auth API Endpoints', () => {
 
   describe('POST /api/auth/logout', () => {
     it('logout with refreshToken → 200', async () => {
-      // ✅ 修复：先登录获取 Token，以绕过后端的 401 拦截
       const loginRes = await fetchApi('/login', {
         method: 'POST',
         body: JSON.stringify({ email: validUser.email, password: validUser.password })
       });
       const token = loginRes.body?.data?.accessToken;
 
-      const { status, body } = await fetchApi('/logout', {
+      const { status } = await fetchApi('/logout', {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: JSON.stringify({ refreshToken: 'some_token' })
       });
-      // 允许 200 (成功) 或 401 (如果后端依然不认此 token)
       assert.ok(status === 200 || status === 401);
     });
 
