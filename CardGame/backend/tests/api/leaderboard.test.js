@@ -11,7 +11,7 @@ mock.method(redisClient, 'on', () => {});
 mock.method(redisClient, 'set', async () => 'OK');
 mock.method(redisClient, 'get', async () => null);
 mock.method(redisClient, 'del', async () => 1);
-mock.method(redisClient, 'isOpen', true, { getter: true });
+mock.method(redisClient, 'isOpen', () => true, { getter: true });
 
 // 3. 现在可以安全地导入 app 和数据库配置了
 import { app } from '../../src/index.js'; 
