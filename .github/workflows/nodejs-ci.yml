@@ -10,15 +10,6 @@ on:
       - "CardGame/backend/package-lock.json"
       - "CardGame/backend/.env.example"
       - ".github/workflows/**"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "CardGame/backend/src/**"
-      - "CardGame/backend/tests/**"
-      - "CardGame/backend/package.json"
-      - "CardGame/backend/package-lock.json"
-      - "CardGame/backend/.env.example"
-      - ".github/workflows/**"
 
 jobs:
   build:
