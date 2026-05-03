@@ -1,40 +1,21 @@
 import { PHASE } from "./phases.js";
-
-export const DEFAULT_STACK = 1000;
-export const DEFAULT_ENERGY = 8;
+import { createBotState, createPlayerState, createRoomState } from "./models/index.js";
 
 export function createInitialPveState({
   roomId = null,
   dealerSide = "player",
   activeSide = dealerSide,
-  playerChips = DEFAULT_STACK,
-  botChips = DEFAULT_STACK,
+  userId = null,
+  socketId = null,
 } = {}) {
   // Keep the shape minimal but explicit; later tasks can extend it without breaking
   // early tests and imports.
   return {
-    room: {
-      roomId,
-      pot: 0,
-      currentBet: 0,
-      dealerSide,
-      activeSide,
-    },
-    player: {
-      chips: playerChips,
-      energy: DEFAULT_ENERGY,
-      selectedSkills: [],
-      usedSkills: [],
-      infoBlocked: false,
-    },
-    bot: {
-      chips: botChips,
-      energy: DEFAULT_ENERGY,
-      selectedSkills: [],
-      usedSkills: [],
-      infoBlocked: false,
-    },
+    room: createRoomState({ roomId, dealerSide, activeSide }),
+    player: createPlayerState({ userId, socketId }),
+    bot: createBotState(),
     phase: PHASE.WAITING,
+    lastError: null,
+    gameOver: null,
   };
 }
-
