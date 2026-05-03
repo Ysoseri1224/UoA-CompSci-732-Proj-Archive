@@ -41,6 +41,8 @@ test("createInitialPveState returns required top-level keys", () => {
   assert.ok(s.player);
   assert.ok(s.bot);
   assert.ok(s.phase);
+  assert.equal(s.lastError, null);
+  assert.equal(s.gameOver, null);
 });
 
 test("createInitialPveState room fields are present for bootstrap", () => {
@@ -49,6 +51,14 @@ test("createInitialPveState room fields are present for bootstrap", () => {
   assert.equal(typeof s.room.currentBet, "number");
   assert.equal(typeof s.room.dealerSide, "string");
   assert.equal(typeof s.room.activeSide, "string");
+});
+
+test("createInitialPveState player/bot include minimum poker fields", () => {
+  const s = createInitialPveState();
+  for (const side of ["player", "bot"]) {
+    assert.equal(typeof s[side].health, "number");
+    assert.ok(Array.isArray(s[side].holeCards));
+  }
 });
 
 test("createPveMachine builds without throwing and starts in WAITING", () => {
