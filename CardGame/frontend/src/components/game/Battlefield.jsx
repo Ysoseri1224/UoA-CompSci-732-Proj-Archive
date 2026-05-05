@@ -25,6 +25,7 @@ function DamageFloat({ value }) {
 export default function Battlefield({
   bossHp, bossMaxHp,
   floor, lastScore,
+  battlePhase,
 }) {
   const [floats,  setFloats]  = useState([]);
   const prevScore             = useRef(null);
@@ -63,6 +64,16 @@ export default function Battlefield({
           60%     { transform: translateX(-4px); }
           80%     { transform: translateX(4px); }
         }
+        @keyframes fadeInOut {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+          30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+@keyframes bossAttackFlash {
+  0%   { background: rgba(120,0,0,0.0); }
+  40%  { background: rgba(200,0,0,0.12); }
+  100% { background: rgba(120,0,0,0.0); }
+}
       `}</style>
 
       <div style={{
@@ -84,6 +95,8 @@ export default function Battlefield({
           ),
           url('/images/battlefield.png') center/cover no-repeat
         `,
+        // Boss 攻击时整体红闪
+        animation: battlePhase === 'boss' ? 'bossAttackFlash 1s ease-in-out' : 'none',
       }}>
 
         {/* 层数标签 */}
@@ -107,7 +120,47 @@ export default function Battlefield({
           )}
         </div>
 
-        {/* ── BOSS 区域（占满全部） ── */}
+        {/* ── 战斗阶段提示横幅 ── */}
+        {battlePhase && (
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20, pointerEvents: 'none',
+            animation: 'fadeInOut 0.4s ease',
+          }}>
+            <div style={{
+              padding: '12px 32px',
+              borderRadius: 12,
+              fontFamily: 'monospace',
+              fontWeight: 900,
+              letterSpacing: 3,
+              fontSize: 18,
+              textAlign: 'center',
+              ...(battlePhase === 'player' ? {
+                background: 'rgba(160,80,0,0.9)',
+                border: '1px solid #ff8c00',
+                color: '#ffd700',
+                boxShadow: '0 0 24px rgba(255,140,0,0.6), 0 4px 16px rgba(0,0,0,0.6)',
+              } : battlePhase === 'boss' ? {
+                background: 'rgba(120,0,0,0.9)',
+                border: '1px solid #ff3333',
+                color: '#ff8888',
+                boxShadow: '0 0 24px rgba(255,0,0,0.6), 0 4px 16px rgba(0,0,0,0.6)',
+              } : {
+                background: 'rgba(0,50,160,0.9)',
+                border: '1px solid #60a5fa',
+                color: '#bfdbfe',
+                boxShadow: '0 0 24px rgba(59,130,246,0.6), 0 4px 16px rgba(0,0,0,0.6)',
+              }),
+            }}>
+              {battlePhase === 'player'      && '⚔️  玩家攻击！'}
+              {battlePhase === 'boss'        && '💀  BOSS 回合'}
+              {battlePhase === 'shield_break' && '🛡️  护盾吸收！'}
+            </div>
+          </div>
+        )}
+
+        {/* ── BOSS 区域 ── */}
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
@@ -118,7 +171,7 @@ export default function Battlefield({
           {/* 伤害飘字 */}
           {floats.map(f => <DamageFloat key={f.id} value={f.value} />)}
 
-          {/* Boss 红色氛围光 */}
+          {/* Boss 氛围光 */}
           <div style={{
             position: 'absolute', top: '20%', left: '50%',
             transform: 'translateX(-50%)',
@@ -137,7 +190,6 @@ export default function Battlefield({
             filter: bossHit ? 'brightness(1.6) saturate(1.3)' : 'brightness(1)',
             transition: 'filter 0.15s',
           }}>
-            {/* 卡牌底层阴影光晕 */}
             <div style={{
               position: 'absolute', inset: -12,
               borderRadius: '50%',
@@ -149,7 +201,6 @@ export default function Battlefield({
               transition: 'background 0.2s',
             }}/>
 
-            {/* SVG 拱形卡框 */}
             <svg
               viewBox="0 0 140 190"
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none' }}
@@ -165,8 +216,7 @@ export default function Battlefield({
                 d="M16,52 Q16,18 70,16 Q124,18 124,52 L124,152 Q124,174 70,174 Q16,174 16,152 Z"
                 fill="none"
                 stroke={bossHit ? '#ff9999' : '#e8c060'}
-                strokeWidth="1.5"
-                opacity="0.6"
+                strokeWidth="1.5" opacity="0.6"
               />
               <path
                 d="M30,48 Q30,24 70,22 Q110,24 110,48"
@@ -184,7 +234,6 @@ export default function Battlefield({
               </defs>
             </svg>
 
-            {/* 卡牌背景 */}
             <div style={{
               position: 'absolute', inset: 0,
               borderRadius: 14,
@@ -193,7 +242,6 @@ export default function Battlefield({
               zIndex: 0,
             }}/>
 
-            {/* 头像椭圆区域 */}
             <div style={{
               position: 'absolute',
               top: 18, left: '50%',
@@ -207,17 +255,12 @@ export default function Battlefield({
                 ? '0 0 20px rgba(255,80,80,0.7)'
                 : '0 0 16px rgba(160,100,0,0.5), inset 0 2px 0 rgba(255,220,100,0.2)',
               background: 'radial-gradient(ellipse at 50% 30%, #2a1404, #0a0502)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 0,
             }}>
               <img
                 src="/images/boss.png"
                 alt="boss"
-                style={{
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center top',
-                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
               />
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0,
@@ -228,13 +271,10 @@ export default function Battlefield({
               }}/>
             </div>
 
-            {/* 底部名字 */}
             <div style={{
-              position: 'absolute',
-              bottom: 28, left: '50%',
+              position: 'absolute', bottom: 28, left: '50%',
               transform: 'translateX(-50%)',
-              whiteSpace: 'nowrap',
-              zIndex: 4,
+              whiteSpace: 'nowrap', zIndex: 4,
               background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.8) 80%, transparent)',
               padding: '3px 14px',
             }}>
