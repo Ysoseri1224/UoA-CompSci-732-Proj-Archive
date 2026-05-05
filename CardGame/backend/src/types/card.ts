@@ -1,17 +1,18 @@
 // ── 属性 ────────────────────────────────────────────────────────
-/** @typedef {'WATER' | 'FIRE' | 'GRASS'} Element */
-
-export const ALL_ELEMENTS = /** @type {Element[]} */ (['WATER', 'FIRE', 'GRASS']);
+export type Element = 'WATER' | 'FIRE' | 'GRASS';
+export const ALL_ELEMENTS: Element[] = ['WATER', 'FIRE', 'GRASS'];
 
 // ── 点数 ────────────────────────────────────────────────────────
-/** @typedef {1|2|3|4|5|6|7|8|9|10|11|12|13} Rank */
-
-export const ALL_RANKS = /** @type {Rank[]} */ ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+export type Rank = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+export const ALL_RANKS: Rank[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 // ── 牌型 ────────────────────────────────────────────────────────
-/** @typedef {'STRAIGHT_FLUSH'|'FOUR_OF_A_KIND'|'FULL_HOUSE'|'FLUSH'|'STRAIGHT'|'THREE_OF_A_KIND'|'TWO_PAIR'|'PAIR'|'HIGH_CARD'} HandType */
+export type HandType =
+  | 'STRAIGHT_FLUSH' | 'FOUR_OF_A_KIND' | 'FULL_HOUSE'
+  | 'FLUSH' | 'STRAIGHT' | 'THREE_OF_A_KIND'
+  | 'TWO_PAIR' | 'PAIR' | 'HIGH_CARD';
 
-export const HAND_TYPE = /** @type {Record<HandType, HandType>} */ ({
+export const HAND_TYPE: Record<HandType, HandType> = {
   STRAIGHT_FLUSH:  'STRAIGHT_FLUSH',
   FOUR_OF_A_KIND:  'FOUR_OF_A_KIND',
   FULL_HOUSE:      'FULL_HOUSE',
@@ -21,10 +22,10 @@ export const HAND_TYPE = /** @type {Record<HandType, HandType>} */ ({
   TWO_PAIR:        'TWO_PAIR',
   PAIR:            'PAIR',
   HIGH_CARD:       'HIGH_CARD',
-});
+};
 
-// ── 牌型优先级（从高到低，用于比较）────────────────────────────
-export const HAND_TYPE_ORDER = /** @type {HandType[]} */ ([
+// ── 牌型优先级 ──────────────────────────────────────────────────
+export const HAND_TYPE_ORDER: HandType[] = [
   'STRAIGHT_FLUSH',
   'FOUR_OF_A_KIND',
   'FULL_HOUSE',
@@ -34,20 +35,23 @@ export const HAND_TYPE_ORDER = /** @type {HandType[]} */ ([
   'TWO_PAIR',
   'PAIR',
   'HIGH_CARD',
-]);
+];
 
 // ── 卡牌唯一 ID ─────────────────────────────────────────────────
-/** @typedef {string} CardId   格式: "{Element}_{Rank}" */
+export type CardId = string; // 格式: "{Element}_{Rank}"
 
 // ── 卡牌数据结构 ─────────────────────────────────────────────────
-/** @typedef {{ id: CardId, element: Element, rank: Rank, displayRank: string, chipValue: number }} Card */
+export interface Card {
+  id: CardId;
+  element: Element;
+  rank: Rank;
+  displayRank: string;
+  chipValue: number;
+}
 
-/**
- * 点数 → 展示文字
- * @param {Rank} rank
- * @returns {string}
- */
-export function rankToDisplay(rank) {
+// ── 工厂函数 ────────────────────────────────────────────────────
+
+export function rankToDisplay(rank: Rank): string {
   if (rank === 1)  return 'A';
   if (rank === 11) return 'J';
   if (rank === 12) return 'Q';
@@ -55,22 +59,11 @@ export function rankToDisplay(rank) {
   return String(rank);
 }
 
-/**
- * 点数 → 计分用点数值 A=1, 2-10=面值, J=11, Q=12, K=13
- * @param {Rank} rank
- * @returns {number}
- */
-export function rankToChipValue(rank) {
+export function rankToChipValue(rank: Rank): number {
   return rank;
 }
 
-/**
- * 创建卡牌
- * @param {Element} element
- * @param {Rank} rank
- * @returns {Card}
- */
-export function createCard(element, rank) {
+export function createCard(element: Element, rank: Rank): Card {
   return {
     id: `${element}_${rank}`,
     element,
@@ -80,12 +73,8 @@ export function createCard(element, rank) {
   };
 }
 
-/**
- * 生成完整 39 张牌库（有序，未洗牌）
- * @returns {Card[]}
- */
-export function createFullDeck() {
-  const deck = [];
+export function createFullDeck(): Card[] {
+  const deck: Card[] = [];
   for (const element of ALL_ELEMENTS) {
     for (const rank of ALL_RANKS) {
       deck.push(createCard(element, rank));
