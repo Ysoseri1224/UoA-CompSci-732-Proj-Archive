@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { registerSocketHandlers } from "./utils/socketHandlers.js";
 
 export default function initSocket(server) {
   // Create Socket.io instance with CORS enabled for frontend connections
@@ -11,12 +12,7 @@ export default function initSocket(server) {
 
   // Listen for new connections
   io.on('connection', (socket) => {
-    console.log('🚀 A user connected:', socket.id);
-
-    // Listen for disconnections
-    socket.on('disconnect', () => {
-      console.log('👤 User disconnected:', socket.id);
-    });
+    registerSocketHandlers(socket);
   });
 
   return io;

@@ -1,6 +1,24 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { logout } from '../../api/authApi.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
 function Navbar() {
+  const { user, isAuthenticated, clearAuth } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    try {
+      // Tell the backend to invalidate the refresh token in Redis.
+      // authApi.logout() reads the refresh token from localStorage automatically.
+      await logout();
+    } catch {
+      // If the logout API call fails (e.g. network error or already expired),
+      // still clear local auth so the user is not stuck in a logged-in state.
+    }
+    clearAuth();
+    navigate('/');
+  }
+
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 lg:px-16 h-20 text-slate-200"

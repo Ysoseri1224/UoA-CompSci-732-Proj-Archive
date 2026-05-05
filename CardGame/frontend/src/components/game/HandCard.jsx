@@ -28,33 +28,6 @@ export default function HandCard({ card, isSelected, selectionIndex, onClick }) 
 
   return (
     <>
-      {/* 悬浮大图预览 */}
-      {hovered && !isSelected && (
-        <div style={{
-          position:      'fixed',
-          bottom:        185,
-          left:          '50%',
-          transform:     'translateX(-50%)',
-          zIndex:        100,
-          pointerEvents: 'none',
-          animation:     'popIn 0.15s ease-out forwards',
-        }}>
-          <div style={{
-            width: 180, height: 260,
-            borderRadius: 16,
-            border: `2px solid ${theme.border}`,
-            overflow: 'hidden',
-            boxShadow: `0 0 40px ${theme.glow}, 0 20px 60px rgba(0,0,0,0.8)`,
-          }}>
-            <img
-              src={card.image}
-              alt={card.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* 手牌本体 */}
       <div
         onClick={onClick}
@@ -83,21 +56,54 @@ export default function HandCard({ card, isSelected, selectionIndex, onClick }) 
             : hovered
               ? `0 8px 20px rgba(0,0,0,0.5), 0 0 12px ${theme.glow}`
               : '0 4px 12px rgba(0,0,0,0.5)',
-          overflow:   'hidden',
+          overflow:   'visible',
           userSelect: 'none',
         }}
       >
-        {/* 图片占满整张卡 */}
-        <img
-          src={card.image}
-          alt={card.name}
-          style={{
-            width: '100%', height: '100%',
-            objectFit: 'cover', display: 'block',
-            transition: 'transform 0.3s ease',
-            transform: hovered || isSelected ? 'scale(1.06)' : 'scale(1)',
-          }}
-        />
+        {/* 图片容器（overflow hidden 单独套一层） */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          borderRadius: 10,
+          overflow: 'hidden',
+        }}>
+          <img
+            src={card.image}
+            alt={card.name}
+            style={{
+              width: '100%', height: '100%',
+              objectFit: 'cover', display: 'block',
+              transition: 'transform 0.3s ease',
+              transform: hovered || isSelected ? 'scale(1.06)' : 'scale(1)',
+            }}
+          />
+        </div>
+
+        {/* 悬浮大图预览 —— 跟着牌的位置 */}
+        {hovered && !isSelected && (
+          <div style={{
+            position:      'absolute',
+            bottom:        'calc(100% + 12px)',
+            left:          '50%',
+            transform:     'translateX(-50%)',
+            zIndex:        100,
+            pointerEvents: 'none',
+            animation:     'popIn 0.15s ease-out forwards',
+          }}>
+            <div style={{
+              width: 180, height: 260,
+              borderRadius: 16,
+              border: `2px solid ${theme.border}`,
+              overflow: 'hidden',
+              boxShadow: `0 0 40px ${theme.glow}, 0 20px 60px rgba(0,0,0,0.8)`,
+            }}>
+              <img
+                src={card.image}
+                alt={card.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* 选中序号 */}
         {isSelected && (
@@ -118,10 +124,11 @@ export default function HandCard({ card, isSelected, selectionIndex, onClick }) 
         {isSelected && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: 3,
+            height: 3, borderRadius: '0 0 10px 10px',
             background: `linear-gradient(90deg, transparent, ${theme.borderSel}, transparent)`,
           }} />
         )}
+
       </div>
 
       <style>{`
