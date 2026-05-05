@@ -212,67 +212,68 @@ const [bossAttacking, setBossAttacking] = useState(false);
 
   const clearSelected = useCallback(() => setSelected([]), []);
 
-  // ── 技能1：变色（换成目标颜色的同费用牌，图片一起换）──
   const skillChangeColor = useCallback((cardId, newColor) => {
     if (skillCooldowns.changeColor) return;
-
+  
     setState(prev => {
       const card = prev.hand.find(c => c.id === cardId);
       if (!card) return prev;
-
-      // 找同费用、目标颜色、不在手牌里的牌
-      let target = CARD_POOL.find(c =>
-        c.color === newColor &&
-        c.cost  === card.cost &&
-        !prev.hand.some(h => h.id === c.id)
+  
+      // 从 CARD_POOL 找目标颜色同费用的牌作为模板
+      let template = CARD_POOL.find(c =>
+        c.color === newColor && c.cost === card.cost
       );
-
-      // 找不到同费用就找最接近费用的
-      if (!target) {
-        target = CARD_POOL
-          .filter(c =>
-            c.color === newColor &&
-            !prev.hand.some(h => h.id === c.id)
-          )
+  
+      // 找不到同费用就找最接近的
+      if (!template) {
+        template = CARD_POOL
+          .filter(c => c.color === newColor)
           .sort((a, b) =>
             Math.abs(a.cost - card.cost) - Math.abs(b.cost - card.cost)
           )[0];
       }
-
-      if (!target) return prev;
-
+  
+      if (!template) return prev;
+  
+      // 创建一个临时变体，id 加上时间戳避免重复
+      const transformed = {
+        ...template,
+        id: `transformed_${Date.now()}`,
+      };
+  
       return {
         ...prev,
-        hand: prev.hand.map(c => c.id === cardId ? { ...target } : c),
+        hand: prev.hand.map(c => c.id === cardId ? transformed : c),
       };
     });
-
+  
     setSkillCooldowns(prev => ({ ...prev, changeColor: true }));
   }, [skillCooldowns.changeColor]);
 
-  // ── 技能2：变数（换成同颜色目标费用的牌，图片一起换）──
   const skillChangeCost = useCallback((cardId, newCost) => {
     if (skillCooldowns.changeCost) return;
-
+  
     setState(prev => {
       const card = prev.hand.find(c => c.id === cardId);
       if (!card) return prev;
-
-      // 找同颜色、目标费用、不在手牌里的牌
-      const target = CARD_POOL.find(c =>
-        c.color === card.color &&
-        c.cost  === newCost &&
-        !prev.hand.some(h => h.id === c.id)
+  
+      const template = CARD_POOL.find(c =>
+        c.color === card.color && c.cost === newCost
       );
-
-      if (!target) return prev;
-
+  
+      if (!template) return prev;
+  
+      const transformed = {
+        ...template,
+        id: `transformed_${Date.now()}`,
+      };
+  
       return {
         ...prev,
-        hand: prev.hand.map(c => c.id === cardId ? { ...target } : c),
+        hand: prev.hand.map(c => c.id === cardId ? transformed : c),
       };
     });
-
+  
     setSkillCooldowns(prev => ({ ...prev, changeCost: true }));
   }, [skillCooldowns.changeCost]);
 
