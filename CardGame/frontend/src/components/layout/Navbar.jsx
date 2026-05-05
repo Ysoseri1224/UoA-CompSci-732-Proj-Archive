@@ -20,33 +20,70 @@ function Navbar() {
   }
 
   return (
-    <nav>
-      <Link to="/">Home</Link>
-      {' | '}
-      <Link to="/leaderboard">Leaderboard</Link>
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 lg:px-16 h-20 text-slate-200"
+      style={{
+        background:
+          'linear-gradient(180deg, #0c071c 0%, #06051a 42%, #040410 100%)',
+      }}
+    >
+      {/* Logo */}
+      <Link to="/" className="flex items-center gap-3 shrink-0">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center select-none"
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+        >
+          <span className="text-white font-black text-base">♠</span>
+        </div>
+        <span className="text-white font-bold text-xl tracking-wide">Card Rogue</span>
+      </Link>
 
-      {isAuthenticated ? (
-        <>
-          {' | '}
-          <Link to="/lobby">Lobby</Link>
-          {' | '}
-          {/* Link to the logged-in user's own profile page */}
-          <Link to={`/profile/${user?.id}`}>Profile</Link>
-          {' | '}
-          <span>{user?.username}</span>
-          {' | '}
-          <button type="button" onClick={handleLogout}>
-            Logout
-          </button>
-        </>
-      ) : (
-        <>
-          {' | '}
-          <Link to="/login">Login</Link>
-          {' | '}
-          <Link to="/register">Register</Link>
-        </>
-      )}
+      {/* Centre links */}
+      <div className="hidden md:flex items-center gap-12">
+        <Link
+          to="/"
+          className="text-slate-300 hover:text-white text-lg font-medium transition-colors duration-200"
+        >
+          Home
+        </Link>
+        <Link
+          to="/lobby"
+          className="text-slate-300 hover:text-white text-lg font-medium transition-colors duration-200"
+        >
+          Lobby
+        </Link>
+        <Link
+          to="/leaderboard"
+          className="text-slate-300 hover:text-white text-lg font-medium transition-colors duration-200"
+        >
+          Leaderboard
+        </Link>
+      </div>
+
+      {/* Right — auth actions */}
+      <div className="flex items-center gap-4">
+        {/* Login — outlined pill */}
+        <Link
+          to="/login"
+          className="text-slate-200 hover:text-white text-lg font-semibold px-7 py-3
+                     rounded-full border border-white/25 hover:border-white/45
+                     hover:bg-violet-500/[0.08] transition-all duration-200"
+        >
+          Login
+        </Link>
+        {/* Register — filled gradient pill */}
+        <Link
+          to="/register"
+          className="px-7 py-3 rounded-full text-lg font-bold text-white
+                     transition-all duration-200 hover:brightness-110"
+          style={{
+            background: 'linear-gradient(135deg, #f97316, #dc2626)',
+            boxShadow: '0 0 16px rgba(249,115,22,0.28)',
+          }}
+        >
+          Register
+        </Link>
+      </div>
     </nav>
   );
 }

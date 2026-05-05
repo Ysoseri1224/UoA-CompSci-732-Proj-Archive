@@ -19,7 +19,8 @@ function RootLayout() {
   return (
     <>
       <Navbar />
-      <main>
+      {/* pt-20 offsets the fixed navbar (h-20 = 80px) so page content starts below it */}
+      <main className="pt-20">
         <Outlet />
       </main>
     </>
