@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 
 /** Slide strip: GPU translate only; timing after transform settles + idle read time */
 const SHOWCASE = {
-  SLIDE_H: 'calc(100dvh - 5rem)',
+  /** Must match --navbar-height in Navbar.jsx (3.5 / 4 / 5 rem by breakpoint) */
+  SLIDE_H: 'calc(100dvh - var(--navbar-height))',
   STRIP_MS: 920,
   STRIP_EASE: 'cubic-bezier(0.4, 0, 0.2, 1)',
   /** ms after strip lands — entrance animations finish inside this window */
@@ -31,13 +32,12 @@ const FAN_HOVER = [
 const CARD_W = 350;
 const CARD_H = 490;
 
-// Ghost silhouettes — upper only, peeking ABOVE the main card group.
-// Positioned so each ghost's top half is above its foreground twin's top edge.
-// Lower z:1 (behind everything), heavy darkness filter, low opacity.
-const GHOST_CARDS = [
-  { src: '/cards/card_35.png', left: -20, top: -62, rotate: -16, scale: 1.30, opacity: 0.22 },
-  { src: '/cards/card_01.png', left: 248, top: -82, rotate:   0, scale: 1.24, opacity: 0.25 },
-  { src: '/cards/card_20.png', left: 520, top: -58, rotate:  15, scale: 1.28, opacity: 0.22 },
+// Ghost silhouettes — offsets from matching HERO_CARDS slot so stacks stay visually
+// glued when `.hero-fan-scale-wrapper` applies responsive scale (matches foreground fan).
+const HERO_GHOST_TUNE = [
+  { dx: -14, dy: -88, rotateDelta: -8, scale: 1.12, opacity: 0.22 },
+  { dx: -12, dy: -94, rotateDelta: -3, scale: 1.06, opacity: 0.24 },
+  { dx: -10, dy: -86, rotateDelta: 5, scale: 1.10, opacity: 0.22 },
 ];
 
 // Section 2 — 5 fan cards spread in an arc around/before the boss
@@ -84,13 +84,12 @@ const S4_TILES = [
 function ShowcaseHeroSection({ innerKey, fanHovered, setFanHovered }) {
   return (
     <>
-      {/* marginTop: -80px pulls the section behind the fixed navbar so the dark gradient      */}
-      {/* fills the full viewport from y=0. paddingTop: 80px restores internal layout flow. */}
+      {/* Pull behind fixed navbar; paddingTop matches Navbar height (--navbar-height). */}
       <section
         className="relative h-full min-h-0 flex flex-col overflow-hidden"
         style={{
-          marginTop: '-80px',
-          paddingTop: '80px',
+          marginTop: 'calc(var(--navbar-height) * -1)',
+          paddingTop: 'var(--navbar-height)',
           background:
             'radial-gradient(ellipse 130% 110% at 68% 52%, #1e0d34 0%, #100b20 38%, #040410 100%)',
         }}
@@ -120,12 +119,12 @@ function ShowcaseHeroSection({ innerKey, fanHovered, setFanHovered }) {
 
         <div
           key={innerKey}
-          className="relative z-10 flex-1 flex flex-col md:flex-row items-center pl-8 pr-4 lg:pl-40 lg:pr-6 pb-10 pt-6 gap-8 md:gap-0"
+          className="relative z-10 flex-1 flex flex-col md:flex-row items-center pl-6 pr-3 sm:pl-8 sm:pr-4 lg:pl-16 xl:pl-24 2xl:pl-40 lg:pr-6 pb-8 pt-5 min-[1512px]:pb-10 min-[1512px]:pt-6 lg:pb-7 gap-6 md:gap-0"
         >
 
-          <div className="hero-stagger-copy w-full md:w-[34%] flex flex-col gap-7 md:pr-3 order-2 md:order-1 items-center md:items-start text-center md:text-left">
-            {/* Heading: lg uses text-6xl (60px) to avoid overflow; xl and 2xl step up */}
-            <h1 className="hero-stagger-headline text-5xl sm:text-6xl lg:text-6xl xl:text-7xl 2xl:text-[5rem] font-black text-white leading-[1.04] tracking-tight">
+          <div className="hero-stagger-copy w-full min-w-0 md:w-[38%] flex flex-col gap-4 md:gap-5 min-[1512px]:gap-6 2xl:gap-7 md:pr-2 min-[1512px]:pr-3 order-2 md:order-1 items-center md:items-start text-center md:text-left">
+            {/* Laptop: lighter type; min-[1512px]+ / 2xl: step up toward original desktop */}
+            <h1 className="hero-stagger-headline text-4xl sm:text-5xl md:text-[2.5rem] lg:text-[2.75rem] xl:text-[3rem] min-[1512px]:text-[3.75rem] 2xl:text-7xl font-black text-white leading-[1.04] tracking-tight">
               Strategic<br />Card Battles,<br />
               <span style={{
                 background: 'linear-gradient(90deg, #a78bfa 0%, #818cf8 50%, #60a5fa 100%)',
@@ -136,22 +135,28 @@ function ShowcaseHeroSection({ innerKey, fanHovered, setFanHovered }) {
                 Powered by Skill
               </span>
             </h1>
-            <div className="hero-stagger-subcta flex flex-col gap-7">
-            <p className="text-slate-400 text-lg md:text-xl leading-relaxed max-w-sm">
+            <div className="hero-stagger-subcta flex flex-col gap-4 md:gap-5 min-[1512px]:gap-6 2xl:gap-7">
+            <p className="text-slate-400 text-base md:text-base lg:text-[1.05rem] min-[1512px]:text-xl leading-relaxed max-w-sm">
               A PvE card game where strategy, timing, and elemental combos decide every match.
             </p>
-            {/* Buttons: scale from laptop (px-8/text-lg) up to large desktop (xl:px-14/text-2xl) */}
-            <div className="flex flex-wrap items-center gap-3 lg:gap-5">
+            {/* Single row on laptop: nowrap + tighter padding until min-[1512px] */}
+            <div className="flex flex-nowrap items-center gap-2 sm:gap-2.5 min-[1512px]:gap-5">
               <Link
                 to="/login"
-                className="glow-purple px-8 py-3.5 rounded-full text-lg font-extrabold text-white tracking-wide lg:px-10 lg:py-4 xl:px-14 xl:py-5 xl:text-2xl"
+                className="glow-purple shrink-0 rounded-full font-extrabold text-white tracking-wide
+                           px-5 py-2.5 text-sm md:px-6 md:py-3 md:text-base
+                           min-[1512px]:px-10 min-[1512px]:py-4 min-[1512px]:text-lg
+                           2xl:px-14 2xl:py-5 2xl:text-2xl"
                 style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
               >
                 Start Game
               </Link>
               <Link
                 to="/leaderboard"
-                className="glow-outline px-8 py-3.5 rounded-full text-lg font-extrabold text-white tracking-wide border-2 border-white/30 backdrop-blur-sm lg:px-10 lg:py-4 xl:px-14 xl:py-5 xl:text-2xl"
+                className="glow-outline shrink-0 rounded-full font-extrabold text-white tracking-wide border-2 border-white/30 backdrop-blur-sm
+                           px-5 py-2.5 text-sm md:px-6 md:py-3 md:text-base
+                           min-[1512px]:px-10 min-[1512px]:py-4 min-[1512px]:text-lg
+                           2xl:px-14 2xl:py-5 2xl:text-2xl"
               >
                 View Leaderboard
               </Link>
@@ -159,7 +164,7 @@ function ShowcaseHeroSection({ innerKey, fanHovered, setFanHovered }) {
             </div>
           </div>
 
-          <div className="hero-stagger-fan w-full md:w-[66%] flex items-center justify-start pl-0 lg:pl-14 order-1 md:order-2 relative">
+          <div className="hero-stagger-fan w-full min-w-0 md:w-[62%] flex items-center justify-start pl-0 lg:pl-10 xl:pl-14 order-1 md:order-2 relative">
 
             <div className="pointer-events-none absolute inset-0" aria-hidden="true">
               <div className="absolute" style={{
@@ -184,39 +189,47 @@ function ShowcaseHeroSection({ innerKey, fanHovered, setFanHovered }) {
             <div className="hero-fan-scale-wrapper">
             <div
               className="fan-float relative shrink-0"
-              style={{ width: '100%', maxWidth: 900, height: 'min(590px, calc(100dvh - 14rem))' }}
+              style={{
+                width: '100%',
+                maxWidth: 900,
+                height: 'min(590px, calc(100dvh - var(--navbar-height) - 9rem))',
+              }}
             >
-              {GHOST_CARDS.map((ghost, i) => (
-                <div
-                  key={`ghost-upper-${i}`}
-                  className="pointer-events-none absolute"
-                  aria-hidden="true"
-                  style={{
-                    left: ghost.left,
-                    top: ghost.top,
-                    width: CARD_W,
-                    height: CARD_H,
-                    transform: `rotate(${ghost.rotate}deg) scale(${ghost.scale})`,
-                    transformOrigin: 'bottom center',
-                    zIndex: 1,
-                    opacity: ghost.opacity,
-                    filter: 'blur(0px) brightness(0.42)',
-                    borderRadius: 20,
-                    overflow: 'hidden',
-                    WebkitMaskImage:
-                      'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 22%, rgba(0,0,0,0.35) 55%, transparent 78%)',
-                    maskImage:
-                      'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 22%, rgba(0,0,0,0.35) 55%, transparent 78%)',
-                  }}
-                >
-                  <img
-                    src={ghost.src}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    draggable={false}
-                  />
-                </div>
-              ))}
+              {HERO_CARDS.map((card, i) => {
+                const g = HERO_GHOST_TUNE[i];
+                return (
+                  <div
+                    key={`ghost-upper-${i}`}
+                    className="pointer-events-none absolute"
+                    aria-hidden="true"
+                    style={{
+                      left: card.left + g.dx,
+                      top: card.top + g.dy,
+                      width: CARD_W,
+                      height: CARD_H,
+                      transform:
+                        `rotate(${card.rotate + g.rotateDelta}deg) scale(${g.scale})`,
+                      transformOrigin: 'bottom center',
+                      zIndex: 1,
+                      opacity: g.opacity,
+                      filter: 'blur(0px) brightness(0.42)',
+                      borderRadius: 20,
+                      overflow: 'hidden',
+                      WebkitMaskImage:
+                        'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 22%, rgba(0,0,0,0.35) 55%, transparent 78%)',
+                      maskImage:
+                        'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 22%, rgba(0,0,0,0.35) 55%, transparent 78%)',
+                    }}
+                  >
+                    <img
+                      src={card.src}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                  </div>
+                );
+              })}
 
               {HERO_CARDS.map((card, i) => (
                 <div
@@ -741,6 +754,45 @@ function HomePage() {
           animation: showcaseS3Card 0.72s cubic-bezier(0.45, 0, 0.15, 1) 0.44s both;
         }
 
+        /* Skills panel — laptops <1512px: proportionally smaller; 1512+ premium width/height */
+        .showcase-s4-panel-responsive {
+          width: 100%;
+          max-width: min(100%, 1180px);
+          min-height: clamp(328px, 56dvh, 508px);
+        }
+        @media (min-width: 1512px) {
+          .showcase-s4-panel-responsive {
+            max-width: 1800px;
+            min-height: clamp(420px, 72dvh, 680px);
+          }
+        }
+
+        /* PvE panel — match laptop shrink / 1512+ ramp (same breakpoint as Navbar) */
+        .showcase-s2-panel-responsive {
+          width: 100%;
+          max-width: min(100%, 1180px);
+          min-height: clamp(356px, 50dvh, 488px);
+        }
+        @media (min-width: 1512px) {
+          .showcase-s2-panel-responsive {
+            max-width: 1800px;
+            min-height: clamp(500px, 56dvh, 620px);
+          }
+        }
+        @media (min-width: 1920px) {
+          .showcase-s2-panel-responsive {
+            min-height: clamp(520px, 48dvh, 680px);
+          }
+        }
+
+        /* Laptop: icon cluster vw matches scaled panel (~980/760 aspect) */
+        @media (max-width: 1511px) {
+          .showcase-s4-icons-cluster {
+            width: clamp(306px, 36vw, 680px);
+            height: clamp(237px, 27.94vw, 527px);
+          }
+        }
+
         /* ── Responsive: hero fan scale ─────────────────────────────────────────
            The wrapper is separate from .fan-float so the float animation's own
            transform (translateY) is unaffected. Scale anchors at left-center so
@@ -758,48 +810,26 @@ function HomePage() {
           .hero-fan-scale-wrapper { transform: scale(0.86); transform-origin: left center; }
         }
         @media (max-width: 1380px) {
-          .hero-fan-scale-wrapper { transform: scale(0.80); transform-origin: left center; }
-        }
-
-        /* ── Responsive: skills icon cluster scale ──────────────────────────────
-           Scale from center-top; negative margin-bottom compensates layout height
-           so the flex column isn't pushed taller than the viewport allows.       */
-        @media (max-width: 1580px) {
-          .showcase-s4-icons-cluster {
-            transform: scale(0.82);
-            transform-origin: center top;
-            margin-bottom: calc(-760px * 0.18);
-          }
-        }
-        @media (max-width: 1480px) {
-          .showcase-s4-icons-cluster {
-            transform: scale(0.72);
-            transform-origin: center top;
-            margin-bottom: calc(-760px * 0.28);
-          }
-        }
-        @media (max-width: 1380px) {
-          .showcase-s4-icons-cluster {
-            transform: scale(0.62);
-            transform-origin: center top;
-            margin-bottom: calc(-760px * 0.38);
-          }
+          .hero-fan-scale-wrapper { transform: scale(0.72); transform-origin: left center; }
         }
       `}</style>
 
-      <div className="fixed left-0 right-0 top-20 bottom-0 z-0 overflow-hidden bg-[#040410]">
+      <div
+        className="fixed left-0 right-0 bottom-0 z-0 overflow-hidden bg-[#040410]"
+        style={{ top: 'var(--navbar-height)' }}
+      >
         <div
           ref={stripRef}
           onTransitionEnd={onStripTransitionEnd}
           className="flex flex-col will-change-transform"
           style={{
-            transform: `translate3d(0, calc(-${slideIndex} * (100dvh - 5rem)), 0)`,
+            transform: `translate3d(0, calc(${slideIndex} * -1 * (100dvh - var(--navbar-height))), 0)`,
             transition: stripTransition,
           }}
         >
           <div
             className="showcase-slide-slot flex-shrink-0 w-full relative"
-            style={{ height: 'calc(100dvh - 5rem)' }}
+            style={{ height: SHOWCASE.SLIDE_H }}
             data-showcase-slide={0}
             data-entered={slideEntered[0] ? 'true' : 'false'}
             data-hero-soft-landing={heroSoftLanding ? 'true' : 'false'}
@@ -819,13 +849,13 @@ function HomePage() {
       ═══════════════════════════════════════════════════════════════════ */}
           <div
             className="showcase-slide-slot flex-shrink-0 w-full relative"
-            style={{ height: 'calc(100dvh - 5rem)' }}
+            style={{ height: SHOWCASE.SLIDE_H }}
             data-showcase-slide={1}
             data-entered={slideEntered[1] ? 'true' : 'false'}
           >
       {/* py reduced at smaller viewports so panel can breathe inside the slide */}
       <section
-        className="relative h-full min-h-0 flex flex-col justify-center py-6 lg:py-10 xl:py-16 px-2 md:px-4 overflow-hidden"
+        className="relative h-full min-h-0 flex flex-col justify-center py-3 lg:py-5 xl:py-8 min-[1512px]:py-10 px-2 md:px-4 overflow-hidden"
         style={{ background: '#040410' }}
       >
         {/* Ambient background glow */}
@@ -842,10 +872,8 @@ function HomePage() {
 
         {/* Cinematic panel — minHeight uses clamp so it never exceeds the slide */}
         <div
-          className="showcase-s4-panel-anim relative w-full mx-auto rounded-[28px] overflow-hidden"
+          className="showcase-s4-panel-anim showcase-s4-panel-responsive relative mx-auto rounded-[28px] overflow-hidden"
           style={{
-            maxWidth: 1800,
-            minHeight: 'clamp(480px, 80dvh, 720px)',
             border: '1px solid rgba(139,92,246,0.22)',
             boxShadow:
               '0 0 80px rgba(79,70,229,0.18), 0 40px 120px rgba(0,0,0,0.72)',
@@ -899,8 +927,8 @@ function HomePage() {
             style={{ zIndex: 10 }}
           >
             {/* LEFT — copy + CTAs */}
-            <div className="flex flex-col justify-center px-6 md:px-10 lg:px-16 xl:px-24 py-8 lg:py-12 xl:py-16 md:w-[48%] shrink-0 gap-8">
-              <h2 className="text-4xl md:text-5xl xl:text-[3.25rem] font-black text-white leading-tight">
+            <div className="flex flex-col justify-center px-6 md:px-8 lg:px-12 xl:px-14 min-[1512px]:px-16 py-5 lg:py-8 xl:py-10 min-[1512px]:py-12 md:w-[48%] shrink-0 gap-6 min-[1512px]:gap-8">
+              <h2 className="text-3xl md:text-4xl xl:text-[2.875rem] min-[1512px]:text-[3.25rem] font-black text-white leading-tight">
                 Master Skills.<br />
                 <span style={{
                   background: 'linear-gradient(90deg, #a78bfa 0%, #818cf8 50%, #60a5fa 100%)',
@@ -935,7 +963,7 @@ function HomePage() {
             </div>
 
             {/* RIGHT — 3 staggered floating element icons */}
-            <div className="relative flex-1 flex items-center justify-center px-8 py-8 lg:py-12 xl:py-16">
+            <div className="relative flex-1 flex items-center justify-center px-6 py-5 lg:py-7 xl:py-8 min-[1512px]:py-10">
 
               {/* Atmospheric bloom — scaled to match larger icons */}
               <div
@@ -949,17 +977,24 @@ function HomePage() {
                 }}
               />
 
-              {/* Staggered cluster — 460 px icons (~2× prev size) in a loose triangle.
-                  Outer: position + tilt (static). Middle: float. Img: hover.
-                  CSS media queries in <style> scale this down for smaller viewports. */}
-              <div className="relative showcase-s4-icons-cluster" style={{ width: 980, height: 760 }}>
+              {/* Staggered cluster — icons in a loose triangle.
+                  Container and icon sizes use clamp() so the group scales with the
+                  viewport without any transform-scale layout hacks.
+                  Positions are percentages of the container so they stay proportional. */}
+              <div
+                className="relative showcase-s4-icons-cluster"
+                style={{
+                  width: 'clamp(380px, 43vw, 980px)',
+                  height: 'clamp(295px, 33.35vw, 600px)',
+                }}
+              >
                 {[
                   /* Water — lower-left, tilted left, z behind */
-                  { tile: S4_TILES[0], left:   0, top: 310, rotate: -10, z: 1 },
+                  { tile: S4_TILES[0], left: '0%',    top: '40.8%', rotate: -10, z: 1 },
                   /* Fire  — center-top, hero icon, z front */
-                  { tile: S4_TILES[1], left: 260, top:   0, rotate:   3, z: 3 },
+                  { tile: S4_TILES[1], left: '26.5%', top: '0%',    rotate:   3, z: 3 },
                   /* Nature — right, mid-height, z middle */
-                  { tile: S4_TILES[2], right:  0, top: 190, rotate:  11, z: 2 },
+                  { tile: S4_TILES[2], right: '0%',   top: '25%',   rotate:  11, z: 2 },
                 ].map(({ tile, left, top, rotate, right, z }, i) => (
                   /* Outer — static position + rotation */
                   <div
@@ -979,7 +1014,11 @@ function HomePage() {
                         src={tile.src}
                         alt={tile.label}
                         className={`${tile.iconClass} showcase-s4-icon-img`}
-                        style={{ width: 460, height: 460, objectFit: 'contain' }}
+                        style={{
+                          width: 'clamp(200px, 22vw, 460px)',
+                          height: 'clamp(200px, 22vw, 460px)',
+                          objectFit: 'contain',
+                        }}
                         draggable={false}
                       />
                     </div>
@@ -997,7 +1036,7 @@ function HomePage() {
       ═══════════════════════════════════════════════════════════════════ */}
           <div
             className="showcase-slide-slot flex-shrink-0 w-full relative"
-            style={{ height: 'calc(100dvh - 5rem)' }}
+            style={{ height: SHOWCASE.SLIDE_H }}
             data-showcase-slide={2}
             data-entered={slideEntered[2] ? 'true' : 'false'}
           >
@@ -1112,13 +1151,13 @@ function HomePage() {
       ═══════════════════════════════════════════════════════════════════ */}
           <div
             className="showcase-slide-slot flex-shrink-0 w-full relative"
-            style={{ height: 'calc(100dvh - 5rem)' }}
+            style={{ height: SHOWCASE.SLIDE_H }}
             data-showcase-slide={3}
             data-entered={slideEntered[3] ? 'true' : 'false'}
           >
       {/* py reduced so the panel fits comfortably inside the slide at 1366×768 */}
       <section
-        className="relative h-full min-h-0 flex flex-col justify-center items-center py-6 lg:py-10 xl:py-16 px-2 md:px-4 overflow-hidden"
+        className="relative h-full min-h-0 flex flex-col justify-center items-center py-5 lg:py-8 xl:py-11 min-[1512px]:py-16 px-2 md:px-4 overflow-hidden"
         style={{ background: 'linear-gradient(180deg, #040410 0%, #06061a 100%)' }}
       >
         {/* Section ambient glow */}
@@ -1187,10 +1226,8 @@ function HomePage() {
 
         {/* Panel — battlefield.png covers the full banner (in front of boss) */}
         <div
-          className="showcase-s2-panel-anim s2-panel relative w-full rounded-3xl overflow-hidden"
+          className="showcase-s2-panel-anim showcase-s2-panel-responsive s2-panel relative rounded-3xl overflow-hidden mx-auto"
           style={{
-            maxWidth: 1800,
-            minHeight: 520,
             zIndex: 2,
             backgroundImage: 'url(/images/battlefield.png)',
             backgroundSize: 'cover',
@@ -1241,8 +1278,8 @@ function HomePage() {
           <div className="relative flex flex-col md:flex-row min-h-0" style={{ zIndex: 10 }}>
 
             {/* LEFT — copy */}
-            <div className="flex flex-col justify-center px-10 md:px-14 lg:px-20 py-14 md:w-[44%] shrink-0 gap-7">
-              <h2 className="text-3xl md:text-4xl xl:text-[2.75rem] font-black text-white leading-tight">
+            <div className="flex flex-col justify-center px-8 md:px-11 lg:px-14 min-[1512px]:px-20 py-9 min-[1512px]:py-14 md:w-[44%] shrink-0 gap-5 min-[1512px]:gap-7">
+              <h2 className="text-2xl md:text-3xl xl:text-[2.55rem] min-[1512px]:text-[2.75rem] font-black text-white leading-tight">
                 Explore Endless<br />
                 <span style={{
                   background: 'linear-gradient(90deg, #c4b5fd 0%, #818cf8 50%, #38bdf8 100%)',
@@ -1395,7 +1432,7 @@ function HomePage() {
 
           <div
             className="showcase-slide-slot flex-shrink-0 w-full relative"
-            style={{ height: 'calc(100dvh - 5rem)' }}
+            style={{ height: SHOWCASE.SLIDE_H }}
             data-showcase-slide={4}
             data-entered={slideEntered[4] ? 'true' : 'false'}
           >
