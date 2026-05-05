@@ -83,13 +83,13 @@ test('rankToDisplay maps correctly', () => {
 });
 
 test('rankToChipValue maps correctly', () => {
-  assert.equal(rankToChipValue(1), 11);   // Ace
+  assert.equal(rankToChipValue(1), 1);    // A
   assert.equal(rankToChipValue(2), 2);
   assert.equal(rankToChipValue(9), 9);
   assert.equal(rankToChipValue(10), 10);
-  assert.equal(rankToChipValue(11), 10);  // J
-  assert.equal(rankToChipValue(12), 10);  // Q
-  assert.equal(rankToChipValue(13), 10);  // K
+  assert.equal(rankToChipValue(11), 11);  // J
+  assert.equal(rankToChipValue(12), 12);  // Q
+  assert.equal(rankToChipValue(13), 13);  // K
 });
 
 test('createCard returns a complete Card object', () => {
@@ -105,14 +105,13 @@ test('createCard handles Ace correctly', () => {
   const ace = createCard('WATER', 1);
   assert.equal(ace.id, 'WATER_1');
   assert.equal(ace.displayRank, 'A');
-  assert.equal(ace.chipValue, 11);
+  assert.equal(ace.chipValue, 1);
 });
 
 test('createCard handles face cards correctly', () => {
-  for (const rank of [11, 12, 13]) {
-    const card = createCard('GRASS', rank);
-    assert.equal(card.chipValue, 10);
-  }
+  assert.equal(createCard('GRASS', 11).chipValue, 11);
+  assert.equal(createCard('GRASS', 12).chipValue, 12);
+  assert.equal(createCard('GRASS', 13).chipValue, 13);
 });
 
 test('CardId format is {ELEMENT}_{rank}', () => {

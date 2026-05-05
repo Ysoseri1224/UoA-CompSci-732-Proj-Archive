@@ -56,13 +56,11 @@ export function rankToDisplay(rank) {
 }
 
 /**
- * 点数 → 计分用点数值 A=11, 2-10=面值, J/Q/K=10
+ * 点数 → 计分用点数值 A=1, 2-10=面值, J=11, Q=12, K=13
  * @param {Rank} rank
  * @returns {number}
  */
 export function rankToChipValue(rank) {
-  if (rank === 1)               return 11;
-  if (rank >= 11 && rank <= 13) return 10;
   return rank;
 }
 

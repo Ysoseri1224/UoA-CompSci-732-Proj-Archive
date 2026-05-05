@@ -38,7 +38,7 @@ backend/src/types/
 - [ ] `tests/unit/card.types.test.js` 通过
   - CardId 格式 `{ELEMENT}_{rank}` 正确
   - rankToDisplay(1) = 'A', (11) = 'J', (12) = 'Q', (13) = 'K'
-  - rankToChipValue(1) = 11, J/Q/K = 10, 2-10 = 面值
+  - rankToChipValue(rank) = rank (A=1, 2-10=面值, J=11, Q=12, K=13)
   - createCard 生成完整 Card 对象
 
 ---

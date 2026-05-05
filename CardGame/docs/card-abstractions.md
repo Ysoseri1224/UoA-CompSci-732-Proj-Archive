@@ -43,7 +43,7 @@ interface Card {
   
   // 派生字段（可计算，不需要单独存储，但可缓存）
   displayRank: string;     // 展示文字："A" | "2"–"10" | "J" | "Q" | "K"
-  chipValue: number;       // 计分用点数值：A=11, 2–10=面值, J/Q/K=10
+  chipValue: number;       // 计分用点数值：A=1, 2–10=面值, J=11, Q=12, K=13
 }
 ```
 
@@ -69,9 +69,7 @@ function rankToDisplay(rank: Rank): string {
 }
 
 function rankToChipValue(rank: Rank): number {
-  if (rank === 1)               return 11;       // Ace
-  if (rank >= 11 && rank <= 13) return 10;       // J/Q/K
-  return rank;                                   // 2–10
+  return rank;  // A=1, 2-10=面值, J=11, Q=12, K=13
 }
 ```
 
