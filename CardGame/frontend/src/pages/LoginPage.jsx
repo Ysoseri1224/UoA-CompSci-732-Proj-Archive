@@ -202,7 +202,7 @@ function LoginPage() {
 
   return (
     <div
-      className="login-page-root relative isolate min-h-[calc(100dvh-5rem)] w-full overflow-x-hidden overflow-y-auto pb-2 pt-2 sm:pb-3 sm:pt-3 lg:pb-5 lg:pt-5 min-[1512px]:pb-8 min-[1512px]:pt-8"
+      className="login-page-root relative isolate min-h-[calc(100dvh_-_var(--navbar-height))] w-full overflow-x-hidden overflow-y-auto overscroll-y-contain pb-2 pt-2 sm:pb-3 sm:pt-3 lg:pb-5 lg:pt-5 min-[1512px]:pb-8 min-[1512px]:pt-8"
       style={{ backgroundColor: pageTheme.base }}
     >
       <style>{`
@@ -401,25 +401,23 @@ function LoginPage() {
         }
         .login-form-card {
           width: 100%;
-          max-height: min(78dvh, calc(100dvh - 5.5rem));
+          max-height: min(78dvh, calc(100dvh - var(--navbar-height) - 0.5rem));
         }
-        @media (min-width: 1024px) {
+        /* Small / mid laptop: portrait card — narrow width, height from viewport (not aggressive dvh caps) */
+        @media (min-width: 1024px) and (max-width: 1279px) {
           .login-form-card {
-            max-height: min(calc(100dvh - 5.75rem), 760px);
+            flex: 0 0 auto;
+            width: clamp(400px, 34vw, 500px);
+            max-width: clamp(400px, 34vw, 500px);
+            max-height: calc(100dvh - var(--navbar-height) - 2rem);
           }
         }
-        @media (min-width: 1280px) {
+        @media (min-width: 1280px) and (max-width: 1511px) {
           .login-form-card {
-            max-height: min(calc(100dvh - 6rem), 820px);
-          }
-        }
-        @media (min-width: 1024px) and (max-height: 820px) {
-          .login-form-card {
-            max-height: min(calc(100dvh - 5.5rem), 92dvh);
-          }
-          .login-carousel-character {
-            max-height: min(90%, clamp(520px, 62dvh, 800px));
-            max-width: min(100%, clamp(500px, 58vw, 880px));
+            flex: 0 0 auto;
+            width: clamp(440px, 36vw, 560px);
+            max-width: clamp(440px, 36vw, 560px);
+            max-height: calc(100dvh - var(--navbar-height) - 2rem);
           }
         }
         @media (min-width: 1512px) {
@@ -427,7 +425,25 @@ function LoginPage() {
             width: min(92vw, 1500px);
           }
           .login-form-card {
-            max-height: min(82dvh, calc(100dvh - 5.35rem));
+            width: auto;
+            max-width: none;
+            flex: 0 0 46%;
+            max-height: min(82dvh, calc(100dvh - var(--navbar-height) - 0.35rem));
+          }
+        }
+
+        /* Carousel column — shorter on laptop so hero does not dominate */
+        .login-carousel-shell {
+          min-height: min(58dvh, 480px);
+        }
+        @media (min-width: 1280px) and (max-width: 1511px) {
+          .login-carousel-shell {
+            min-height: min(64dvh, 560px);
+          }
+        }
+        @media (min-width: 1512px) {
+          .login-carousel-shell {
+            min-height: min(78dvh, 820px);
           }
         }
 
@@ -561,6 +577,13 @@ function LoginPage() {
         .login-submit-btn:active:not(:disabled)::before {
           animation-play-state: paused;
         }
+        /* Glow extends below paint box — keep register line out of decal overlap */
+        @media (min-width: 1024px) and (max-width: 1511px) {
+          .login-form-card .login-submit-btn {
+            margin-bottom: 12px;
+          }
+        }
+
         .login-submit-btn__bloom {
           position: absolute;
           left: 50%;
@@ -616,38 +639,52 @@ function LoginPage() {
           }
         }
 
-        /* Stacked carousel region — prev/active/next overlap near center */
+        /* Stacked carousel — premium spread on large desktop; tighter on laptop */
         .login-carousel-visual {
-          --carousel-prev-tx: -36%;
-          --carousel-next-tx: 36%;
-          --carousel-side-scale: 0.78;
+          --carousel-prev-tx: -34%;
+          --carousel-next-tx: 34%;
+          --carousel-side-scale: 0.76;
         }
-        @media (max-width: 1439px) {
+        @media (min-width: 1024px) and (max-width: 1511px) {
           .login-carousel-visual {
-            --carousel-prev-tx: -32%;
-            --carousel-next-tx: 32%;
-            --carousel-side-scale: 0.75;
+            --carousel-prev-tx: -24%;
+            --carousel-next-tx: 24%;
+            --carousel-side-scale: 0.64;
           }
         }
-        @media (min-width: 1024px) and (max-height: 820px) {
+        @media (min-width: 1024px) and (max-width: 1511px) and (max-height: 820px) {
           .login-carousel-visual {
-            --carousel-prev-tx: -27%;
-            --carousel-next-tx: 27%;
-            --carousel-side-scale: 0.72;
+            --carousel-prev-tx: -20%;
+            --carousel-next-tx: 20%;
+            --carousel-side-scale: 0.6;
+          }
+        }
+        @media (min-width: 1512px) {
+          .login-carousel-visual {
+            --carousel-prev-tx: -36%;
+            --carousel-next-tx: 36%;
+            --carousel-side-scale: 0.78;
           }
         }
 
-        /* Hero character — larger than form card when viewport allows */
+        /* Hero character — compact on laptop; premium scale at min-[1512px] */
         .login-carousel-character {
           width: auto;
-          max-width: min(108%, clamp(640px, 64vw, 1040px));
+          max-width: min(100%, clamp(360px, 50vw, 560px));
           height: auto;
-          max-height: min(94%, clamp(680px, 88dvh, 980px));
+          max-height: min(86%, clamp(380px, 58dvh, 600px));
           object-position: 50% 52%;
+        }
+        @media (min-width: 1280px) and (max-width: 1511px) {
+          .login-carousel-character {
+            max-width: min(100%, clamp(400px, 44vw, 680px));
+            max-height: min(88%, clamp(420px, 66dvh, 720px));
+          }
         }
         @media (min-width: 1512px) {
           .login-carousel-character {
-            max-height: min(95%, clamp(720px, 86dvh, 980px));
+            max-width: min(108%, clamp(640px, 64vw, 1040px));
+            max-height: min(95%, clamp(680px, 86dvh, 980px));
           }
         }
 
@@ -734,11 +771,11 @@ function LoginPage() {
       </div>
 
       {/* ── Layout: siblings — form card (left) + open carousel (right) ─────── */}
-      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center px-3 py-2 sm:px-5 sm:py-4 lg:px-6 lg:py-5 min-[1512px]:px-8 min-[1512px]:py-8">
-        <div className="login-page-layout flex min-h-0 w-full min-w-0 flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-7 xl:gap-10 min-[1512px]:gap-12">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh_-_var(--navbar-height))] w-full items-center justify-center px-3 py-2 sm:px-5 sm:py-4 lg:px-5 lg:py-4 xl:px-6 min-[1512px]:px-8 min-[1512px]:py-8">
+        <div className="login-page-layout flex min-h-0 w-full min-w-0 flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-5 xl:gap-7 min-[1400px]:gap-9 min-[1512px]:gap-12">
           {/* ── Left — standalone fantasy login card (~42–48% desktop) ─────── */}
           <div
-            className="login-form-card login-form-fantasy-card mx-auto flex w-full min-h-0 max-w-lg min-w-0 flex-col justify-start overflow-y-auto overflow-x-hidden overscroll-contain rounded-[1.75rem] border border-transparent bg-[rgba(6,7,22,0.45)] px-5 py-5 shadow-[0_22px_56px_rgba(0,0,0,0.45)] backdrop-blur-[11px] sm:px-8 sm:py-7 lg:mx-0 lg:max-w-none lg:flex-[0_0_46%] lg:px-8 lg:py-7 min-[1512px]:bg-[rgba(6,7,22,0.36)] min-[1512px]:px-14 min-[1512px]:py-11"
+            className="login-form-card login-form-fantasy-card mx-auto flex w-full min-h-0 max-w-lg min-w-0 flex-col justify-start overflow-y-auto overflow-x-hidden overscroll-contain rounded-[1.75rem] border border-transparent bg-[rgba(6,7,22,0.45)] px-5 py-5 pb-7 shadow-[0_22px_56px_rgba(0,0,0,0.45)] backdrop-blur-[11px] sm:px-8 sm:py-7 lg:mx-0 lg:max-w-none lg:px-6 lg:py-6 lg:pb-8 xl:px-7 xl:py-6 xl:pb-8 min-[1512px]:flex-[0_0_46%] min-[1512px]:bg-[rgba(6,7,22,0.36)] min-[1512px]:px-14 min-[1512px]:py-11 min-[1512px]:pb-11"
             data-frame-kind={pageTheme.frameKind}
             style={{
               '--frame-main': pageTheme.frameMain,
@@ -753,29 +790,29 @@ function LoginPage() {
               <div className={`login-form-frame-pulse login-form-frame-pulse--${pageTheme.frameKind}`} />
             </div>
             {/* Brand */}
-            <div className="mb-3 flex shrink-0 items-center gap-2 sm:gap-3 lg:mb-4 min-[1512px]:mb-8 min-[1512px]:gap-4">
+            <div className="mb-3 flex shrink-0 items-center gap-2 sm:gap-3 lg:mb-3 lg:gap-2.5 xl:mb-4 min-[1512px]:mb-8 min-[1512px]:gap-4">
               <img
                 src="/logo/logo-icon-transparent.png"
                 alt=""
-                className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11 min-[1512px]:h-14 min-[1512px]:w-14"
+                className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11 lg:h-9 lg:w-9 xl:h-10 xl:w-10 min-[1512px]:h-14 min-[1512px]:w-14"
                 draggable={false}
                 width={56}
                 height={56}
               />
-              <span className="font-serif text-base font-semibold tracking-[0.18em] text-white sm:text-lg min-[1512px]:text-xl min-[1512px]:tracking-[0.22em]">
+              <span className="font-serif text-base font-semibold tracking-[0.18em] text-white sm:text-lg lg:text-[0.95rem] xl:text-base min-[1512px]:text-xl min-[1512px]:tracking-[0.22em]">
                 CARD ROGUE
               </span>
             </div>
 
-            <h1 className="text-center font-serif text-[1.45rem] font-bold leading-snug tracking-[0.1em] text-white sm:text-3xl lg:text-left xl:text-[2.75rem] min-[1512px]:text-5xl min-[1512px]:tracking-[0.12em]">
+            <h1 className="text-center font-serif text-[1.45rem] font-bold leading-snug tracking-[0.1em] text-white sm:text-3xl lg:text-left lg:text-2xl xl:text-3xl min-[1512px]:text-5xl min-[1512px]:tracking-[0.12em]">
               ENTER THE ARENA
             </h1>
-            <p className="mt-2 text-center text-sm leading-relaxed text-slate-400 sm:text-base lg:text-left min-[1512px]:mt-3 min-[1512px]:text-lg">
+            <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-400 sm:text-base lg:mt-2 lg:text-left lg:text-[0.9rem] xl:text-[0.95rem] min-[1512px]:mt-3 min-[1512px]:text-lg">
               Log in to continue your battle.
             </p>
 
             <div
-              className="relative my-3 flex w-full shrink-0 items-center sm:my-4 lg:my-4 min-[1512px]:my-8"
+              className="relative my-3.5 flex w-full shrink-0 items-center sm:my-4 lg:my-3.5 xl:my-4 min-[1512px]:my-8"
               aria-hidden="true"
             >
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/50 to-violet-400/20" />
@@ -783,8 +820,8 @@ function LoginPage() {
               <div className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-500/50 to-violet-400/20" />
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-col gap-3.5 sm:gap-4 lg:gap-4 min-[1512px]:gap-6">
-              <div className="flex flex-col gap-2 sm:gap-2.5">
+            <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-col gap-4 sm:gap-[1.1rem] lg:gap-[1.2rem] xl:gap-[1.25rem] min-[1512px]:gap-6">
+              <div className="flex flex-col gap-2 sm:gap-2 lg:gap-2 min-[1512px]:gap-2.5">
                 <label
                   htmlFor="email"
                   className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-300/90 sm:text-xs min-[1512px]:text-sm min-[1512px]:tracking-[0.2em]"
@@ -799,11 +836,11 @@ function LoginPage() {
                   disabled={loading}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal min-[1512px]:px-5 min-[1512px]:py-4"
+                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal lg:py-2.5 lg:text-[0.9rem] lg:leading-snug xl:py-2.5 xl:text-sm min-[1512px]:px-5 min-[1512px]:py-4 min-[1512px]:text-base"
                 />
               </div>
 
-              <div className="flex flex-col gap-2 sm:gap-2.5">
+              <div className="flex flex-col gap-2 sm:gap-2 lg:gap-2 min-[1512px]:gap-2.5">
                 <label
                   htmlFor="password"
                   className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-300/90 sm:text-xs min-[1512px]:text-sm min-[1512px]:tracking-[0.2em]"
@@ -818,14 +855,14 @@ function LoginPage() {
                   disabled={loading}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal min-[1512px]:px-5 min-[1512px]:py-4"
+                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal lg:py-2.5 lg:text-[0.9rem] lg:leading-snug xl:py-2.5 xl:text-sm min-[1512px]:px-5 min-[1512px]:py-4 min-[1512px]:text-base"
                 />
               </div>
 
               {error && (
                 <p
                   role="alert"
-                  className="rounded-xl border border-red-500/40 bg-red-950/45 px-3.5 py-2.5 text-sm text-red-200 backdrop-blur-sm min-[1512px]:px-4 min-[1512px]:py-3.5 min-[1512px]:text-base"
+                  className="rounded-xl border border-red-500/40 bg-red-950/45 px-3.5 py-2.5 text-sm text-red-200 backdrop-blur-sm lg:px-3 lg:py-2 lg:text-[0.8125rem] min-[1512px]:px-4 min-[1512px]:py-3.5 min-[1512px]:text-base"
                 >
                   {error}
                 </p>
@@ -834,7 +871,7 @@ function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="login-submit-btn group relative mt-0.5 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl px-4 py-3.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0514] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-4 sm:py-4 min-[1512px]:mt-1 min-[1512px]:py-5"
+                className="login-submit-btn group relative mt-1 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-3.5 py-3.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0514] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-3 sm:py-3.5 lg:gap-3 lg:py-[0.9375rem] xl:py-4 min-[1512px]:mt-1 min-[1512px]:gap-4 min-[1512px]:px-4 min-[1512px]:py-5"
               >
                 <span className="login-submit-btn__bloom" aria-hidden="true" />
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-px bg-gradient-to-r from-transparent via-sky-200/35 to-transparent" />
@@ -842,7 +879,7 @@ function LoginPage() {
                   <span className="hidden h-px w-8 bg-gradient-to-l from-violet-200/65 to-transparent sm:block sm:w-12 min-[1512px]:w-16" />
                   <span className="h-2 w-2 rotate-45 border border-violet-100/80 bg-violet-400/20 shadow-[0_0_8px_rgba(196,181,254,0.55)]" />
                 </span>
-                <span className="relative z-[2] shrink-0 font-serif text-sm font-semibold uppercase tracking-[0.3em] text-white sm:text-base min-[1512px]:text-lg min-[1512px]:tracking-[0.38em]">
+                <span className="relative z-[2] shrink-0 font-serif text-xs font-semibold uppercase tracking-[0.28em] text-white sm:text-sm lg:text-xs xl:text-sm min-[1512px]:text-lg min-[1512px]:tracking-[0.38em]">
                   {loading ? 'LOGGING IN…' : 'LOGIN'}
                 </span>
                 <span className="relative z-[2] flex shrink-0 items-center gap-2" aria-hidden="true">
@@ -852,7 +889,7 @@ function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-4 shrink-0 pb-1 text-center text-sm text-slate-400 sm:mt-5 lg:text-left min-[1512px]:mt-8 min-[1512px]:text-base">
+            <p className="mt-5 shrink-0 pb-1 text-center text-sm text-slate-400 sm:mt-5 lg:text-left lg:mt-6 lg:text-[0.8125rem] xl:mt-7 xl:text-sm min-[1512px]:mt-8 min-[1512px]:text-base">
               No account yet?{' '}
               <Link
                 to="/register"
@@ -864,7 +901,7 @@ function LoginPage() {
           </div>
 
           {/* ── Right — layout only; character sits on page ambience ───────── */}
-          <div className="group/carousel relative hidden min-h-[min(82dvh,760px)] min-w-0 flex-1 overflow-hidden lg:flex lg:min-h-[min(78dvh,820px)]">
+          <div className="login-carousel-shell group/carousel relative hidden min-w-0 flex-1 overflow-hidden lg:flex">
 
             {/* ── Carousel track ── */}
             <div className="login-carousel-visual absolute inset-0 z-10 overflow-hidden">
@@ -929,7 +966,7 @@ function LoginPage() {
 
             {/* Minimal dot indicators */}
             <div
-              className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-[3px] min-[1512px]:bottom-4"
+              className="absolute bottom-2 left-1/2 z-30 flex -translate-x-1/2 items-center gap-[3px] opacity-90 xl:bottom-3 min-[1512px]:bottom-4 min-[1512px]:opacity-100"
               role="tablist"
               aria-label="Character selection"
             >
