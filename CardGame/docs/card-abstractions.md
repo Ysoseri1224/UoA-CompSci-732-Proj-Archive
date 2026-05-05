@@ -43,7 +43,7 @@ interface Card {
   
   // 派生字段（可计算，不需要单独存储，但可缓存）
   displayRank: string;     // 展示文字："A" | "2"–"10" | "J" | "Q" | "K"
-  chipValue: number;       // 计分用点数值：A=11, 2–10=面值, J/Q/K=10
+  chipValue: number;       // 计分用点数值：A=1, 2–10=面值, J=11, Q=12, K=13
 }
 ```
 
@@ -69,9 +69,7 @@ function rankToDisplay(rank: Rank): string {
 }
 
 function rankToChipValue(rank: Rank): number {
-  if (rank === 1)               return 11;       // Ace
-  if (rank >= 11 && rank <= 13) return 10;       // J/Q/K
-  return rank;                                   // 2–10
+  return rank;  // A=1, 2-10=面值, J=11, Q=12, K=13
 }
 ```
 
@@ -331,33 +329,63 @@ interface ScoreResult {
   total:      number;   // 最终伤害 = (baseChips + cardChips) × mult
 }
 
-function calculateDamage(cards: Card[], buffs: Buff[]): ScoreResult {
-  const hand      = identifyHand(cards);
-  const cardChips = cards.reduce((sum, c) => sum + c.chipValue, 0);
-  
+function calculateDamage(cards: Card[], buffs: Buff[], isDefending: boolean = false): ScoreResult {
+  const hand = identifyHand(cards);
+
+  // Step 1: 从牌型表读取 base chips 和 base mult
   let baseChips = hand.chips;
   let mult      = hand.mult;
-  
-  // 应用强化 Buff（当前阶段只有属性伤害加成）
-  // 注：属性加成仅作用于打出牌中属于该属性的点数
+
+  // Step 2: 应用 HAND_CHIPS_BONUS（匹配牌型时叠加）
+  // Step 3: 应用 HAND_MULT_BONUS（匹配牌型时叠加，加法）
   for (const buff of buffs) {
-    if (buff.type === 'ELEMENT_DAMAGE_MULT') {
-      // 只计算目标属性的牌的 chipValue
-      const elementCards = cards.filter(c => c.element === buff.element);
-      const elementChips = elementCards.reduce((sum, c) => sum + c.chipValue, 0);
-      // 将该属性牌的点数部分乘以系数，累加差值到 cardChips
-      // 等效：total 增加 elementChips * (buff.value - 1)
-      // 这里直接在 mult 结算前处理
+    if (buff.type === 'HAND_CHIPS_BONUS' && buff.handType === hand.type) {
+      baseChips += buff.bonusChips;
+    }
+    if (buff.type === 'HAND_MULT_BONUS' && buff.handType === hand.type) {
+      mult += buff.bonusMult;
     }
   }
-  
-  const total = Math.floor((baseChips + cardChips) * mult);
-  
+
+  // Step 4: 计算每张牌的 chip（按顺序应用 buff）
+  let cardChips = 0;
+  for (const card of cards) {
+    let chip = card.chipValue;
+
+    // 4a: ELEMENT_CHIP_MULT — 属性 chip 倍率
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIP_MULT' && buff.element === card.element) {
+        chip *= buff.mult;
+      }
+    }
+
+    // 4b: ELEMENT_CHIPS_BONUS — 属性额外 chip
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIPS_BONUS' && buff.element === card.element) {
+        chip += buff.bonusChips;
+      }
+    }
+
+    // 4c: ALL_CHIPS_BONUS — 全牌额外 chip
+    for (const buff of buffs) {
+      if (buff.type === 'ALL_CHIPS_BONUS') {
+        chip += buff.bonusChips;
+      }
+    }
+
+    cardChips += chip;
+  }
+
+  // Step 5: 伤害 = floor((baseChips + cardChips) × mult)
+  let total = Math.floor((baseChips + cardChips) * mult);
+
+  // Step 6: Boss DEFEND 减伤
+  if (isDefending) {
+    total = Math.floor(total * 0.5);
+  }
+
   return { handType: hand.type, baseChips, cardChips, mult, total };
 }
-
-// TODO: implement buff application logic（当前 buff 循环未实际计算加成）
-// 注：属性加成的精确应用方式待数值策划确认后完善
 ```
 
 ---
@@ -367,19 +395,55 @@ function calculateDamage(cards: Card[], buffs: Buff[]): ScoreResult {
 ```typescript
 // Buff 设计为可扩展的 union type
 type Buff =
-  | ElementDamageBuff       // 属性伤害加成（第一层必选）
-  | ElementDrawBuff         // Shuffle 时固定获取某属性牌
-  | HighRankDrawBuff        // Shuffle 时固定获取最高费用牌
+  // 方向A：直接伤害放大
+  | HandMultBonus          // 指定牌型倍率加成
+  | HandChipsBonus         // 指定牌型底分加成
+  | AllChipsBonus          // 全牌 chip 加成
+
+  // 方向B：属性增伤
+  | ElementChipMult        // 属性 chip 倍率
+  | ElementChipsBonus      // 属性额外 chip
+
+  // 方向C：操作空间扩展
+  | ElementDrawBuff        // Shuffle 时固定获取某属性牌
+  | HighRankDrawBuff       // Shuffle 时固定获取最高费用牌
   // future:
   // | ShuffleCountBuff     // Shuffle 次数 +N
   // | ShieldAutoRestoreBuff// 每层开始自动恢复护盾
+  // | HPBonus             // 最大HP提升
 
-interface ElementDamageBuff {
-  type:    'ELEMENT_DAMAGE_MULT';
-  element: Element;
-  value:   number;   // 乘数，例如 1.1
+// ── 方向A：直接伤害放大 ────────────────────────
+interface HandMultBonus {
+  type:      'HAND_MULT_BONUS';
+  handType:  HandType;
+  bonusMult: number;   // 倍率 += bonusMult（加法叠加）
 }
 
+interface HandChipsBonus {
+  type:       'HAND_CHIPS_BONUS';
+  handType:   HandType;
+  bonusChips: number;  // 底分 += bonusChips
+}
+
+interface AllChipsBonus {
+  type:       'ALL_CHIPS_BONUS';
+  bonusChips: number;  // 每张打出牌额外 chip
+}
+
+// ── 方向B：属性增伤 ────────────────────────────
+interface ElementChipMult {
+  type:    'ELEMENT_CHIP_MULT';
+  element: Element;
+  mult:    number;      // chip × mult（第一层专精 buff，mult=1.1）
+}
+
+interface ElementChipsBonus {
+  type:       'ELEMENT_CHIPS_BONUS';
+  element:    Element;
+  bonusChips: number;   // 每张匹配属性牌额外 chip
+}
+
+// ── 方向C：操作空间扩展 ────────────────────────
 interface ElementDrawBuff {
   type:    'ELEMENT_DRAW_ON_SHUFFLE';
   element: Element;
@@ -402,21 +466,20 @@ interface Upgrade {
 
 // 第一层：固定 3 选 1（选属性专精）
 const FIRST_LAYER_UPGRADES: Upgrade[] = [
-  { id: 'water_spec', label: '水系专精', description: '水系牌伤害 ×1.1', buff: { type: 'ELEMENT_DAMAGE_MULT', element: 'WATER', value: 1.1 } },
-  { id: 'fire_spec',  label: '火系专精', description: '火系牌伤害 ×1.1', buff: { type: 'ELEMENT_DAMAGE_MULT', element: 'FIRE',  value: 1.1 } },
-  { id: 'grass_spec', label: '草系专精', description: '草系牌伤害 ×1.1', buff: { type: 'ELEMENT_DAMAGE_MULT', element: 'GRASS', value: 1.1 } },
+  { id: 'water_spec', label: '水系专精', description: '水系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'WATER', mult: 1.1 } },
+  { id: 'fire_spec',  label: '火系专精', description: '火系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'FIRE',  mult: 1.1 } },
+  { id: 'grass_spec', label: '草系专精', description: '草系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'GRASS', mult: 1.1 } },
 ];
 
 // 根据已选属性生成后续强化候选池
 // TODO: expand pool to 6+ before implementation（当前池子仅 3 个，3 选 3 无实际选择）
 function generateUpgradePool(chosenElement: Element, layer: number): Upgrade[] {
-  // 当前只有两种强化类型，各1个，共2个，实际游戏需要扩展到至少 6+ 保证 3 选 1 有意义
   const pool: Upgrade[] = [
     {
       id: `${chosenElement}_dmg_${layer}`,
       label: `${chosenElement} 强化`,
-      description: `${chosenElement} 系牌伤害再 ×1.1`,
-      buff: { type: 'ELEMENT_DAMAGE_MULT', element: chosenElement, value: 1.1 }
+      description: `${chosenElement} 系牌 chip ×1.1（可叠加）`,
+      buff: { type: 'ELEMENT_CHIP_MULT', element: chosenElement, mult: 1.1 }
     },
     {
       id: `${chosenElement}_draw_${layer}`,
