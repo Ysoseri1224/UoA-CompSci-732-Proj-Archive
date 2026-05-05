@@ -3,32 +3,91 @@
 // ══════════════════════════════════════════════════════════════════
 
 /**
- * @typedef {ElementDamageBuff|ElementDrawBuff|HighRankDrawBuff} Buff
- * future: ShuffleCountBuff | ShieldAutoRestoreBuff
+ * @typedef {HandMultBonus|HandChipsBonus|AllChipsBonus|ElementChipMult|ElementChipsBonus|ElementDrawBuff|HighRankDrawBuff} Buff
+ * future: ShuffleCountBuff | ShieldAutoRestoreBuff | HPBonus
  */
 
 // ── Buff 类型常量 ────────────────────────────────────────────────
 export const BUFF_TYPE = {
-  ELEMENT_DAMAGE_MULT:        'ELEMENT_DAMAGE_MULT',
-  ELEMENT_DRAW_ON_SHUFFLE:    'ELEMENT_DRAW_ON_SHUFFLE',
-  HIGH_RANK_DRAW_ON_SHUFFLE:  'HIGH_RANK_DRAW_ON_SHUFFLE',
+  // 方向A：直接伤害放大
+  HAND_MULT_BONUS:          'HAND_MULT_BONUS',
+  HAND_CHIPS_BONUS:         'HAND_CHIPS_BONUS',
+  ALL_CHIPS_BONUS:          'ALL_CHIPS_BONUS',
+  // 方向B：属性增伤
+  ELEMENT_CHIP_MULT:        'ELEMENT_CHIP_MULT',
+  ELEMENT_CHIPS_BONUS:      'ELEMENT_CHIPS_BONUS',
+  // 方向C：操作空间扩展
+  ELEMENT_DRAW_ON_SHUFFLE:  'ELEMENT_DRAW_ON_SHUFFLE',
+  HIGH_RANK_DRAW_ON_SHUFFLE:'HIGH_RANK_DRAW_ON_SHUFFLE',
 };
 
-// ── 属性伤害加成 Buff ───────────────────────────────────────────
+// ── 方向A：直接伤害放大 ─────────────────────────────────────────
 /**
- * @typedef {{ type: 'ELEMENT_DAMAGE_MULT', element: import('./card.js').Element, value: number }} ElementDamageBuff
+ * @typedef {{ type: 'HAND_MULT_BONUS', handType: import('./card.js').HandType, bonusMult: number }} HandMultBonus
+ */
+
+/**
+ * @param {import('./card.js').HandType} handType
+ * @param {number} bonusMult
+ * @returns {HandMultBonus}
+ */
+export function createHandMultBonus(handType, bonusMult) {
+  return { type: BUFF_TYPE.HAND_MULT_BONUS, handType, bonusMult };
+}
+
+/**
+ * @typedef {{ type: 'HAND_CHIPS_BONUS', handType: import('./card.js').HandType, bonusChips: number }} HandChipsBonus
+ */
+
+/**
+ * @param {import('./card.js').HandType} handType
+ * @param {number} bonusChips
+ * @returns {HandChipsBonus}
+ */
+export function createHandChipsBonus(handType, bonusChips) {
+  return { type: BUFF_TYPE.HAND_CHIPS_BONUS, handType, bonusChips };
+}
+
+/**
+ * @typedef {{ type: 'ALL_CHIPS_BONUS', bonusChips: number }} AllChipsBonus
+ */
+
+/**
+ * @param {number} bonusChips
+ * @returns {AllChipsBonus}
+ */
+export function createAllChipsBonus(bonusChips) {
+  return { type: BUFF_TYPE.ALL_CHIPS_BONUS, bonusChips };
+}
+
+// ── 方向B：属性增伤 ─────────────────────────────────────────────
+/**
+ * @typedef {{ type: 'ELEMENT_CHIP_MULT', element: import('./card.js').Element, mult: number }} ElementChipMult
  */
 
 /**
  * @param {import('./card.js').Element} element
- * @param {number} [value]
- * @returns {ElementDamageBuff}
+ * @param {number} [mult]
+ * @returns {ElementChipMult}
  */
-export function createElementDamageBuff(element, value = 1.1) {
-  return { type: BUFF_TYPE.ELEMENT_DAMAGE_MULT, element, value };
+export function createElementChipMult(element, mult = 1.1) {
+  return { type: BUFF_TYPE.ELEMENT_CHIP_MULT, element, mult };
 }
 
-// ── Shuffle 属性保底 Buff ───────────────────────────────────────
+/**
+ * @typedef {{ type: 'ELEMENT_CHIPS_BONUS', element: import('./card.js').Element, bonusChips: number }} ElementChipsBonus
+ */
+
+/**
+ * @param {import('./card.js').Element} element
+ * @param {number} bonusChips
+ * @returns {ElementChipsBonus}
+ */
+export function createElementChipsBonus(element, bonusChips) {
+  return { type: BUFF_TYPE.ELEMENT_CHIPS_BONUS, element, bonusChips };
+}
+
+// ── 方向C：操作空间扩展 ─────────────────────────────────────────
 /**
  * @typedef {{ type: 'ELEMENT_DRAW_ON_SHUFFLE', element: import('./card.js').Element }} ElementDrawBuff
  */
@@ -41,7 +100,6 @@ export function createElementDrawBuff(element) {
   return { type: BUFF_TYPE.ELEMENT_DRAW_ON_SHUFFLE, element };
 }
 
-// ── Shuffle 高费保底 Buff ───────────────────────────────────────
 /**
  * @typedef {{ type: 'HIGH_RANK_DRAW_ON_SHUFFLE' }} HighRankDrawBuff
  */
@@ -75,9 +133,9 @@ export function createUpgrade(id, label, description, buff) {
 // ── 第一层：固定 3 选 1（属性专精）─────────────────────────────
 /** @type {Upgrade[]} */
 export const FIRST_LAYER_UPGRADES = [
-  createUpgrade('water_spec', '水系专精', '水系牌伤害 ×1.1', createElementDamageBuff('WATER')),
-  createUpgrade('fire_spec',  '火系专精', '火系牌伤害 ×1.1', createElementDamageBuff('FIRE')),
-  createUpgrade('grass_spec', '草系专精', '草系牌伤害 ×1.1', createElementDamageBuff('GRASS')),
+  createUpgrade('water_spec', '水系专精', '水系牌 chip ×1.1', createElementChipMult('WATER')),
+  createUpgrade('fire_spec',  '火系专精', '火系牌 chip ×1.1', createElementChipMult('FIRE')),
+  createUpgrade('grass_spec', '草系专精', '草系牌 chip ×1.1', createElementChipMult('GRASS')),
 ];
 
 // ── 后续层强化候选池生成 ────────────────────────────────────────
@@ -90,10 +148,10 @@ export const FIRST_LAYER_UPGRADES = [
 export function generateUpgradePool(chosenElement, layer) {
   const pool = [
     createUpgrade(
-      `${chosenElement}_dmg_${layer}`,
+      `${chosenElement}_mult_${layer}`,
       `${chosenElement} 强化`,
-      `${chosenElement} 系牌伤害再 ×1.1`,
-      createElementDamageBuff(chosenElement)
+      `${chosenElement} 系牌 chip ×1.1（可叠加）`,
+      createElementChipMult(chosenElement)
     ),
     createUpgrade(
       `${chosenElement}_draw_${layer}`,

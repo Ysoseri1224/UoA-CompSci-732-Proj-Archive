@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createCard } from '../../src/types/card.js';
-import { createElementDamageBuff } from '../../src/types/buff.js';
+import {
+  createElementChipMult,
+  createElementChipsBonus,
+  createAllChipsBonus,
+  createHandMultBonus,
+  createHandChipsBonus,
+} from '../../src/types/buff.js';
 import {
   HAND_SCORES,
   identifyHand,
@@ -308,31 +314,92 @@ test('calculateDamage: empty hand', () => {
   assert.equal(result.total, 5);
 });
 
-test('calculateDamage applies element damage buff', () => {
+test('calculateDamage applies element chip mult buff', () => {
   const cards = makeCards([
     ['WATER', 5], ['WATER', 10], ['FIRE', 3],
   ]);
-  // Without buff: HIGH_CARD, cardChips=5+10+3=18, total=(5+18)*1=23
-  // With WATER buff x1.5: WATER cards (5,10) get extra: 5*(1.5-1)+10*(1.5-1)=2.5+5=7.5
-  // cardChips = 18 + 7.5 = 25.5 → round to 25.5, total=Math.floor((5+25.5)*1)=30
-  const buff = createElementDamageBuff('WATER', 1.5);
+  // Without buff: HIGH_CARD, cardChips=5+10+3=18
+  // With WATER mult x1.5: WATER cards chip: 5*1.5=7.5, 10*1.5=15 → cardChips=7.5+15+3=25.5
+  const buff = createElementChipMult('WATER', 1.5);
   const result = calculateDamage(cards, [buff]);
 
   assert.equal(result.handType, 'HIGH_CARD');
-  // cardChips = 5+10+3 + 5*0.5 + 10*0.5 = 18 + 2.5 + 5 = 25.5
   assert.ok(result.cardChips > 18, `expected cardChips > 18, got ${result.cardChips}`);
   assert.equal(result.total, Math.floor((5 + 25.5) * 1)); // 30
+});
+
+test('calculateDamage: element chips bonus', () => {
+  const cards = makeCards([
+    ['WATER', 5], ['FIRE', 10],
+  ]);
+  // WATER: 5+3=8, FIRE: 10, cardChips=18
+  const buff = createElementChipsBonus('WATER', 3);
+  const result = calculateDamage(cards, [buff]);
+
+  assert.equal(result.cardChips, 5 + 10 + 3); // 18
+  assert.equal(result.total, Math.floor((5 + 18) * 1));
+});
+
+test('calculateDamage: all chips bonus', () => {
+  const cards = makeCards([
+    ['WATER', 5], ['FIRE', 3],
+  ]);
+  // cardChips = 5 + 3 + 2*2 = 12
+  const buff = createAllChipsBonus(2);
+  const result = calculateDamage(cards, [buff]);
+
+  assert.equal(result.cardChips, 5 + 3 + 4); // 12
+});
+
+test('calculateDamage: hand mult bonus stacks additively', () => {
+  const cards = makeCards([
+    ['WATER', 5], ['FIRE', 6], ['GRASS', 7], ['WATER', 8], ['FIRE', 9],
+  ]);
+  // STRAIGHT: baseChips=30, mult=4
+  // HAND_MULT_BONUS: mult += 2 → 6
+  const buff = createHandMultBonus('STRAIGHT', 2);
+  const result = calculateDamage(cards, [buff]);
+
+  assert.equal(result.handType, 'STRAIGHT');
+  assert.equal(result.mult, 6); // 4 + 2
+  // cardChips = 5+6+7+8+9 = 35, total = floor((30+35)*6) = 390
+  assert.equal(result.total, Math.floor((30 + 35) * 6));
+});
+
+test('calculateDamage: hand chips bonus adds to baseChips', () => {
+  const cards = makeCards([
+    ['WATER', 2], ['WATER', 5], ['WATER', 8], ['WATER', 10], ['WATER', 13],
+  ]);
+  // FLUSH: baseChips=35, mult=4
+  // HAND_CHIPS_BONUS: baseChips += 10 → 45
+  const buff = createHandChipsBonus('FLUSH', 10);
+  const result = calculateDamage(cards, [buff]);
+
+  assert.equal(result.handType, 'FLUSH');
+  assert.equal(result.baseChips, 45); // 35 + 10
+});
+
+test('calculateDamage: only matching hand type gets bonus', () => {
+  const cards = makeCards([
+    ['WATER', 2], ['WATER', 5], ['WATER', 8], ['WATER', 10], ['WATER', 13],
+  ]);
+  // FLUSH, but buff is for STRAIGHT — no effect
+  const buff = createHandMultBonus('STRAIGHT', 5);
+  const result = calculateDamage(cards, [buff]);
+
+  assert.equal(result.handType, 'FLUSH');
+  assert.equal(result.mult, 4); // unchanged
 });
 
 test('calculateDamage: multiple buffs stack', () => {
   const cards = makeCards([
     ['WATER', 5], ['FIRE', 10],
   ]);
-  const waterBuff = createElementDamageBuff('WATER', 1.5);
-  const fireBuff = createElementDamageBuff('FIRE', 1.5);
-  const result = calculateDamage(cards, [waterBuff, fireBuff]);
+  const waterMult = createElementChipMult('WATER', 1.5);
+  const fireMult = createElementChipMult('FIRE', 1.5);
+  const result = calculateDamage(cards, [waterMult, fireMult]);
 
-  // cardChips = 5+10 + 5*0.5 + 10*0.5 = 15 + 2.5 + 5 = 22.5
+  // WATER: 5*1.5=7.5, FIRE: 10*1.5=15, cardChips=22.5
   assert.ok(result.cardChips > 15);
 });
 
@@ -340,11 +407,26 @@ test('calculateDamage: buff only applies to matching element', () => {
   const cards = makeCards([
     ['WATER', 10], ['FIRE', 10],
   ]);
-  const waterBuff = createElementDamageBuff('WATER', 2.0); // double
-  const result = calculateDamage(cards, [waterBuff]);
+  const waterMult = createElementChipMult('WATER', 2.0); // double
+  const result = calculateDamage(cards, [waterMult]);
 
-  // cardChips = 10+10 + 10*(2.0-1) = 20 + 10 = 30
+  // WATER: 10*2=20, FIRE: 10, cardChips=30
   assert.equal(result.cardChips, 30);
+});
+
+test('calculateDamage: isDefending halves total damage', () => {
+  const cards = makeCards([
+    ['WATER', 2], ['FIRE', 5],
+  ]);
+  const normal = calculateDamage(cards);
+  const defending = calculateDamage(cards, [], true);
+
+  // normal: (5+7)*1=12, defending: floor(12*0.5)=6
+  assert.equal(normal.total, 12);
+  assert.equal(defending.total, Math.floor(12 * 0.5));
+  // Should be less than normal
+  assert.ok(defending.total < normal.total,
+    `defending total (${defending.total}) should be < normal total (${normal.total})`);
 });
 
 test('calculateDamage rounds total down', () => {

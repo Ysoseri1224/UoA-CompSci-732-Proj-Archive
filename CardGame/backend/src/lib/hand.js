@@ -135,38 +135,77 @@ export function getRankCounts(cards) {
  */
 
 /**
- * 计算最终伤害 = floor((baseChips + cardChips) × mult)
- * 应用 Buff 加成（属性伤害乘数作用于匹配属性的牌的贡献点数）。
+ * 计算最终伤害。6 步顺序应用 buff：
+ *   1. 查表取 base chips + base mult
+ *   2. HAND_CHIPS_BONUS → base chips += bonusChips（匹配牌型）
+ *   3. HAND_MULT_BONUS → mult += bonusMult（匹配牌型，加法叠加）
+ *   4. 每张牌 chip：ELEMENT_CHIP_MULT → ELEMENT_CHIPS_BONUS → ALL_CHIPS_BONUS
+ *   5. total = floor((baseChips + cardChips) × mult)
+ *   6. isDefending → total = floor(total × 0.5)
  *
  * @param {import('../types/card.js').Card[]} cards
  * @param {import('../types/buff.js').Buff[]} [buffs]
+ * @param {boolean} [isDefending]
  * @returns {ScoreResult}
  */
-export function calculateDamage(cards, buffs = []) {
+export function calculateDamage(cards, buffs = [], isDefending = false) {
   const hand = identifyHand(cards);
-  let cardChips = cards.reduce((sum, c) => sum + c.chipValue, 0);
 
+  // Step 1: base values from hand type
   let baseChips = hand.chips;
   let mult = hand.mult;
 
-  // 应用属性伤害加成 Buff
+  // Step 2 & 3: HAND_CHIPS_BONUS & HAND_MULT_BONUS
   for (const buff of buffs) {
-    if (buff.type === 'ELEMENT_DAMAGE_MULT') {
-      for (const card of cards) {
-        if (card.element === buff.element) {
-          // 该属性牌的点数部分乘以增幅系数
-          cardChips += card.chipValue * (buff.value - 1);
-        }
-      }
+    if (buff.type === 'HAND_CHIPS_BONUS' && buff.handType === hand.type) {
+      baseChips += buff.bonusChips;
+    }
+    if (buff.type === 'HAND_MULT_BONUS' && buff.handType === hand.type) {
+      mult += buff.bonusMult;
     }
   }
 
-  const total = Math.floor((baseChips + cardChips) * mult);
+  // Step 4: per-card chip calculation
+  let cardChips = 0;
+  for (const card of cards) {
+    let chip = card.chipValue;
+
+    // 4a: ELEMENT_CHIP_MULT
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIP_MULT' && buff.element === card.element) {
+        chip *= buff.mult;
+      }
+    }
+
+    // 4b: ELEMENT_CHIPS_BONUS
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIPS_BONUS' && buff.element === card.element) {
+        chip += buff.bonusChips;
+      }
+    }
+
+    // 4c: ALL_CHIPS_BONUS
+    for (const buff of buffs) {
+      if (buff.type === 'ALL_CHIPS_BONUS') {
+        chip += buff.bonusChips;
+      }
+    }
+
+    cardChips += chip;
+  }
+
+  // Step 5: total damage
+  let total = Math.floor((baseChips + cardChips) * mult);
+
+  // Step 6: DEFEND half-damage
+  if (isDefending) {
+    total = Math.floor(total * 0.5);
+  }
 
   return {
     handType: hand.type,
     baseChips,
-    cardChips: Math.round(cardChips * 100) / 100, // 保留精度
+    cardChips: Math.round(cardChips * 100) / 100,
     mult,
     total,
   };

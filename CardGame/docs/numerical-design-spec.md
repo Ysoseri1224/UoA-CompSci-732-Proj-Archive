@@ -297,11 +297,27 @@ def generate_layer_table(
    - 效果公式（精确的数值计算方式）
    - 强度分级（弱/中/强）
    - 对avg DPS的提升量估算
-
 2. **生成10层完整数值表**，每层包含七、数值表格式要求中的所有列
-
 3. **验证DPS成长曲线**：确认每层累积buff后的avg DPS符合三、3.4节的目标曲线
-
 4. **验证胜率曲线**：确认每层胜率符合六、目标胜率曲线
-
 5. 如发现数值冲突，优先保证胜率曲线正确，其次保证DPS成长曲线，最后调整Boss HP
+
+## 十、计算脚本和注意事项
+
+**buff强度差距极大：**
+
+- 火系专精 `ELEMENT_CHIP_MULT ×1.1`：avg只+3（+2%），几乎可以忽略
+- 同花倍率+1：avg只+6（+4%），效果也很弱
+- `ALL_CHIPS_BONUS +8`（每张牌+8chip）：avg+114（**+78%**），是量级最强的buff类型
+
+这说明另一个AI设计buff链时，**主力buff应该是`ALL_CHIPS_BONUS`和`HAND_MULT_BONUS`**，属性增伤系列只作为专精方向的行为引导，不能指望它推动DPS成长曲线。这个结论要附在`numerical-design-spec.md`旁边一起给那个AI，否则它会把buff设计方向搞反。
+
+脚本使用流程：
+
+1. 在底部 `BUFFS_L2` 之后继续追加每层的buff组合
+2. 取消注释 `simulate_avg_dps` 那段，运行得到每层avg_dps
+3. 把avg_dps填进 `LAYER_CONFIGS`，补全boss_hp和boss_atk
+4. 重新运行，看比值列和胜率估算列是否符合目标曲线
+5. 需要精确验证时把 `validate_layers=None` 改成 `validate_layers=[1,4,7,10]`
+
+初步的计算脚本相对路径为：/docs/calc.py

@@ -19,18 +19,21 @@ export const EVENT = {
   PLAY_CONFIRM: 'PLAY_CONFIRM',
 
   // ── 系统事件（自动触发）───────────────────────
-  DRAW_COMPLETE:        'DRAW_COMPLETE',
-  RESOLVE_COMPLETE:     'RESOLVE_COMPLETE',
-  BOSS_ATTACK_COMPLETE: 'BOSS_ATTACK_COMPLETE',
-  ROUND_END_CONFIRM:    'ROUND_END_CONFIRM',
+  DRAW_COMPLETE:            'DRAW_COMPLETE',
+  BOSS_TELEGRAPH_COMPLETE:  'BOSS_TELEGRAPH_COMPLETE',
+  RESOLVE_COMPLETE:         'RESOLVE_COMPLETE',
+  BOSS_ATTACK_COMPLETE:     'BOSS_ATTACK_COMPLETE',
+  ROUND_END_CONFIRM:        'ROUND_END_CONFIRM',
 
   // ── 胜负事件 ──────────────────────────────────
   BATTLE_WIN:  'BATTLE_WIN',
   BATTLE_LOSE: 'BATTLE_LOSE',
 
   // ── Roguelike 事件 ────────────────────────────
-  SELECT_UPGRADE: 'SELECT_UPGRADE',
-  LOAD_SAVEPOINT: 'LOAD_SAVEPOINT',
+  UPGRADE_OPTIONS_READY: 'UPGRADE_OPTIONS_READY',
+  SELECT_UPGRADE:        'SELECT_UPGRADE',
+  UPGRADE_APPLIED:       'UPGRADE_APPLIED',
+  LOAD_SAVEPOINT:        'LOAD_SAVEPOINT',
 
   // ── 全局事件 ──────────────────────────────────
   START_BATTLE: 'START_BATTLE',
@@ -88,19 +91,22 @@ export function playConfirm() {
 }
 
 // ── 系统事件 ────────────────────────────────────────────────────
-export function drawComplete()          { return { type: EVENT.DRAW_COMPLETE }; }
-export function resolveComplete()      { return { type: EVENT.RESOLVE_COMPLETE }; }
-export function bossAttackComplete()   { return { type: EVENT.BOSS_ATTACK_COMPLETE }; }
-export function roundEndConfirm()      { return { type: EVENT.ROUND_END_CONFIRM }; }
-export function battleWin()            { return { type: EVENT.BATTLE_WIN }; }
-export function battleLose()           { return { type: EVENT.BATTLE_LOSE }; }
+export function drawComplete()            { return { type: EVENT.DRAW_COMPLETE }; }
+export function bossTelegraphComplete()   { return { type: EVENT.BOSS_TELEGRAPH_COMPLETE }; }
+export function resolveComplete()         { return { type: EVENT.RESOLVE_COMPLETE }; }
+export function bossAttackComplete()      { return { type: EVENT.BOSS_ATTACK_COMPLETE }; }
+export function roundEndConfirm()         { return { type: EVENT.ROUND_END_CONFIRM }; }
+export function battleWin()               { return { type: EVENT.BATTLE_WIN }; }
+export function battleLose()              { return { type: EVENT.BATTLE_LOSE }; }
 
 /**
- * @param {import('./buff.js').Upgrade} upgrade
+ * @param {string} upgradeId
  */
-export function selectUpgrade(upgrade) {
-  return { type: EVENT.SELECT_UPGRADE, upgrade };
+export function selectUpgrade(upgradeId) {
+  return { type: EVENT.SELECT_UPGRADE, upgradeId };
 }
 
+export function upgradeOptionsReady()  { return { type: EVENT.UPGRADE_OPTIONS_READY }; }
+export function upgradeApplied()       { return { type: EVENT.UPGRADE_APPLIED }; }
 export function loadSavepoint()        { return { type: EVENT.LOAD_SAVEPOINT }; }
 export function startBattle()          { return { type: EVENT.START_BATTLE }; }

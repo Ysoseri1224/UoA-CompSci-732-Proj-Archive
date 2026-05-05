@@ -16,10 +16,12 @@ import {
   ROUND_PHASE,
   ALL_ROUND_PHASES,
   GAME_PHASE,
+  BOSS_WEIGHTS_BY_LAYER,
   createShieldState,
   createRoundSkills,
   createShuffleState,
   createPlayState,
+  createBossRoundState,
   createRoundState,
   createPlayerState,
   createBossState,
@@ -30,7 +32,11 @@ import {
 
 import {
   BUFF_TYPE,
-  createElementDamageBuff,
+  createHandMultBonus,
+  createHandChipsBonus,
+  createAllChipsBonus,
+  createElementChipMult,
+  createElementChipsBonus,
   createElementDrawBuff,
   createHighRankDrawBuff,
   createUpgrade,
@@ -49,12 +55,15 @@ import {
   playSelect,
   playConfirm,
   drawComplete,
+  bossTelegraphComplete,
   resolveComplete,
   bossAttackComplete,
   roundEndConfirm,
   battleWin,
   battleLose,
+  upgradeOptionsReady,
   selectUpgrade,
+  upgradeApplied,
   loadSavepoint,
   startBattle,
 } from '../../src/types/events.js';
@@ -171,8 +180,8 @@ test('HAND_TYPE_ORDER is sorted from highest to lowest priority', () => {
 //  State types
 // ══════════════════════════════════════════════════════════════════
 
-test('ROUND_PHASE exports all 7 phases', () => {
-  const required = ['DRAW', 'SKILL', 'SHUFFLE', 'PLAY', 'RESOLVE', 'BOSS_ATTACK', 'ROUND_END'];
+test('ROUND_PHASE exports all 8 phases', () => {
+  const required = ['DRAW', 'BOSS_TELEGRAPH', 'SKILL', 'SHUFFLE', 'PLAY', 'RESOLVE', 'BOSS_ATTACK', 'ROUND_END'];
   for (const k of required) {
     assert.equal(ROUND_PHASE[k], k);
   }
@@ -219,6 +228,8 @@ test('createRoundState defaults to DRAW phase', () => {
   assert.ok(rs.skills);
   assert.ok(rs.shuffle);
   assert.ok(rs.play);
+  assert.ok(rs.bossRound);
+  assert.equal(rs.bossRound.intent, 'ATTACK');
 });
 
 test('createRoundState accepts custom phase', () => {
@@ -247,6 +258,35 @@ test('createBossState defaults', () => {
   assert.equal(b.hp, 300);
   assert.equal(b.maxHp, 300);
   assert.equal(b.attackPerRound, 5);
+  assert.equal(b.chargeAttack, Math.floor(5 * 2.2));
+  assert.equal(b.behavior.currentIntent, 'ATTACK');
+  assert.equal(b.behavior.chargeStored, false);
+  assert.ok(b.weights);
+  assert.equal(b.weights.attack, 0.80);
+});
+
+test('createBossState reads weights from BOSS_WEIGHTS_BY_LAYER', () => {
+  const b = createBossState({ layer: 7 });
+  assert.equal(b.layer, 7);
+  assert.equal(b.weights.attack, 0.45);
+  assert.equal(b.weights.charge, 0.30);
+  assert.equal(b.weights.defend, 0.25);
+});
+
+test('BOSS_WEIGHTS_BY_LAYER has entries for layers 1-10', () => {
+  assert.equal(Object.keys(BOSS_WEIGHTS_BY_LAYER).length, 10);
+  for (let i = 1; i <= 10; i++) {
+    const w = BOSS_WEIGHTS_BY_LAYER[i];
+    assert.ok(Math.abs(w.attack + w.charge + w.defend - 1.0) < 0.001,
+      `layer ${i} weights should sum to 1.0`);
+  }
+});
+
+test('createBossRoundState defaults to ATTACK with no flags', () => {
+  const br = createBossRoundState();
+  assert.equal(br.intent, 'ATTACK');
+  assert.equal(br.isDefending, false);
+  assert.equal(br.willReleaseCharge, false);
 });
 
 test('createBattleState defaults to ONGOING round 1', () => {
@@ -263,6 +303,8 @@ test('createGameState defaults', () => {
   assert.equal(gs.phase, 'BATTLE');
   assert.deepEqual(gs.deck, []);
   assert.deepEqual(gs.hand, []);
+  assert.equal(gs.upgradePhase, null);
+  assert.deepEqual(gs.upgradeOptions, []);
   assert.equal(gs.savepoint, null);
 });
 
@@ -280,16 +322,43 @@ test('createSavepoint preserves gameState without savepoint field', () => {
 //  Buff types
 // ══════════════════════════════════════════════════════════════════
 
-test('createElementDamageBuff creates correct buff', () => {
-  const buff = createElementDamageBuff('WATER', 1.2);
-  assert.equal(buff.type, BUFF_TYPE.ELEMENT_DAMAGE_MULT);
+test('createElementChipMult creates correct buff', () => {
+  const buff = createElementChipMult('WATER', 1.2);
+  assert.equal(buff.type, BUFF_TYPE.ELEMENT_CHIP_MULT);
   assert.equal(buff.element, 'WATER');
-  assert.equal(buff.value, 1.2);
+  assert.equal(buff.mult, 1.2);
 });
 
-test('createElementDamageBuff defaults to 1.1', () => {
-  const buff = createElementDamageBuff('FIRE');
-  assert.equal(buff.value, 1.1);
+test('createElementChipMult defaults to 1.1', () => {
+  const buff = createElementChipMult('FIRE');
+  assert.equal(buff.mult, 1.1);
+});
+
+test('createElementChipsBonus creates correct buff', () => {
+  const buff = createElementChipsBonus('GRASS', 5);
+  assert.equal(buff.type, BUFF_TYPE.ELEMENT_CHIPS_BONUS);
+  assert.equal(buff.element, 'GRASS');
+  assert.equal(buff.bonusChips, 5);
+});
+
+test('createAllChipsBonus creates correct buff', () => {
+  const buff = createAllChipsBonus(3);
+  assert.equal(buff.type, BUFF_TYPE.ALL_CHIPS_BONUS);
+  assert.equal(buff.bonusChips, 3);
+});
+
+test('createHandMultBonus creates correct buff', () => {
+  const buff = createHandMultBonus('FLUSH', 2);
+  assert.equal(buff.type, BUFF_TYPE.HAND_MULT_BONUS);
+  assert.equal(buff.handType, 'FLUSH');
+  assert.equal(buff.bonusMult, 2);
+});
+
+test('createHandChipsBonus creates correct buff', () => {
+  const buff = createHandChipsBonus('PAIR', 10);
+  assert.equal(buff.type, BUFF_TYPE.HAND_CHIPS_BONUS);
+  assert.equal(buff.handType, 'PAIR');
+  assert.equal(buff.bonusChips, 10);
 });
 
 test('createElementDrawBuff creates correct buff', () => {
@@ -304,7 +373,7 @@ test('createHighRankDrawBuff creates correct buff', () => {
 });
 
 test('createUpgrade returns complete object', () => {
-  const buff = createElementDamageBuff('FIRE');
+  const buff = createElementChipMult('FIRE');
   const up = createUpgrade('u1', 'Test', 'Desc', buff);
   assert.equal(up.id, 'u1');
   assert.equal(up.label, 'Test');
@@ -316,6 +385,10 @@ test('FIRST_LAYER_UPGRADES has exactly 3 choices', () => {
   assert.equal(FIRST_LAYER_UPGRADES.length, 3);
   const elements = FIRST_LAYER_UPGRADES.map(u => u.buff.element);
   assert.deepEqual(elements, ['WATER', 'FIRE', 'GRASS']);
+  // Verify they use ELEMENT_CHIP_MULT
+  for (const u of FIRST_LAYER_UPGRADES) {
+    assert.equal(u.buff.type, 'ELEMENT_CHIP_MULT');
+  }
 });
 
 test('generateUpgradePool returns exactly 3 upgrades', () => {
@@ -349,9 +422,9 @@ test('EVENT exports all event type constants', () => {
     'SKILL_CHANGE_COLOR', 'SKILL_CHANGE_COST', 'SKILL_SHIELD',
     'SHUFFLE_SELECT', 'SHUFFLE_CONFIRM', 'SHUFFLE_CANCEL',
     'PLAY_SELECT', 'PLAY_CONFIRM',
-    'DRAW_COMPLETE', 'RESOLVE_COMPLETE', 'BOSS_ATTACK_COMPLETE', 'ROUND_END_CONFIRM',
+    'DRAW_COMPLETE', 'BOSS_TELEGRAPH_COMPLETE', 'RESOLVE_COMPLETE', 'BOSS_ATTACK_COMPLETE', 'ROUND_END_CONFIRM',
     'BATTLE_WIN', 'BATTLE_LOSE',
-    'SELECT_UPGRADE', 'LOAD_SAVEPOINT',
+    'UPGRADE_OPTIONS_READY', 'SELECT_UPGRADE', 'UPGRADE_APPLIED', 'LOAD_SAVEPOINT',
     'START_BATTLE',
   ];
   for (const k of required) {
@@ -370,12 +443,15 @@ test('all event factory functions return { type } objects', () => {
     playSelect('WATER_5'),
     playConfirm(),
     drawComplete(),
+    bossTelegraphComplete(),
     resolveComplete(),
     bossAttackComplete(),
     roundEndConfirm(),
     battleWin(),
     battleLose(),
-    selectUpgrade(createUpgrade('u1', 'L', 'D', createElementDamageBuff('WATER'))),
+    upgradeOptionsReady(),
+    selectUpgrade('u1'),
+    upgradeApplied(),
     loadSavepoint(),
     startBattle(),
   ];
@@ -411,9 +487,8 @@ test('playSelect includes cardId', () => {
   assert.equal(ev.cardId, 'GRASS_13');
 });
 
-test('selectUpgrade includes upgrade object', () => {
-  const up = createUpgrade('test_up', 'Test Upgrade', 'A test upgrade', createElementDamageBuff('WATER'));
-  const ev = selectUpgrade(up);
+test('selectUpgrade includes upgradeId string', () => {
+  const ev = selectUpgrade('test_upgrade_id');
   assert.equal(ev.type, 'SELECT_UPGRADE');
-  assert.deepEqual(ev.upgrade, up);
+  assert.equal(ev.upgradeId, 'test_upgrade_id');
 });
