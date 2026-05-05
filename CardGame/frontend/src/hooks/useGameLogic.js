@@ -6,8 +6,6 @@ const HAND_SIZE = 7;
 const MAX_SELECT = 5;
 const MAX_DISCARDS = 2;
 
-// ── 工具函数 ──────────────────────────────────────────────
-
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -16,8 +14,6 @@ function shuffle(arr) {
   }
   return a;
 }
-
-// ── 牌型判断 ──────────────────────────────────────────────
 
 function getHandType(cards) {
   if (cards.length === 0) return HAND_TYPES.find(h => h.id === 'high_card');
@@ -61,8 +57,6 @@ function getHandType(cards) {
   return HAND_TYPES.find(h => h.id === 'high_card');
 }
 
-// ── 评估出牌分数 ──────────────────────────────────────────
-
 export function evaluateHand(cards) {
   const handType    = getHandType(cards);
   const baseAttack  = cards.reduce((sum, c) => sum + c.cost, 0);
@@ -72,8 +66,6 @@ export function evaluateHand(cards) {
   return { handType, baseAttack, bonusAttack, multiplier, totalScore };
 }
 
-// ── 初始化 ────────────────────────────────────────────────
-
 function buildInitialState() {
   const shuffled = shuffle(CARD_POOL);
   return {
@@ -81,8 +73,6 @@ function buildInitialState() {
     deck: shuffled.slice(HAND_SIZE),
   };
 }
-
-// ── 主 Hook ───────────────────────────────────────────────
 
 export function useGameLogic() {
   const [{ hand, deck }, setState] = useState(buildInitialState);
@@ -92,19 +82,16 @@ export function useGameLogic() {
   const [totalScore,  setTotalScore] = useState(0);
   const [lastScore,   setLastScore]  = useState(null);
 
-  const [skillCooldowns, setSkillCooldowns] = useState({
-    changeColor: false,
-    changeCost:  false,
-    shield:      false,
-  });
+  const [skillCooldowns, setSkillCooldowns] = useState({ shield: false });
+  const [skillCharges,   setSkillCharges]   = useState(3);
 
-  const [playerHp,  setPlayerHp]  = useState(20);
-  const [bossHp,    setBossHp]    = useState(300);
-  const [bossMaxHp, setBossMaxHp] = useState(300);
-  const [floor,     setFloor]     = useState(1);
-  const [gameOver,  setGameOver]  = useState(null);
-  const [battlePhase, setBattlePhase] = useState(null); // null | 'player' | 'boss' | 'shield_break'
-const [bossAttacking, setBossAttacking] = useState(false);
+  const [playerHp,     setPlayerHp]     = useState(20);
+  const [bossHp,       setBossHp]       = useState(300);
+  const [bossMaxHp,    setBossMaxHp]    = useState(300);
+  const [floor,        setFloor]        = useState(1);
+  const [gameOver,     setGameOver]     = useState(null);
+  const [battlePhase,  setBattlePhase]  = useState(null);
+  const [bossAttacking,setBossAttacking]= useState(false);
 
   const selectedCards = useMemo(
     () => selected.map(id => hand.find(c => c.id === id)).filter(Boolean),
@@ -138,16 +125,15 @@ const [bossAttacking, setBossAttacking] = useState(false);
 
   const playHand = useCallback(() => {
     if (selected.length === 0 || gameOver || battlePhase) return;
-  
+
     const score     = evaluation.totalScore;
     const newBossHp = bossHp - score;
-  
+
     setLastScore(score);
     setTotalScore(prev => prev + score);
-    setBattlePhase('player'); // 玩家攻击阶段
-  
+    setBattlePhase('player');
+
     if (newBossHp <= 0) {
-      // Boss 被击杀
       setBossHp(0);
       setTimeout(() => {
         const nextFloor     = floor + 1;
@@ -159,20 +145,18 @@ const [bossAttacking, setBossAttacking] = useState(false);
         setBattlePhase(null);
       }, 1200);
     } else {
-      // Boss 存活，延迟后Boss反击
       setBossHp(newBossHp);
-  
+
       setTimeout(() => {
         setBattlePhase('boss');
         setBossAttacking(true);
-  
+
         setTimeout(() => {
           setBossAttacking(false);
-  
+
           if (skillCooldowns.shield) {
-            // 护盾吸收
             setBattlePhase('shield_break');
-            setSkillCooldowns(prev => ({ ...prev, shield: false }));
+            setSkillCooldowns({ shield: false });
             setTimeout(() => setBattlePhase(null), 800);
           } else {
             const newPlayerHp = playerHp - 5;
@@ -186,10 +170,9 @@ const [bossAttacking, setBossAttacking] = useState(false);
             setTimeout(() => setBattlePhase(null), 600);
           }
         }, 800);
-    }, 1400);
+      }, 1400);
     }
-  
-    // 补牌
+
     setState(prev => {
       const kept    = prev.hand.filter(c => !selected.includes(c.id));
       const needed  = HAND_SIZE - kept.length;
@@ -199,32 +182,27 @@ const [bossAttacking, setBossAttacking] = useState(false);
       const rest    = newDeck.slice(needed);
       return { hand: [...kept, ...drawn], deck: rest };
     });
-  
+
     setSelected([]);
     setDiscards(MAX_DISCARDS);
     setRound(r => r + 1);
-    setSkillCooldowns(prev => ({
-      changeColor: false,
-      changeCost:  false,
-      shield:      prev.shield,
-    }));
+    // 护盾跨回合保留，充能值不重置
+    setSkillCooldowns(prev => ({ shield: prev.shield }));
   }, [selected, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
 
   const clearSelected = useCallback(() => setSelected([]), []);
 
+  // ── 技能1：变色 ──────────────────────────────────────
   const skillChangeColor = useCallback((cardId, newColor) => {
-    if (skillCooldowns.changeColor) return;
-  
+    if (skillCharges <= 0) return;
+
     setState(prev => {
       const card = prev.hand.find(c => c.id === cardId);
       if (!card) return prev;
-  
-      // 从 CARD_POOL 找目标颜色同费用的牌作为模板
+
       let template = CARD_POOL.find(c =>
         c.color === newColor && c.cost === card.cost
       );
-  
-      // 找不到同费用就找最接近的
       if (!template) {
         template = CARD_POOL
           .filter(c => c.color === newColor)
@@ -232,59 +210,50 @@ const [bossAttacking, setBossAttacking] = useState(false);
             Math.abs(a.cost - card.cost) - Math.abs(b.cost - card.cost)
           )[0];
       }
-  
       if (!template) return prev;
-  
-      // 创建一个临时变体，id 加上时间戳避免重复
-      const transformed = {
-        ...template,
-        id: `transformed_${Date.now()}`,
-      };
-  
+
+      const transformed = { ...template, id: `transformed_${Date.now()}` };
       return {
         ...prev,
         hand: prev.hand.map(c => c.id === cardId ? transformed : c),
       };
     });
-  
-    setSkillCooldowns(prev => ({ ...prev, changeColor: true }));
-  }, [skillCooldowns.changeColor]);
 
+    setSkillCharges(s => s - 1);
+  }, [skillCharges]);
+
+  // ── 技能2：变费 ──────────────────────────────────────
   const skillChangeCost = useCallback((cardId, newCost) => {
-    if (skillCooldowns.changeCost) return;
-  
+    if (skillCharges <= 0) return;
+
     setState(prev => {
       const card = prev.hand.find(c => c.id === cardId);
       if (!card) return prev;
-  
+
       const template = CARD_POOL.find(c =>
         c.color === card.color && c.cost === newCost
       );
-  
       if (!template) return prev;
-  
-      const transformed = {
-        ...template,
-        id: `transformed_${Date.now()}`,
-      };
-  
+
+      const transformed = { ...template, id: `transformed_${Date.now()}` };
       return {
         ...prev,
         hand: prev.hand.map(c => c.id === cardId ? transformed : c),
       };
     });
-  
-    setSkillCooldowns(prev => ({ ...prev, changeCost: true }));
-  }, [skillCooldowns.changeCost]);
+
+    setSkillCharges(s => s - 1);
+  }, [skillCharges]);
 
   // ── 技能3：护盾 ──────────────────────────────────────
   const skillActivateShield = useCallback(() => {
-    if (skillCooldowns.shield) return;
-    setSkillCooldowns(prev => ({ ...prev, shield: true }));
-  }, [skillCooldowns.shield]);
+    if (skillCharges <= 0 || skillCooldowns.shield) return;
+    setSkillCharges(s => s - 1);
+    setSkillCooldowns({ shield: true });
+  }, [skillCharges, skillCooldowns.shield]);
 
   const breakShield = useCallback(() => {
-    setSkillCooldowns(prev => ({ ...prev, shield: false }));
+    setSkillCooldowns({ shield: false });
   }, []);
 
   // ── 重新开始 ──────────────────────────────────────────
@@ -300,7 +269,10 @@ const [bossAttacking, setBossAttacking] = useState(false);
     setBossMaxHp(300);
     setFloor(1);
     setGameOver(null);
-    setSkillCooldowns({ changeColor: false, changeCost: false, shield: false });
+    setBattlePhase(null);
+    setBossAttacking(false);
+    setSkillCooldowns({ shield: false });
+    setSkillCharges(3);
   }, []);
 
   return {
@@ -328,12 +300,13 @@ const [bossAttacking, setBossAttacking] = useState(false);
     floor,
     gameOver,
     restartGame,
+    battlePhase,
+    bossAttacking,
     skillCooldowns,
+    skillCharges,
     skillChangeColor,
     skillChangeCost,
     skillActivateShield,
     breakShield,
-    battlePhase,
-bossAttacking,
   };
 }
