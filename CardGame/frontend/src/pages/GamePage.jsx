@@ -7,25 +7,20 @@ import { useGameLogic } from '../hooks/useGameLogic';
 
 export default function GamePage() {
   const {
-    // 牌
     hand,
     deckCount,
-    // 选牌
     selected,
     toggleSelect,
     evaluation,
-    // 弃牌
     discardSelected,
     discards,
     maxDiscards,
     canDiscard,
     canPlay,
     playHand,
-    // 回合
     round,
     totalScore,
     lastScore,
-    // 战斗
     playerHp,
     playerMaxHp,
     bossHp,
@@ -33,7 +28,7 @@ export default function GamePage() {
     floor,
     gameOver,
     restartGame,
-    // 技能
+    battlePhase,
     skillCooldowns,
     skillChangeColor,
     skillChangeCost,
@@ -45,7 +40,6 @@ export default function GamePage() {
       className="fixed inset-0 flex flex-col overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse 80% 70% at 50% 30%, #1a1608, #080604)',
-        // 覆盖 Navbar，游戏全屏
         top: 0, zIndex: 50,
       }}
     >
@@ -70,11 +64,9 @@ export default function GamePage() {
             SCORE  {totalScore.toLocaleString()}
           </span>
         </div>
-        <button
-          className="text-stone-600 hover:text-stone-400 text-xs
-                     border border-stone-800 rounded px-3 py-1
-                     transition-colors"
-        >
+        <button className="text-stone-600 hover:text-stone-400 text-xs
+                           border border-stone-800 rounded px-3 py-1
+                           transition-colors">
           ⚙ 设置
         </button>
       </div>
@@ -82,7 +74,6 @@ export default function GamePage() {
       {/* ── 主体 ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* 左侧技能栏 */}
         <SkillBar
           hand={hand}
           skillCooldowns={skillCooldowns}
@@ -91,15 +82,14 @@ export default function GamePage() {
           skillActivateShield={skillActivateShield}
         />
 
-        {/* 中央战场 */}
         <Battlefield
-  bossHp={bossHp}
-  bossMaxHp={bossMaxHp}
-  floor={floor}
-  lastScore={lastScore}
-/>
+          bossHp={bossHp}
+          bossMaxHp={bossMaxHp}
+          floor={floor}
+          lastScore={lastScore}
+          battlePhase={battlePhase}
+        />
 
-        {/* 右侧评分面板 */}
         <ScorePanel
           evaluation={evaluation}
           totalScore={totalScore}
@@ -117,14 +107,14 @@ export default function GamePage() {
 
       {/* ── 底部手牌 ── */}
       <HandArea
-  hand={hand}
-  selected={selected}
-  onToggle={toggleSelect}
-  deckCount={deckCount}
-  playerHp={playerHp}
-  playerMaxHp={playerMaxHp}
-  shieldActive={skillCooldowns.shield}
-/>
+        hand={hand}
+        selected={selected}
+        onToggle={toggleSelect}
+        deckCount={deckCount}
+        playerHp={playerHp}
+        playerMaxHp={playerMaxHp}
+        shieldActive={skillCooldowns.shield}
+      />
 
       {/* ── 游戏结束遮罩 ── */}
       {gameOver && (

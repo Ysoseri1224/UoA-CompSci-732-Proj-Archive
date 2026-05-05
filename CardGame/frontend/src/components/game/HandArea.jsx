@@ -1,12 +1,11 @@
 // src/components/game/HandArea.jsx
 import HandCard from './HandCard';
+import PlayerHUD from './PlayerHUD';
 
 export default function HandArea({
   hand, selected, onToggle, deckCount,
   playerHp, playerMaxHp, shieldActive,
 }) {
-  const playerHpPct = Math.max(0, (playerHp / playerMaxHp) * 100);
-
   return (
     <div style={{
       position:   'relative',
@@ -15,15 +14,15 @@ export default function HandArea({
       alignItems: 'flex-end',
       justifyContent: 'center',
       gap: 10,
-      padding: '0 80px 12px 16px',
+      padding: '0 80px 12px 200px',
       background: `
-      linear-gradient(0deg,
-        rgba(0,0,0,0.7) 0%,
-        rgba(0,0,0,0.3) 40%,
-        transparent 100%
-      ),
-      url('/images/handarea.png') center/cover no-repeat
-    `,
+        linear-gradient(0deg,
+          rgba(0,0,0,0.7) 0%,
+          rgba(0,0,0,0.3) 40%,
+          transparent 100%
+        ),
+        url('/images/handarea.png') center/cover no-repeat
+      `,
       borderTop:  '1px solid rgba(120,80,20,0.3)',
       flexShrink: 0,
       overflow:   'visible',
@@ -36,106 +35,42 @@ export default function HandArea({
         background: 'linear-gradient(90deg, transparent, rgba(200,160,70,0.2), transparent)',
       }} />
 
-      {/* ── 左侧玩家状态区 ── */}
+      {/* ── 左侧：玩家 HUD ── */}
       <div style={{
-        position:   'absolute',
-        left: 12, bottom: 12,
-        display:    'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 6,
-        width: 100,
+        position: 'absolute',
+        left: 12, bottom: 16,
         zIndex: 10,
       }}>
-        {/* 头像 */}
-        <div style={{ position: 'relative' }}>
-          {shieldActive && (
-            <>
-              <div style={{
-                position: 'absolute', inset: -10, borderRadius: '50%',
-                border: '2px solid rgba(96,165,250,0.5)',
-                animation: 'shieldRing 1.5s ease-out infinite',
-              }} />
-              <div style={{
-                position: 'absolute', inset: -5, borderRadius: '50%',
-                border: '2px solid rgba(96,165,250,0.8)',
-                animation: 'shieldPulse 2s ease-in-out infinite',
-              }} />
-            </>
-          )}
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            border: `2px solid ${shieldActive ? '#60a5fa' : '#166534'}`,
-            background: shieldActive
-              ? 'radial-gradient(circle at 40% 30%, #1e3a5f, #0c1a2e)'
-              : 'radial-gradient(circle at 40% 30%, #052e16, #021409)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 26,
-            boxShadow: shieldActive
-              ? '0 0 16px rgba(59,130,246,0.5)'
-              : '0 4px 12px rgba(0,0,0,0.6)',
-            transition: 'all 0.3s',
-            position: 'relative',
-          }}>
-            🛡️
-            {shieldActive && (
-              <div style={{
-                position: 'absolute', bottom: -4, right: -4,
-                width: 18, height: 18, borderRadius: '50%',
-                background: '#2563eb', border: '1px solid #93c5fd',
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: 9,
-                boxShadow: '0 0 8px rgba(59,130,246,0.7)',
-              }}>🛡</div>
-            )}
-          </div>
-        </div>
-
-        {/* HP 数字 */}
-        <div style={{
-          fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-          color: playerHpPct > 50 ? '#4ade80' : playerHpPct > 25 ? '#eab308' : '#ef4444',
-        }}>
-          {playerHp} / {playerMaxHp}
-        </div>
-
-        {/* HP 条 */}
-        <div style={{
-          width: '100%', height: 6, borderRadius: 3,
-          background: 'rgba(5,20,5,0.9)',
-          border: '1px solid rgba(20,80,20,0.5)',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            height: '100%', width: `${playerHpPct}%`,
-            background: playerHpPct > 50
-              ? 'linear-gradient(90deg,#166534,#22c55e)'
-              : playerHpPct > 25
-                ? 'linear-gradient(90deg,#713f12,#eab308)'
-                : 'linear-gradient(90deg,#7f1d1d,#ef4444)',
-            borderRadius: 3,
-            transition: 'width 0.5s ease',
-          }} />
-        </div>
-
-        {/* HP 格子 */}
-        <div style={{ display: 'flex', gap: 2, width: '100%' }}>
-          {Array.from({ length: playerMaxHp }).map((_, i) => (
-            <div key={i} style={{
-              flex: 1, height: 3, borderRadius: 1,
-              background: i < playerHp ? '#22c55e' : '#1c1c1c',
-              transition: 'all 0.3s',
+        {/* 护盾光环 */}
+        {shieldActive && (
+          <>
+            <div style={{
+              position: 'absolute', inset: -14, borderRadius: 20,
+              border: '2px solid rgba(96,165,250,0.5)',
+              animation: 'shieldRing 1.5s ease-out infinite',
+              zIndex: 11, pointerEvents: 'none',
             }} />
-          ))}
-        </div>
-
-        <div style={{
-          fontSize: 9, color: '#374151',
-          fontFamily: 'monospace', letterSpacing: 1,
-          textAlign: 'center',
-        }}>
-          承受 {Math.floor(playerHp / 5)} 次
-        </div>
+            <div style={{
+              position: 'absolute', inset: -8, borderRadius: 18,
+              border: '2px solid rgba(96,165,250,0.8)',
+              animation: 'shieldPulse 2s ease-in-out infinite',
+              zIndex: 11, pointerEvents: 'none',
+            }} />
+            <div style={{
+              position: 'absolute', top: -8, right: -8,
+              width: 22, height: 22, borderRadius: '50%',
+              background: '#2563eb', border: '2px solid #93c5fd',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, zIndex: 12,
+              boxShadow: '0 0 10px rgba(59,130,246,0.8)',
+            }}>🛡</div>
+          </>
+        )}
+        <PlayerHUD
+          hp={playerHp}
+          maxHp={playerMaxHp}
+          avatar="/images/player.png"
+        />
       </div>
 
       {/* ── 手牌 ── */}

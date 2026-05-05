@@ -92,30 +92,27 @@ export function useGameLogic() {
   const [totalScore,  setTotalScore] = useState(0);
   const [lastScore,   setLastScore]  = useState(null);
 
-  // 技能状态
   const [skillCooldowns, setSkillCooldowns] = useState({
     changeColor: false,
     changeCost:  false,
     shield:      false,
   });
 
-  // 战斗状态
   const [playerHp,  setPlayerHp]  = useState(20);
   const [bossHp,    setBossHp]    = useState(300);
   const [bossMaxHp, setBossMaxHp] = useState(300);
   const [floor,     setFloor]     = useState(1);
-  const [gameOver,  setGameOver]  = useState(null); // null | 'win' | 'lose'
+  const [gameOver,  setGameOver]  = useState(null);
+  const [battlePhase, setBattlePhase] = useState(null); // null | 'player' | 'boss' | 'shield_break'
+const [bossAttacking, setBossAttacking] = useState(false);
 
-  // 选中的卡牌对象
   const selectedCards = useMemo(
     () => selected.map(id => hand.find(c => c.id === id)).filter(Boolean),
     [hand, selected]
   );
 
-  // 实时牌型评估
   const evaluation = useMemo(() => evaluateHand(selectedCards), [selectedCards]);
 
-  // ── 选/取消选中 ──────────────────────────────────────
   const toggleSelect = useCallback((cardId) => {
     setSelected(prev => {
       if (prev.includes(cardId)) return prev.filter(id => id !== cardId);
@@ -124,10 +121,8 @@ export function useGameLogic() {
     });
   }, []);
 
-  // ── 弃牌补充 ─────────────────────────────────────────
   const discardSelected = useCallback(() => {
     if (discards <= 0 || selected.length === 0) return;
-
     setState(prev => {
       const kept      = prev.hand.filter(c => !selected.includes(c.id));
       const discarded = prev.hand.filter(c =>  selected.includes(c.id));
@@ -137,41 +132,63 @@ export function useGameLogic() {
       const rest      = newDeck.slice(count);
       return { hand: [...kept, ...drawn], deck: rest };
     });
-
     setSelected([]);
     setDiscards(d => d - 1);
   }, [discards, selected]);
 
-  // ── 出牌结算 ─────────────────────────────────────────
   const playHand = useCallback(() => {
-    if (selected.length === 0 || gameOver) return;
-
-    const score      = evaluation.totalScore;
-    const newBossHp  = bossHp - score;
-
+    if (selected.length === 0 || gameOver || battlePhase) return;
+  
+    const score     = evaluation.totalScore;
+    const newBossHp = bossHp - score;
+  
     setLastScore(score);
     setTotalScore(prev => prev + score);
-
+    setBattlePhase('player'); // 玩家攻击阶段
+  
     if (newBossHp <= 0) {
-      // Boss 击杀 → 进入下一层
-      const nextFloor      = floor + 1;
-      const nextBossMaxHp  = Math.round(300 * Math.pow(1.5, nextFloor - 1));
-      setBossHp(nextBossMaxHp);
-      setBossMaxHp(nextBossMaxHp);
-      setFloor(nextFloor);
-      setPlayerHp(20); // 击杀boss后恢复满血
+      // Boss 被击杀
+      setBossHp(0);
+      setTimeout(() => {
+        const nextFloor     = floor + 1;
+        const nextBossMaxHp = Math.round(300 * Math.pow(1.5, nextFloor - 1));
+        setBossHp(nextBossMaxHp);
+        setBossMaxHp(nextBossMaxHp);
+        setFloor(nextFloor);
+        setPlayerHp(20);
+        setBattlePhase(null);
+      }, 1200);
     } else {
-      // Boss 存活 → 扣玩家血
+      // Boss 存活，延迟后Boss反击
       setBossHp(newBossHp);
-      const newPlayerHp = playerHp - 5;
-      if (newPlayerHp <= 0) {
-        setPlayerHp(0);
-        setGameOver('lose');
-        return; // 直接返回，不补牌不继续
-      }
-      setPlayerHp(newPlayerHp);
+  
+      setTimeout(() => {
+        setBattlePhase('boss');
+        setBossAttacking(true);
+  
+        setTimeout(() => {
+          setBossAttacking(false);
+  
+          if (skillCooldowns.shield) {
+            // 护盾吸收
+            setBattlePhase('shield_break');
+            setSkillCooldowns(prev => ({ ...prev, shield: false }));
+            setTimeout(() => setBattlePhase(null), 800);
+          } else {
+            const newPlayerHp = playerHp - 5;
+            if (newPlayerHp <= 0) {
+              setPlayerHp(0);
+              setGameOver('lose');
+              setBattlePhase(null);
+              return;
+            }
+            setPlayerHp(newPlayerHp);
+            setTimeout(() => setBattlePhase(null), 600);
+          }
+        }, 800);
+    }, 1400);
     }
-
+  
     // 补牌
     setState(prev => {
       const kept    = prev.hand.filter(c => !selected.includes(c.id));
@@ -182,41 +199,80 @@ export function useGameLogic() {
       const rest    = newDeck.slice(needed);
       return { hand: [...kept, ...drawn], deck: rest };
     });
-
+  
     setSelected([]);
     setDiscards(MAX_DISCARDS);
     setRound(r => r + 1);
-    // 护盾跨回合保留，变色/变费每回合重置
     setSkillCooldowns(prev => ({
       changeColor: false,
       changeCost:  false,
       shield:      prev.shield,
     }));
-  }, [selected, evaluation, bossHp, playerHp, floor, gameOver]);
+  }, [selected, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
 
   const clearSelected = useCallback(() => setSelected([]), []);
 
-  // ── 技能1：变色 ──────────────────────────────────────
+  // ── 技能1：变色（换成目标颜色的同费用牌，图片一起换）──
   const skillChangeColor = useCallback((cardId, newColor) => {
     if (skillCooldowns.changeColor) return;
-    setState(prev => ({
-      ...prev,
-      hand: prev.hand.map(c =>
-        c.id === cardId ? { ...c, color: newColor } : c
-      ),
-    }));
+
+    setState(prev => {
+      const card = prev.hand.find(c => c.id === cardId);
+      if (!card) return prev;
+
+      // 找同费用、目标颜色、不在手牌里的牌
+      let target = CARD_POOL.find(c =>
+        c.color === newColor &&
+        c.cost  === card.cost &&
+        !prev.hand.some(h => h.id === c.id)
+      );
+
+      // 找不到同费用就找最接近费用的
+      if (!target) {
+        target = CARD_POOL
+          .filter(c =>
+            c.color === newColor &&
+            !prev.hand.some(h => h.id === c.id)
+          )
+          .sort((a, b) =>
+            Math.abs(a.cost - card.cost) - Math.abs(b.cost - card.cost)
+          )[0];
+      }
+
+      if (!target) return prev;
+
+      return {
+        ...prev,
+        hand: prev.hand.map(c => c.id === cardId ? { ...target } : c),
+      };
+    });
+
     setSkillCooldowns(prev => ({ ...prev, changeColor: true }));
   }, [skillCooldowns.changeColor]);
 
-  // ── 技能2：变费 ──────────────────────────────────────
+  // ── 技能2：变数（换成同颜色目标费用的牌，图片一起换）──
   const skillChangeCost = useCallback((cardId, newCost) => {
     if (skillCooldowns.changeCost) return;
-    setState(prev => ({
-      ...prev,
-      hand: prev.hand.map(c =>
-        c.id === cardId ? { ...c, cost: newCost } : c
-      ),
-    }));
+
+    setState(prev => {
+      const card = prev.hand.find(c => c.id === cardId);
+      if (!card) return prev;
+
+      // 找同颜色、目标费用、不在手牌里的牌
+      const target = CARD_POOL.find(c =>
+        c.color === card.color &&
+        c.cost  === newCost &&
+        !prev.hand.some(h => h.id === c.id)
+      );
+
+      if (!target) return prev;
+
+      return {
+        ...prev,
+        hand: prev.hand.map(c => c.id === cardId ? { ...target } : c),
+      };
+    });
+
     setSkillCooldowns(prev => ({ ...prev, changeCost: true }));
   }, [skillCooldowns.changeCost]);
 
@@ -247,28 +303,23 @@ export function useGameLogic() {
   }, []);
 
   return {
-    // 牌
     hand,
     deck,
     deckCount:    deck.length,
-    // 选牌
     selected,
     selectedCards,
     toggleSelect,
     clearSelected,
     evaluation,
-    // 弃牌
     discardSelected,
     discards,
     maxDiscards:  MAX_DISCARDS,
     canDiscard:   discards > 0 && selected.length > 0,
     canPlay:      selected.length > 0 && !gameOver,
     playHand,
-    // 回合
     round,
     totalScore,
     lastScore,
-    // 战斗
     playerHp,
     playerMaxHp:  20,
     bossHp,
@@ -276,11 +327,12 @@ export function useGameLogic() {
     floor,
     gameOver,
     restartGame,
-    // 技能
     skillCooldowns,
     skillChangeColor,
     skillChangeCost,
     skillActivateShield,
     breakShield,
+    battlePhase,
+bossAttacking,
   };
 }

@@ -1,0 +1,115 @@
+.player-hud {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ================= */
+/* 💎 头像框（保留你现有风格） */
+/* ================= */
+
+.avatar-frame {
+  width: 90px;
+  height: 90px;
+  padding: 3px;
+  border-radius: 16px;
+
+  background: linear-gradient(
+    120deg,
+    #00eaff,
+    #7a5cff,
+    #ff4fd8,
+    #00ffd5
+  );
+
+  background-size: 300% 300%;
+  animation: flow 6s linear infinite;
+
+  box-shadow:
+    0 0 12px rgba(0,255,255,0.6),
+    0 0 20px rgba(255,0,200,0.5);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* ================= */
+/* 🔴 血量球（重点） */
+/* ================= */
+
+.hp-orb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+
+  border-radius: 50%;
+
+  background: radial-gradient(circle at 30% 30%, #2b0000, #000);
+
+  box-shadow:
+    inset 0 0 15px rgba(255,0,0,0.6),
+    0 0 20px rgba(255,0,0,0.5),
+    0 0 40px rgba(120,0,0,0.6);
+
+  overflow: hidden;
+}
+
+/* 血液填充 */
+.hp-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+
+  background: radial-gradient(circle at 50% 30%, #ff3b3b, #8b0000);
+
+  transform-origin: bottom;
+
+  transition: transform 0.3s ease;
+
+  box-shadow: inset 0 0 10px rgba(255,100,100,0.6);
+}
+
+/* 玻璃高光 */
+.hp-glass {
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 60%;
+  height: 30%;
+
+  background: radial-gradient(circle, rgba(255,255,255,0.25), transparent);
+
+  border-radius: 50%;
+  filter: blur(4px);
+}
+
+/* 数字 */
+.hp-text {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: bold;
+  font-size: 20px;
+
+  color: white;
+
+  text-shadow:
+    0 0 6px black,
+    0 0 10px red;
+}
+
+/* 动效 */
+@keyframes flow {
+  0% { background-position: 0% }
+  100% { background-position: 100% }
+}
