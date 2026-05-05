@@ -29,12 +29,14 @@ function Navbar() {
     >
       {/* Logo */}
       <Link to="/" className="flex items-center gap-3 shrink-0">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center select-none"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-        >
-          <span className="text-white font-black text-base">♠</span>
-        </div>
+        <img
+          src="/logo/logo-icon-transparent.png"
+          alt=""
+          className="h-9 w-9 shrink-0 object-contain"
+          draggable={false}
+          width={36}
+          height={36}
+        />
         <span className="text-white font-bold text-xl tracking-wide">Card Rogue</span>
       </Link>
 

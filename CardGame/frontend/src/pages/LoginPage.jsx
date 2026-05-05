@@ -1,10 +1,74 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { login } from '../api/authApi.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 // Basic email format check — full validation happens server-side.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const CHARACTER_IMAGES = [
+  '/loginpage-images/login-page1.PNG',
+  '/loginpage-images/login-page2.PNG',
+  '/loginpage-images/login-page3.PNG',
+  '/loginpage-images/login-page4.PNG',
+  '/loginpage-images/login-page5.PNG',
+  '/loginpage-images/login-page6.PNG',
+];
+
+const CAROUSEL_TOTAL = CHARACTER_IMAGES.length;
+const AUTOPLAY_MS = 4500;
+
+/** Purple-first ambience per slide — accent tints feel like coloured light in a violet fantasy hall. */
+const FIRE_THEME = {
+  frameKind: 'fire',
+  frameMain: 'rgba(196, 181, 253, 0.38)',
+  frameSecondary: 'rgba(251, 146, 60, 0.42)',
+  frameGlow: 'rgba(234, 88, 12, 0.22)',
+  frameShadow: 'rgba(55, 15, 28, 0.65)',
+  base: '#090414',
+  shadow: 'rgba(15, 5, 25, 0.92)',
+  heroPrimary: 'rgba(168, 85, 247, 0.18)',
+  heroSecondary: 'rgba(220, 38, 38, 0.24)',
+  heroTertiary: 'rgba(249, 115, 22, 0.16)',
+  formWash: 'rgba(147, 51, 234, 0.12)',
+  formAccent: 'rgba(251, 113, 133, 0.08)',
+  floorTint: 'rgba(126, 34, 206, 0.14)',
+};
+
+const ICE_THEME = {
+  frameKind: 'ice',
+  frameMain: 'rgba(187, 168, 255, 0.4)',
+  frameSecondary: 'rgba(99, 102, 241, 0.45)',
+  frameGlow: 'rgba(34, 211, 238, 0.18)',
+  frameShadow: 'rgba(8, 12, 40, 0.72)',
+  base: '#07051a',
+  shadow: 'rgba(5, 7, 22, 0.94)',
+  heroPrimary: 'rgba(124, 58, 237, 0.22)',
+  heroSecondary: 'rgba(79, 70, 229, 0.24)',
+  heroTertiary: 'rgba(34, 211, 238, 0.10)',
+  formWash: 'rgba(139, 92, 246, 0.14)',
+  formAccent: 'rgba(34, 211, 238, 0.10)',
+  floorTint: 'rgba(79, 70, 229, 0.14)',
+};
+
+const NATURE_THEME = {
+  frameKind: 'nature',
+  frameMain: 'rgba(196, 181, 253, 0.36)',
+  frameSecondary: 'rgba(52, 211, 153, 0.34)',
+  frameGlow: 'rgba(45, 212, 191, 0.2)',
+  frameShadow: 'rgba(6, 22, 18, 0.68)',
+  base: '#060714',
+  shadow: 'rgba(4, 14, 12, 0.92)',
+  heroPrimary: 'rgba(124, 58, 237, 0.20)',
+  heroSecondary: 'rgba(16, 185, 129, 0.16)',
+  heroTertiary: 'rgba(20, 184, 166, 0.12)',
+  formWash: 'rgba(167, 139, 250, 0.10)',
+  formAccent: 'rgba(52, 211, 153, 0.10)',
+  floorTint: 'rgba(124, 58, 237, 0.12)',
+};
+
+/** Image 1 fire, 2 ice, 3 nature, 4 fire, 5 nature, 6 ice */
+const carouselThemes = [FIRE_THEME, ICE_THEME, NATURE_THEME, FIRE_THEME, NATURE_THEME, ICE_THEME];
 
 function validate(email, password) {
   if (!email.trim()) return 'Email is required.';
@@ -13,20 +77,105 @@ function validate(email, password) {
   return null;
 }
 
+// Stacked carousel: only prev / active / next are visible — overlap near center behind hero.
+function getCarouselLayout(index, activeIndex, total) {
+  const prevIdx = (activeIndex - 1 + total) % total;
+  const nextIdx = (activeIndex + 1) % total;
+
+  if (index === activeIndex) {
+    return {
+      slot: 'active',
+      style: {
+        transform: 'translateX(0) translateY(2%) scale(1)',
+        opacity: 1,
+        zIndex: 10,
+        pointerEvents: 'auto',
+        filter: 'none',
+      },
+    };
+  }
+  if (index === prevIdx) {
+    return {
+      slot: 'prev',
+      style: {
+        transform: 'translateX(var(--carousel-prev-tx)) translateY(2%) scale(var(--carousel-side-scale))',
+        opacity: 0.38,
+        zIndex: 4,
+        pointerEvents: 'none',
+        filter: 'brightness(0.87) blur(0.45px)',
+      },
+    };
+  }
+  if (index === nextIdx) {
+    return {
+      slot: 'next',
+      style: {
+        transform: 'translateX(var(--carousel-next-tx)) translateY(2%) scale(var(--carousel-side-scale))',
+        opacity: 0.38,
+        zIndex: 6,
+        pointerEvents: 'none',
+        filter: 'brightness(0.87) blur(0.45px)',
+      },
+    };
+  }
+  return {
+    slot: 'hidden',
+    style: {
+      transform: 'translateX(0) scale(0.92)',
+      opacity: 0,
+      zIndex: 0,
+      pointerEvents: 'none',
+      filter: 'none',
+    },
+  };
+}
+
 function LoginPage() {
   const { isAuthenticated, setAuth } = useAuth();
   const navigate = useNavigate();
 
+  // ── Auth form state (unchanged) ────────────────────────────────────────────
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Already logged in — skip the form and go straight to lobby.
+  // ── Carousel state ─────────────────────────────────────────────────────────
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const goTo = useCallback((idx) => {
+    setActiveIndex(((idx % CAROUSEL_TOTAL) + CAROUSEL_TOTAL) % CAROUSEL_TOTAL);
+  }, []);
+
+  const goPrev = useCallback(() => {
+    setActiveIndex((i) => ((i - 1) + CAROUSEL_TOTAL) % CAROUSEL_TOTAL);
+  }, []);
+
+  const goNext = useCallback(() => {
+    setActiveIndex((i) => (i + 1) % CAROUSEL_TOTAL);
+  }, []);
+
+  // Autoplay — skipped if the user prefers reduced motion.
+  useEffect(() => {
+    const mq = typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    if (mq?.matches) return;
+    const timer = setInterval(goNext, AUTOPLAY_MS);
+    return () => clearInterval(timer);
+  }, [goNext]);
+
+  const pageTheme = useMemo(
+    () => carouselThemes[activeIndex] ?? carouselThemes[0],
+    [activeIndex],
+  );
+
+  // ── Guard: already authenticated ───────────────────────────────────────────
   if (isAuthenticated) {
     return <Navigate to="/lobby" replace />;
   }
 
+  // ── Auth submit (unchanged) ────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -52,48 +201,757 @@ function LoginPage() {
   }
 
   return (
-    <div>
-      <h1>Log in</h1>
+    <div
+      className="login-page-root relative isolate min-h-[calc(100dvh-5rem)] w-full overflow-x-hidden overflow-y-auto pb-2 pt-2 sm:pb-3 sm:pt-3 lg:pb-5 lg:pt-5 min-[1512px]:pb-8 min-[1512px]:pt-8"
+      style={{ backgroundColor: pageTheme.base }}
+    >
+      <style>{`
+        /* Root page — base tint follows theme */
+        .login-page-root {
+          transition: background-color 800ms ease;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-page-root {
+            transition: none;
+          }
+        }
 
-      <form onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor="email">Email</label>
-          <br />
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading}
-            placeholder="you@example.com"
-            autoComplete="email"
-          />
+        @keyframes login-bg-breathe-kf {
+          0%, 100% {
+            opacity: 0.86;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.035);
+          }
+        }
+
+        /* Subtle ambient pulse on large glows only — slow, low contrast */
+        .login-bg-breathe {
+          animation: login-bg-breathe-kf 6.5s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+        .login-bg-breathe--hero {
+          transform-origin: 76% 40%;
+          animation-duration: 6.75s;
+        }
+        .login-bg-breathe--form {
+          transform-origin: 12% 50%;
+          animation-duration: 7.25s;
+          animation-delay: -2.4s;
+        }
+        .login-bg-breathe--floor {
+          transform-origin: 50% 118%;
+          animation-duration: 5.875s;
+          animation-delay: -1.35s;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-bg-breathe {
+            animation: none !important;
+            opacity: 0.93;
+            transform: none !important;
+          }
+        }
+
+        @property --frame-main {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(196, 181, 253, 0.35);
+        }
+        @property --frame-secondary {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(139, 92, 246, 0.35);
+        }
+        @property --frame-glow {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(124, 58, 237, 0.2);
+        }
+        @property --frame-shadow {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(15, 5, 25, 0.55);
+        }
+
+        /* Left login card — themed fantasy frame (CSS vars from active carousel theme) */
+        .login-form-fantasy-card {
+          position: relative;
+          border-radius: 1.75rem;
+          isolation: isolate;
+          transition:
+            --frame-main 820ms cubic-bezier(0.4, 0, 0.2, 1),
+            --frame-secondary 820ms cubic-bezier(0.4, 0, 0.2, 1),
+            --frame-glow 820ms cubic-bezier(0.4, 0, 0.2, 1),
+            --frame-shadow 820ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-form-fantasy-card {
+            transition: none;
+          }
+        }
+
+        .login-form-fantasy-card > .login-form-frame-stack {
+          pointer-events: none;
+          border-radius: inherit;
+        }
+
+        /* Content above decorative frame */
+        .login-form-fantasy-card > *:not(.login-form-frame-stack) {
+          position: relative;
+          z-index: 1;
+        }
+
+        .login-form-frame-stack {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          overflow: hidden;
+          border-radius: inherit;
+        }
+
+        /* Soft outward glow */
+        .login-form-frame-blur {
+          position: absolute;
+          inset: -10px;
+          border-radius: inherit;
+          opacity: 0.55;
+          filter: blur(14px);
+          background: radial-gradient(
+            ellipse 96% 88% at 78% 86%,
+            var(--frame-glow) 0%,
+            transparent 58%
+          );
+          transition: opacity 820ms ease, filter 820ms ease;
+        }
+
+        /* Hairline rim + depth */
+        .login-form-frame-rim {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          box-shadow:
+            inset 0 0 0 1px var(--frame-main),
+            inset 0 1px 0 rgba(255, 255, 255, 0.075),
+            inset 0 -12px 28px var(--frame-shadow),
+            0 0 0 1px rgba(24, 12, 48, 0.55),
+            0 0 24px var(--frame-glow),
+            0 20px 42px rgba(0, 0, 0, 0.42);
+        }
+
+        /* Animated accent wash (no layout impact) */
+        .login-form-frame-pulse {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          opacity: 0.38;
+          mix-blend-mode: screen;
+          animation: login-form-frame-breathe 5.5s ease-in-out infinite;
+        }
+        .login-form-frame-pulse--fire {
+          background:
+            radial-gradient(ellipse 85% 70% at 100% 100%, var(--frame-secondary) 0%, transparent 55%),
+            radial-gradient(ellipse 55% 45% at 0% 0%, var(--frame-secondary) 0%, transparent 62%);
+          animation-duration: 5.6s;
+        }
+        .login-form-frame-pulse--ice {
+          background: conic-gradient(
+            from 210deg at 68% 28%,
+            transparent 0deg,
+            var(--frame-glow) 32deg,
+            transparent 54deg,
+            var(--frame-secondary) 110deg,
+            transparent 148deg,
+            transparent 360deg
+          );
+          animation: login-form-frame-breathe-ice 7.2s ease-in-out infinite;
+          mix-blend-mode: soft-light;
+          opacity: 0.28;
+        }
+        .login-form-frame-pulse--nature {
+          background:
+            radial-gradient(ellipse 70% 92% at 12% 58%, var(--frame-secondary) 0%, transparent 58%),
+            radial-gradient(ellipse 78% 48% at 94% 12%, var(--frame-glow) 0%, transparent 55%);
+          animation-duration: 6.4s;
+        }
+
+        @keyframes login-form-frame-breathe {
+          0%, 100% { opacity: 0.3; filter: brightness(0.96); }
+          50% { opacity: 0.52; filter: brightness(1.05); }
+        }
+        @keyframes login-form-frame-breathe-ice {
+          0%, 100% { opacity: 0.22; filter: brightness(0.98); }
+          35% { opacity: 0.34; filter: brightness(1.06); }
+          70% { opacity: 0.28; filter: brightness(1.02); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-form-frame-pulse,
+          .login-form-frame-pulse--ice {
+            animation: none !important;
+            opacity: 0.38;
+            transform: none !important;
+            filter: none !important;
+          }
+        }
+
+        /* Two-column shell (siblings — no shared card border) */
+        .login-page-layout {
+          width: min(94vw, 1500px);
+        }
+        .login-form-card {
+          width: 100%;
+          max-height: min(78dvh, calc(100dvh - 5.5rem));
+        }
+        @media (min-width: 1024px) {
+          .login-form-card {
+            max-height: min(calc(100dvh - 5.75rem), 760px);
+          }
+        }
+        @media (min-width: 1280px) {
+          .login-form-card {
+            max-height: min(calc(100dvh - 6rem), 820px);
+          }
+        }
+        @media (min-width: 1024px) and (max-height: 820px) {
+          .login-form-card {
+            max-height: min(calc(100dvh - 5.5rem), 92dvh);
+          }
+          .login-carousel-character {
+            max-height: min(90%, clamp(520px, 62dvh, 800px));
+            max-width: min(100%, clamp(500px, 58vw, 880px));
+          }
+        }
+        @media (min-width: 1512px) {
+          .login-page-layout {
+            width: min(92vw, 1500px);
+          }
+          .login-form-card {
+            max-height: min(82dvh, calc(100dvh - 5.35rem));
+          }
+        }
+
+        /* Whole-page theme layers — hue crossfade on slide change */
+        .login-page-amb-layer {
+          transition:
+            background 850ms cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 850ms cubic-bezier(0.4, 0, 0.2, 1),
+            filter 850ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-page-amb-layer {
+            transition: none;
+          }
+        }
+
+        /* ── Submit button: premium slow breath + soft glow + drifting inner shimmer ─ */
+        @keyframes loginButtonBreathe {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow:
+              0 0 0 1px rgba(196, 181, 254, 0.34),
+              0 0 10px rgba(124, 58, 237, 0.24),
+              0 0 22px rgba(37, 99, 235, 0.12),
+              0 0 36px rgba(59, 130, 246, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.11),
+              inset 0 -8px 22px rgba(15, 23, 42, 0.38);
+            filter: brightness(1);
+          }
+          45%,
+          55% {
+            transform: scale(1.015);
+            box-shadow:
+              0 0 0 1px rgba(214, 201, 255, 0.44),
+              0 0 16px rgba(139, 92, 246, 0.32),
+              0 0 30px rgba(124, 58, 237, 0.2),
+              0 0 48px rgba(37, 99, 235, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15),
+              inset 0 -8px 20px rgba(15, 23, 42, 0.32);
+            filter: brightness(1.045);
+          }
+        }
+        @keyframes loginButtonBloom {
+          0%, 100% {
+            opacity: 0.2;
+            transform: translate(-50%, 0) scale(0.98, 0.9);
+          }
+          50% {
+            opacity: 0.5;
+            transform: translate(-50%, 0) scale(1.03, 1.05);
+          }
+        }
+        @keyframes loginButtonShimmer {
+          0% {
+            transform: translateX(-120%) skewX(-10deg);
+            opacity: 0;
+          }
+          35% {
+            opacity: 0.15;
+          }
+          65% {
+            opacity: 0.08;
+          }
+          100% {
+            transform: translateX(120%) skewX(-10deg);
+            opacity: 0;
+          }
+        }
+        .login-submit-btn {
+          position: relative;
+          isolation: isolate;
+          transform-origin: center center;
+          background: linear-gradient(90deg, #6d28d9 0%, #5b21b6 28%, #4338ca 55%, #2563eb 100%);
+          animation: loginButtonBreathe 4.8s ease-in-out infinite;
+        }
+        .login-submit-btn::before {
+          content: '';
+          position: absolute;
+          top: -15%;
+          left: 0;
+          width: 55%;
+          height: 130%;
+          border-radius: inherit;
+          z-index: 1;
+          pointer-events: none;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.04) 36%,
+            rgba(224, 231, 255, 0.12) 50%,
+            rgba(255, 255, 255, 0.04) 64%,
+            transparent 100%
+          );
+          filter: blur(4px);
+          mix-blend-mode: soft-light;
+          animation: loginButtonShimmer 6.75s ease-in-out infinite;
+          animation-delay: -1.4s;
+        }
+        .login-submit-btn:disabled {
+          animation: none;
+          transform: none;
+          filter: brightness(0.92);
+          box-shadow:
+            0 0 0 1px rgba(196, 181, 254, 0.22),
+            0 0 12px rgba(91, 33, 182, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06),
+            inset 0 -8px 18px rgba(15, 23, 42, 0.45);
+        }
+        .login-submit-btn:disabled::before {
+          animation: none;
+          opacity: 0;
+        }
+        .login-submit-btn:hover:not(:disabled) {
+          filter: brightness(1.2);
+          animation-play-state: paused;
+        }
+        .login-submit-btn:hover:not(:disabled) .login-submit-btn__bloom {
+          animation-play-state: paused;
+        }
+        .login-submit-btn:hover:not(:disabled)::before {
+          animation-play-state: paused;
+        }
+        .login-submit-btn:active:not(:disabled) {
+          transform: scale(0.985);
+          filter: brightness(0.96);
+          animation-play-state: paused;
+        }
+        .login-submit-btn:active:not(:disabled) .login-submit-btn__bloom {
+          animation-play-state: paused;
+        }
+        .login-submit-btn:active:not(:disabled)::before {
+          animation-play-state: paused;
+        }
+        .login-submit-btn__bloom {
+          position: absolute;
+          left: 50%;
+          bottom: -35%;
+          width: 130%;
+          height: 85%;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 0;
+          transform-origin: center bottom;
+          background: radial-gradient(
+            closest-side at 50% 100%,
+            rgba(210, 195, 255, 0.62) 0%,
+            rgba(124, 58, 237, 0.4) 38%,
+            transparent 72%
+          );
+          mix-blend-mode: screen;
+          filter: blur(0.5px);
+          animation: loginButtonBloom 4.8s ease-in-out infinite;
+        }
+        .login-submit-btn:disabled .login-submit-btn__bloom {
+          animation: none;
+          opacity: 0.12;
+          transform: translate(-50%, 0) scale(1);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-submit-btn:not(:disabled) {
+            animation: none !important;
+            transform: none !important;
+            filter: none;
+            box-shadow:
+              0 0 0 1px rgba(196, 181, 254, 0.45),
+              0 0 22px rgba(124, 58, 237, 0.42),
+              0 0 48px rgba(37, 99, 235, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12),
+              inset 0 -8px 18px rgba(15, 23, 42, 0.35);
+          }
+          .login-submit-btn:not(:disabled)::before {
+            animation: none !important;
+            opacity: 0;
+          }
+          .login-submit-btn__bloom {
+            animation: none !important;
+            transform: translate(-50%, 0) scale(1) !important;
+            opacity: 0.38;
+            filter: none;
+          }
+          .login-submit-btn:hover:not(:disabled) {
+            filter: brightness(1.08);
+          }
+          .login-submit-btn:active:not(:disabled) {
+            transform: none !important;
+          }
+        }
+
+        /* Stacked carousel region — prev/active/next overlap near center */
+        .login-carousel-visual {
+          --carousel-prev-tx: -36%;
+          --carousel-next-tx: 36%;
+          --carousel-side-scale: 0.78;
+        }
+        @media (max-width: 1439px) {
+          .login-carousel-visual {
+            --carousel-prev-tx: -32%;
+            --carousel-next-tx: 32%;
+            --carousel-side-scale: 0.75;
+          }
+        }
+        @media (min-width: 1024px) and (max-height: 820px) {
+          .login-carousel-visual {
+            --carousel-prev-tx: -27%;
+            --carousel-next-tx: 27%;
+            --carousel-side-scale: 0.72;
+          }
+        }
+
+        /* Hero character — larger than form card when viewport allows */
+        .login-carousel-character {
+          width: auto;
+          max-width: min(108%, clamp(640px, 64vw, 1040px));
+          height: auto;
+          max-height: min(94%, clamp(680px, 88dvh, 980px));
+          object-position: 50% 52%;
+        }
+        @media (min-width: 1512px) {
+          .login-carousel-character {
+            max-height: min(95%, clamp(720px, 86dvh, 980px));
+          }
+        }
+
+        /* Layout positioning — stacked prev / active / next */
+        .login-carousel-slide {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          transition:
+            transform 0.62s cubic-bezier(0.38, 0, 0.24, 1),
+            opacity 0.58s ease,
+            filter 0.52s ease;
+          will-change: transform, opacity;
+        }
+        .login-carousel-slide[data-slot='active'] .login-carousel-character {
+          filter:
+            drop-shadow(0 18px 36px rgba(0, 0, 0, 0.45))
+            drop-shadow(0 0 52px rgba(120, 55, 220, 0.22));
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-carousel-slide {
+            transition: opacity 0.22s ease, filter 0.22s ease, transform 0.22s ease !important;
+          }
+          .login-carousel-visual {
+            --carousel-prev-tx: -24%;
+            --carousel-next-tx: 24%;
+            --carousel-side-scale: 0.8;
+          }
+          .login-carousel-slide[data-slot='hidden'] {
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+        }
+      `}</style>
+
+      {/* ── Whole-page themed ambience (activeIndex): purple hall + tint + breathe ─ */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <div
+          className="login-page-amb-layer login-page-amb-base absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 128% 120% at 52% 48%, ${pageTheme.base} 0%, rgba(8, 4, 18, 0.96) 52%, rgba(2, 1, 8, 0.98) 100%)`,
+            boxShadow: `
+              inset 0 0 200px rgba(0, 0, 0, 0.5),
+              inset 0 -60px 120px ${pageTheme.shadow}`,
+          }}
+        />
+        <div
+          className="login-page-amb-layer login-bg-breathe login-bg-breathe--hero absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 102% 92% at 76% 40%, ${pageTheme.heroPrimary} 0%, transparent 58%),
+              radial-gradient(ellipse 78% 72% at 70% 36%, ${pageTheme.heroSecondary} 0%, transparent 52%),
+              radial-gradient(ellipse 62% 58% at 84% 48%, ${pageTheme.heroTertiary} 0%, transparent 50%)`,
+          }}
+        />
+        <div
+          className="login-page-amb-layer login-bg-breathe login-bg-breathe--form absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 92% 100% at 12% 48%, ${pageTheme.formWash} 0%, transparent 56%),
+              radial-gradient(ellipse 52% 58% at 24% 32%, ${pageTheme.formAccent} 0%, transparent 48%)`,
+          }}
+        />
+        <div
+          className="login-page-amb-layer login-bg-breathe login-bg-breathe--floor absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 132% 88% at 50% 112%, ${pageTheme.floorTint} 0%, transparent 52%),
+              radial-gradient(ellipse 118% 70% at 50% 100%, ${pageTheme.shadow} 0%, transparent 45%)`,
+            boxShadow: 'inset 0 -90px 160px rgba(0, 0, 0, 0.35)',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 142% 124% at 48% 42%, transparent 20%, rgba(1, 0, 6, 0.94) 100%)',
+          }}
+        />
+      </div>
+
+      {/* ── Layout: siblings — form card (left) + open carousel (right) ─────── */}
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center px-3 py-2 sm:px-5 sm:py-4 lg:px-6 lg:py-5 min-[1512px]:px-8 min-[1512px]:py-8">
+        <div className="login-page-layout flex min-h-0 w-full min-w-0 flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-7 xl:gap-10 min-[1512px]:gap-12">
+          {/* ── Left — standalone fantasy login card (~42–48% desktop) ─────── */}
+          <div
+            className="login-form-card login-form-fantasy-card mx-auto flex w-full min-h-0 max-w-lg min-w-0 flex-col justify-start overflow-y-auto overflow-x-hidden overscroll-contain rounded-[1.75rem] border border-transparent bg-[rgba(6,7,22,0.45)] px-5 py-5 shadow-[0_22px_56px_rgba(0,0,0,0.45)] backdrop-blur-[11px] sm:px-8 sm:py-7 lg:mx-0 lg:max-w-none lg:flex-[0_0_46%] lg:px-8 lg:py-7 min-[1512px]:bg-[rgba(6,7,22,0.36)] min-[1512px]:px-14 min-[1512px]:py-11"
+            data-frame-kind={pageTheme.frameKind}
+            style={{
+              '--frame-main': pageTheme.frameMain,
+              '--frame-secondary': pageTheme.frameSecondary,
+              '--frame-glow': pageTheme.frameGlow,
+              '--frame-shadow': pageTheme.frameShadow,
+            }}
+          >
+            <div className="login-form-frame-stack" aria-hidden="true">
+              <div className="login-form-frame-blur" />
+              <div className="login-form-frame-rim" />
+              <div className={`login-form-frame-pulse login-form-frame-pulse--${pageTheme.frameKind}`} />
+            </div>
+            {/* Brand */}
+            <div className="mb-3 flex shrink-0 items-center gap-2 sm:gap-3 lg:mb-4 min-[1512px]:mb-8 min-[1512px]:gap-4">
+              <img
+                src="/logo/logo-icon-transparent.png"
+                alt=""
+                className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11 min-[1512px]:h-14 min-[1512px]:w-14"
+                draggable={false}
+                width={56}
+                height={56}
+              />
+              <span className="font-serif text-base font-semibold tracking-[0.18em] text-white sm:text-lg min-[1512px]:text-xl min-[1512px]:tracking-[0.22em]">
+                CARD ROGUE
+              </span>
+            </div>
+
+            <h1 className="text-center font-serif text-[1.45rem] font-bold leading-snug tracking-[0.1em] text-white sm:text-3xl lg:text-left xl:text-[2.75rem] min-[1512px]:text-5xl min-[1512px]:tracking-[0.12em]">
+              ENTER THE ARENA
+            </h1>
+            <p className="mt-2 text-center text-sm leading-relaxed text-slate-400 sm:text-base lg:text-left min-[1512px]:mt-3 min-[1512px]:text-lg">
+              Log in to continue your battle.
+            </p>
+
+            <div
+              className="relative my-3 flex w-full shrink-0 items-center sm:my-4 lg:my-4 min-[1512px]:my-8"
+              aria-hidden="true"
+            >
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/50 to-violet-400/20" />
+              <div className="mx-3 h-2 w-2 rotate-45 border border-violet-400/70 bg-violet-600/25 shadow-[0_0_10px_rgba(167,139,250,0.45)]" />
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-500/50 to-violet-400/20" />
+            </div>
+
+            <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-col gap-3.5 sm:gap-4 lg:gap-4 min-[1512px]:gap-6">
+              <div className="flex flex-col gap-2 sm:gap-2.5">
+                <label
+                  htmlFor="email"
+                  className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-300/90 sm:text-xs min-[1512px]:text-sm min-[1512px]:tracking-[0.2em]"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal min-[1512px]:px-5 min-[1512px]:py-4"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 sm:gap-2.5">
+                <label
+                  htmlFor="password"
+                  className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-300/90 sm:text-xs min-[1512px]:text-sm min-[1512px]:tracking-[0.2em]"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-violet-500/25 bg-black/40 px-3.5 py-2.5 text-sm text-white shadow-inner shadow-black/30 placeholder:text-slate-500 backdrop-blur-md transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:shadow-[0_0_20px_rgba(139,92,246,0.2)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base sm:leading-normal min-[1512px]:px-5 min-[1512px]:py-4"
+                />
+              </div>
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-500/40 bg-red-950/45 px-3.5 py-2.5 text-sm text-red-200 backdrop-blur-sm min-[1512px]:px-4 min-[1512px]:py-3.5 min-[1512px]:text-base"
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="login-submit-btn group relative mt-0.5 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl px-4 py-3.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0514] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-4 sm:py-4 min-[1512px]:mt-1 min-[1512px]:py-5"
+              >
+                <span className="login-submit-btn__bloom" aria-hidden="true" />
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-px bg-gradient-to-r from-transparent via-sky-200/35 to-transparent" />
+                <span className="relative z-[2] flex shrink-0 items-center gap-2" aria-hidden="true">
+                  <span className="hidden h-px w-8 bg-gradient-to-l from-violet-200/65 to-transparent sm:block sm:w-12 min-[1512px]:w-16" />
+                  <span className="h-2 w-2 rotate-45 border border-violet-100/80 bg-violet-400/20 shadow-[0_0_8px_rgba(196,181,254,0.55)]" />
+                </span>
+                <span className="relative z-[2] shrink-0 font-serif text-sm font-semibold uppercase tracking-[0.3em] text-white sm:text-base min-[1512px]:text-lg min-[1512px]:tracking-[0.38em]">
+                  {loading ? 'LOGGING IN…' : 'LOGIN'}
+                </span>
+                <span className="relative z-[2] flex shrink-0 items-center gap-2" aria-hidden="true">
+                  <span className="h-2 w-2 rotate-45 border border-violet-100/80 bg-violet-400/20 shadow-[0_0_8px_rgba(196,181,254,0.55)]" />
+                  <span className="hidden h-px w-8 bg-gradient-to-r from-violet-200/65 to-transparent sm:block sm:w-12 min-[1512px]:w-16" />
+                </span>
+              </button>
+            </form>
+
+            <p className="mt-4 shrink-0 pb-1 text-center text-sm text-slate-400 sm:mt-5 lg:text-left min-[1512px]:mt-8 min-[1512px]:text-base">
+              No account yet?{' '}
+              <Link
+                to="/register"
+                className="font-semibold text-violet-300 underline decoration-violet-500/50 underline-offset-2 transition hover:text-violet-200 hover:decoration-violet-400"
+              >
+                Register
+              </Link>
+            </p>
+          </div>
+
+          {/* ── Right — layout only; character sits on page ambience ───────── */}
+          <div className="group/carousel relative hidden min-h-[min(82dvh,760px)] min-w-0 flex-1 overflow-hidden lg:flex lg:min-h-[min(78dvh,820px)]">
+
+            {/* ── Carousel track ── */}
+            <div className="login-carousel-visual absolute inset-0 z-10 overflow-hidden">
+              {CHARACTER_IMAGES.map((src, i) => {
+                const { slot, style } = getCarouselLayout(i, activeIndex, CAROUSEL_TOTAL);
+                return (
+                  <div
+                    key={src}
+                    className="login-carousel-slide"
+                    style={style}
+                    data-slot={slot}
+                    data-active={slot === 'active' ? 'true' : 'false'}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      role="presentation"
+                      draggable={false}
+                      className="login-carousel-character block object-contain"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label="Previous character"
+              className="absolute left-2 top-1/2 z-[11] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-0 bg-transparent text-white opacity-0 shadow-none transition-opacity duration-300 hover:bg-black/25 focus:outline-none focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-white/30 group-hover/carousel:opacity-70 group-hover/carousel:text-white md:left-4"
+              style={{ outline: 'none' }}
+            >
+              <svg viewBox="0 0 15 15" fill="none" className="h-5 w-5" aria-hidden="true">
+                <path
+                  d="M9 12L4.5 7.5 9 3"
+                  stroke="currentColor"
+                  strokeOpacity="0.55"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label="Next character"
+              className="absolute right-2 top-1/2 z-[11] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-0 bg-transparent text-white opacity-0 shadow-none transition-opacity duration-300 hover:bg-black/25 focus:outline-none focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-white/30 group-hover/carousel:opacity-70 group-hover/carousel:text-white md:right-4"
+              style={{ outline: 'none' }}
+            >
+              <svg viewBox="0 0 15 15" fill="none" className="h-5 w-5" aria-hidden="true">
+                <path
+                  d="M6 3l4.5 4.5L6 12"
+                  stroke="currentColor"
+                  strokeOpacity="0.55"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+
+            {/* Minimal dot indicators */}
+            <div
+              className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-[3px] min-[1512px]:bottom-4"
+              role="tablist"
+              aria-label="Character selection"
+            >
+              {CHARACTER_IMAGES.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === activeIndex}
+                  aria-label={`Slide ${i + 1}`}
+                  onClick={() => goTo(i)}
+                  className={`rounded-full border-0 p-0 transition-opacity duration-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-400/40 ${
+                    i === activeIndex
+                      ? 'h-[3px] w-3 bg-violet-200/55 opacity-80'
+                      : 'h-[3px] w-[3px] bg-white/[0.22] hover:bg-white/35'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
-
-        <div>
-          <label htmlFor="password">Password</label>
-          <br />
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-        </div>
-
-        {error && <p role="alert">{error}</p>}
-
-        <button type="submit" disabled={loading}>
-          {loading ? 'Logging in…' : 'Log in'}
-        </button>
-      </form>
-
-      <p>
-        No account yet? <Link to="/register">Register</Link>
-      </p>
+      </div>
     </div>
   );
 }
