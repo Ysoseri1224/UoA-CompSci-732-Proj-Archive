@@ -1,23 +1,18 @@
 # 游戏后端逻辑 — 分步实现计划
 
 > 目标：后端逻辑完整、对齐前端操作、测试通过、前后端 + 数据库联动正常无 Bug。
-> 每步一个 PR，独立可测，不依赖后续步骤。
 
 ---
 
 ## 当前状态概览
 
-| 层 | 现状 |
+| 步骤 | 状态 |
 |---|---|
-| **类型定义** | 散落在 `useGameLogic.js`、`cards.js`、`handTypes.js` 中，后端无对应类型 |
-| **牌堆操作** | `frontend/src/data/cards.js` 有静态牌池，无洗牌/抽牌/弃牌逻辑 |
-| **牌型识别** | 前端 `useGameLogic.js` 有简易判定，后端 `evaluator.js` 用 pokersolver（不适合 1-7 张选牌） |
-| **伤害计算** | 后端 `scoring.js` 是 Balatro 风格（joker/edition/enhancement），非 Poker 牌型计分 |
-| **技能系统** | 前端 `useGameLogic.js` 有 changeColor/changeCost/shield，后端 PvE 有不同技能设计 |
-| **状态机** | 后端有 XState PvE 状态机（16 阶段，基于德扑 betting 流），与 docs 设计不符 |
-| **Store** | 前端无 Zustand game store，逻辑全在 `useGameLogic` hook |
-| **Boss/Upgrade** | 前端 `useGameLogic.js` 有简易 bossHP/floor，无正式 Upgrade/Buff 系统 |
-| **数据库** | Match/MatchReplay/Achievement 模型已有，matches/achievements 路由为 501 stub |
+| 步骤 1-4（types + deck + hand + skills） | ✅ 已合并，已迁移 TS |
+| 状态机 v0.2（Boss telegraph/intent/buff 扩展） | ✅ 已合并 |
+| TypeScript 迁移（types/ + lib/） | ✅ 已合并 |
+| 步骤 5（状态机） | 🔜 待开始 — 用自定义状态机替代 XState |
+| 步骤 6-9 | 待开始 |
 
 ---
 
@@ -28,14 +23,14 @@
 **文件**：
 ```
 backend/src/types/
-  card.js        ← Element, Rank, HandType, CardId, Card, createCard, rankToDisplay, rankToChipValue
-  state.js       ← GameState, BattleState, RoundState, RoundPhase
-  buff.js        ← Buff / ElementDamageBuff / ElementDrawBuff / HighRankDrawBuff / Upgrade
-  events.js      ← 所有 Action/Event 类型（SKILL_CHANGE_COLOR, SHUFFLE_SELECT, PLAY_CONFIRM, ...）
+  card.ts        ← Element, Rank, HandType, CardId, Card, createCard, rankToDisplay, rankToChipValue
+  state.ts       ← GameState, BattleState, RoundState, RoundPhase
+  buff.ts        ← Buff / ElementDamageBuff / ElementDrawBuff / HighRankDrawBuff / Upgrade
+  events.ts      ← 所有 Action/Event 类型（SKILL_CHANGE_COLOR, SHUFFLE_SELECT, PLAY_CONFIRM, ...）
 ```
 
 **验收标准**：
-- [ ] `tests/unit/card.types.test.js` 通过
+- [ ] `tests/unit/card.types.test.ts` 通过
   - CardId 格式 `{ELEMENT}_{rank}` 正确
   - rankToDisplay(1) = 'A', (11) = 'J', (12) = 'Q', (13) = 'K'
   - rankToChipValue(rank) = rank (A=1, 2-10=面值, J=11, Q=12, K=13)
@@ -50,7 +45,7 @@ backend/src/types/
 **文件**：
 ```
 backend/src/lib/
-  deck.js       ← createFullDeck, shuffle, initDeckState, drawCards, playCards, shuffleHand
+  deck.ts       ← createFullDeck, shuffle, initDeckState, drawCards, playCards, shuffleHand
 ```
 
 **关键规则**：
@@ -60,7 +55,7 @@ backend/src/lib/
 - Shuffle 弃牌先暂存，抽完再回弃牌堆（防止抽回自己刚弃的牌）
 
 **验收标准**：
-- [ ] `tests/unit/deck.test.js` 通过
+- [ ] `tests/unit/deck.test.ts` 通过
   - createFullDeck 生成 39 张无重复牌
   - initDeckState 生成 7 张手牌 + 32 张牌堆
   - drawCards 正确补牌，牌堆不足时回收弃牌堆
@@ -72,12 +67,12 @@ backend/src/lib/
 
 ## 第 3 步：牌型识别 + 伤害计算
 
-**目标**：实现 9 种扑克牌型识别 + 伤害公式，直接替换后端现有的 `evaluator.js` + `scoring.js`。
+**目标**：实现 9 种扑克牌型识别 + 伤害公式，直接替换后端现有的 `evaluator.ts` + `scoring.ts`。
 
 **文件**：
 ```
 backend/src/lib/
-  hand.js       ← HAND_SCORES, identifyHand, detectHandType, checkStraight, calculateDamage
+  hand.ts       ← HAND_SCORES, identifyHand, detectHandType, checkStraight, calculateDamage
 ```
 
 **牌型优先级**：Straight Flush > Four of a Kind > Full House > Flush > Straight > Three of a Kind > Two Pair > Pair > High Card
@@ -85,7 +80,7 @@ backend/src/lib/
 **伤害公式**：`(底分 + Σ打出牌.chipValue) × 倍率`，向下取整
 
 **验收标准**：
-- [ ] `tests/unit/hand.test.js` 通过
+- [ ] `tests/unit/hand.test.ts` 通过
   - 9 种牌型各至少 2 个 case（正面 + 边界）
   - 同花顺识别正确
   - 选中杂牌时降级为 High Card
@@ -101,7 +96,7 @@ backend/src/lib/
 **文件**：
 ```
 backend/src/lib/
-  skills.js     ← skillChangeColor, skillChangeCost, skillShield, canUseChangeColor, canUseChangeCost, canUseShield
+  skills.ts     ← skillChangeColor, skillChangeCost, skillShield, canUseChangeColor, canUseChangeCost, canUseShield
 ```
 
 **规则对齐 game-rules-prompt.md**：
@@ -111,7 +106,7 @@ backend/src/lib/
 - 护盾：碎裂后 onCooldown，跨回合保留，Boss 死亡时作废
 
 **验收标准**：
-- [ ] `tests/unit/skills.test.js` 通过
+- [ ] `tests/unit/skills.test.ts` 通过
   - 变色：同 rank 替换成功，找不到时退而求其次（rank 最接近）
   - 变费：同颜色目标 rank 替换成功
   - 替换不会产生重复牌
@@ -120,17 +115,17 @@ backend/src/lib/
 
 ---
 
-## 第 5 步：XState 状态机
+## 第 5 步：自定义状态机
 
-**目标**：用 XState v5 实现 RoundState 状态机，替换后端现有的 PvE 状态机。
+**目标**：用轻量自定义状态机（纯函数 `transition(state, event)`）实现 RoundState 回合流，替换后端现有的 XState PvE 状态机。事件格式兼容 XState（`{ type, ... }`），后续可切换。
 
 **文件**：
 ```
 backend/src/pve/
-  roundMachine.js  ← RoundPhase 状态机：DRAW → SKILL/SHUFFLE → PLAY → RESOLVE → BOSS_ATTACK → ROUND_END
-  guards.js        ← 守卫条件（canUseChangeColor, canShuffle, canPlay, ...）
-  actions.js       ← 副作用（draw_cards, resolve_damage, boss_attack, round_end_reset, ...）
-  index.js         ← 更新，引入新状态机
+  roundMachine.ts  ← RoundPhase 状态机：DRAW → SKILL/SHUFFLE → PLAY → RESOLVE → BOSS_ATTACK → ROUND_END
+  guards.ts        ← 守卫条件（canUseChangeColor, canShuffle, canPlay, ...）
+  actions.ts       ← 副作用（draw_cards, resolve_damage, boss_attack, round_end_reset, ...）
+  index.ts         ← 更新，引入新状态机
 ```
 
 **状态转移**（对齐 state-machine.md §4.2）：
@@ -143,7 +138,7 @@ DRAW → SKILL/SHUFFLE（玩家任意操作，可交替）→ PLAY → RESOLVE
 ```
 
 **验收标准**：
-- [ ] `tests/unit/pve.roundMachine.test.js` 通过
+- [ ] `tests/unit/pve.roundMachine.test.ts` 通过
   - 完整回合流程：DRAW → SKILL → PLAY → RESOLVE → BOSS_ATTACK → ROUND_END → DRAW
   - SKILL/SHUFFLE 阶段可交替
   - Boss HP ≤ 0 时跳至 WIN
@@ -160,23 +155,23 @@ DRAW → SKILL/SHUFFLE（玩家任意操作，可交替）→ PLAY → RESOLVE
 **文件**：
 ```
 frontend/src/store/
-  gameStore.js    ← GameState slice（runId, layer, player, deck, hand, phase）
-  battleStore.js  ← BattleState slice（boss, round, roundState, result）
-  roundStore.js   ← RoundState slice + 事件处理
+  gameStore.ts    ← GameState slice（runId, layer, player, deck, hand, phase）
+  battleStore.ts  ← BattleState slice（boss, round, roundState, result）
+  roundStore.ts   ← RoundState slice + 事件处理
 ```
 
 **后端扩展**：
 ```
 backend/src/lib/
-  boss.js         ← createBoss, Boss 数值缩放公式
-  upgrades.js     ← FIRST_LAYER_UPGRADES, generateUpgradePool
-  savepoint.js    ← createSavepoint, loadSavepoint, 序列化/反序列化
+  boss.ts         ← createBoss, Boss 数值缩放公式
+  upgrades.ts     ← FIRST_LAYER_UPGRADES, generateUpgradePool
+  savepoint.ts    ← createSavepoint, loadSavepoint, 序列化/反序列化
 ```
 
 **验收标准**：
-- [ ] `tests/unit/boss.test.js` — Boss 创建，数值随层数缩放
-- [ ] `tests/unit/upgrades.test.js` — 第一层 3 选 1，后续层生成候选池
-- [ ] `tests/unit/savepoint.test.js` — SavePoint 写入/读取，序列化反序列化
+- [ ] `tests/unit/boss.test.ts` — Boss 创建，数值随层数缩放
+- [ ] `tests/unit/upgrades.test.ts` — 第一层 3 选 1，后续层生成候选池
+- [ ] `tests/unit/savepoint.test.ts` — SavePoint 写入/读取，序列化反序列化
 - [ ] 前端 store 可通过 DevTools 观察状态变化
 - [ ] Zustand 三层 store 分界清晰，互不污染
 
@@ -189,11 +184,11 @@ backend/src/lib/
 **文件**：
 ```
 backend/src/
-  socket.js         ← 更新：注册 PvE game 事件处理器
+  socket.ts         ← 更新：注册 PvE game 事件处理器
   utils/
-    pveHandlers.js  ← 重写：对接新状态机，startPveGame / selectSkills / playerAction / disconnect
+    pveHandlers.ts  ← 重写：对接新状态机，startPveGame / selectSkills / playerAction / disconnect
 backend/src/pve/
-  runtime.js        ← 更新：对接新状态机，actor 生命周期管理
+  runtime.ts        ← 更新：对接新状态机，actor 生命周期管理
 ```
 
 **事件流**：
@@ -217,7 +212,7 @@ Client                           Server
 - [ ] Socket.io 建连/断连正常
 - [ ] 完整一局 PvE 游戏流程无卡顿
 - [ ] 前端 UI 响应状态机推送的状态变化
-- [ ] `tests/unit/pve.socketHandlers.test.js` 更新并通过
+- [ ] `tests/unit/pve.socketHandlers.test.ts` 更新并通过
 
 ---
 
@@ -228,8 +223,8 @@ Client                           Server
 **文件**：
 ```
 backend/src/routes/
-  matches.js      ← 实现 GET /api/matches, GET /api/matches/:matchId, GET /api/matches/:matchId/replay
-  achievements.js ← 实现 GET /api/achievements
+  matches.ts      ← 实现 GET /api/matches, GET /api/matches/:matchId, GET /api/matches/:matchId/replay
+  achievements.ts ← 实现 GET /api/achievements
 ```
 
 **数据库写入时机**：
@@ -238,8 +233,8 @@ backend/src/routes/
 - 通关/失败时检查成就
 
 **验收标准**：
-- [ ] `tests/api/matches.test.js` — Match CRUD 端点正常
-- [ ] `tests/api/achievements.test.js` — 成就端点正常
+- [ ] `tests/api/matches.test.ts` — Match CRUD 端点正常
+- [ ] `tests/api/achievements.test.ts` — 成就端点正常
 - [ ] 一局游戏结束后数据库有完整 Match + MatchReplay 记录
 - [ ] 读取 MatchReplay 可完整重放一局
 
@@ -257,7 +252,7 @@ backend/src/routes/
 **验收标准**：
 - [ ] Docker Compose 一键启动，前后端 + MongoDB + Redis 正常
 - [ ] 完整一局游戏无 console error
-- [ ] `tests/integration/fullGame.test.js` 通过
+- [ ] `tests/integration/fullGame.test.ts` 通过
 - [ ] 手动测试 checklist 全部通过
 
 ---
@@ -285,51 +280,53 @@ backend/src/routes/
 ```
 backend/src/
   types/
-    card.js          ← Element, Rank, HandType, CardId, Card
-    state.js         ← GameState, BattleState, RoundState, RoundPhase
-    buff.js          ← Buff, Upgrade
-    events.js        ← Action/Event 类型
+    card.ts          ← Element, Rank, HandType, CardId, Card
+    state.ts         ← GameState, BattleState, RoundState, RoundPhase
+    buff.ts          ← Buff, Upgrade
+    events.ts        ← Action/Event 类型
   lib/
-    cards.js         ← createCard, rankToDisplay, rankToChipValue
-    deck.js          ← createFullDeck, shuffle, initDeckState, drawCards, playCards, shuffleHand
-    hand.js          ← HAND_SCORES, identifyHand, detectHandType, calculateDamage
-    skills.js        ← skillChangeColor, skillChangeCost, shieldStateMachine
-    boss.js          ← createBoss
-    upgrades.js      ← generateUpgradePool, FIRST_LAYER_UPGRADES
-    savepoint.js     ← createSavepoint, loadSavepoint
+    cards.ts         ← createCard, rankToDisplay, rankToChipValue
+    deck.ts          ← createFullDeck, shuffle, initDeckState, drawCards, playCards, shuffleHand
+    hand.ts          ← HAND_SCORES, identifyHand, detectHandType, calculateDamage
+    skills.ts        ← skillChangeColor, skillChangeCost, shieldStateMachine
+    boss.ts          ← createBoss
+    upgrades.ts      ← generateUpgradePool, FIRST_LAYER_UPGRADES
+    savepoint.ts     ← createSavepoint, loadSavepoint
   pve/
-    roundMachine.js  ← XState round 状态机
-    guards.js        ← 守卫条件
-    actions.js       ← 副作用
-    runtime.js       ← Actor 生命周期 + Socket 事件路由
-    index.js
+    roundMachine.ts  ← XState round 状态机
+    guards.ts        ← 守卫条件
+    actions.ts       ← 副作用
+    runtime.ts       ← Actor 生命周期 + Socket 事件路由
+    index.ts
   store/             ← Zustand（或继续用 XState context）
-    gameStore.js
-    battleStore.js
-    roundStore.js
+    gameStore.ts
+    battleStore.ts
+    roundStore.ts
   routes/
-    matches.js       ← 完整实现
-    achievements.js  ← 完整实现
+    matches.ts       ← 完整实现
+    achievements.ts  ← 完整实现
   models/            ← 已有（可能需要微调字段）
 
 frontend/src/
   store/
-    gameStore.js     ← Zustand GameState slice
-    battleStore.js   ← Zustand BattleState slice
-    roundStore.js    ← Zustand RoundState slice
+    gameStore.ts     ← Zustand GameState slice
+    battleStore.ts   ← Zustand BattleState slice
+    roundStore.ts    ← Zustand RoundState slice
   hooks/
-    useGameLogic.js  ← 重构：从本地 state 改为 Zustand store
+    useGameLogic.ts  ← 重构：从本地 state 改为 Zustand store
 ```
 
 ---
 
 ## 测试策略
 
-| 层 | 测试类型 | 工具 |
+| 层 | 测试类型 | 运行命令 |
 |---|---|---|
-| types/lib | 纯函数单测 | `node:test` + `node:assert/strict` |
-| XState 状态机 | 状态转移测试 | `xstate` test utils / 事件驱动测试 |
-| API 路由 | 集成测试 | `node:test` + supertest + 真实 MongoDB |
+| types/lib | 纯函数单测 | `node --import tsx --test tests/unit/*.test.ts` |
+| 自定义状态机 | 状态转移测试 | `node --import tsx --test`（纯函数，无需 mock） |
+| API 路由 | 集成测试 | `node --import tsx --test tests/api/*.test.js`（需 MongoDB） |
+| DB 模型 | 数据库测试 | `docker exec cardgame-backend-1 npx tsx --test tests/db/*.test.js`（容器内执行） |
 | Socket.io | 事件驱动测试 | socket.io-client + 事件监听 |
-| 前端 Store | 单向数据流测试 | Zustand subscribe + mock |
 | 完整流程 | E2E 测试 | Docker Compose + 手动 checklist |
+
+所有测试统一用 `node --import tsx` 运行时，`.ts` 和 `.js` 文件混编。

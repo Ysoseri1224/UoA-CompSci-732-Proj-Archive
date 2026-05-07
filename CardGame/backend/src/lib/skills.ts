@@ -126,8 +126,7 @@ export function canPlay(selectedCards: string[], phase: string): boolean {
 // ══════════════════════════════════════════════════════════════════
 
 export function resetRoundSkills(
-  skills: RoundSkills,
-  shuffle: { remaining: number }
+  skills: RoundSkills
 ): { skills: RoundSkills; shuffle: { remaining: number } } {
   return {
     skills: {

@@ -90,7 +90,6 @@ test('drawCards with n=0 returns identical state', () => {
 test('drawCards recycles discard pile when deck is low', () => {
   // Set up: empty deck, some cards in discard, hand has 0 cards
   const state = initDeckState();
-  const hand = state.hand;
   const deck = state.deck;
   const discard = state.deck.slice(0, 10); // fake discard
 
