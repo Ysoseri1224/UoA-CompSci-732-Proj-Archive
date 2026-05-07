@@ -1,6 +1,6 @@
 // src/components/game/HandArea.jsx
-import HandCard from './HandCard';
-import PlayerHUD from './PlayerHUD';
+import HandCard from './HandCard.jsx';
+import PlayerHUD from './PlayerHUD.jsx';
 
 export default function HandArea({
   hand, selected, onToggle, deckCount,
