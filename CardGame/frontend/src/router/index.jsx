@@ -12,6 +12,7 @@ import GamePage from '../pages/GamePage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import ReplayPage from '../pages/ReplayPage.jsx';
+import AttackEffectPreviewPage from '../pages/AttackEffectPreviewPage.jsx';
 
 // Root layout wraps every page with the Navbar.
 // <Outlet /> renders the matched child route's component below the Navbar.
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
       { path: '/register', element: <RegisterPage /> },
       { path: '/profile/:userId', element: <ProfilePage /> },
       { path: '/leaderboard', element: <LeaderboardPage /> },
+      { path: '/attack-effect-preview', element: <AttackEffectPreviewPage /> },
 
       // --- Protected routes (require a valid token in localStorage) ---
       {

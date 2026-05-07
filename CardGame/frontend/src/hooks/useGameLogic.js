@@ -67,6 +67,19 @@ export function evaluateHand(cards) {
   return { handType, baseAttack, bonusAttack, multiplier, totalScore };
 }
 
+function getAttackEffectMode(cards) {
+  if (cards.length !== MAX_SELECT) return 'normal';
+
+  const firstColor = cards[0]?.color;
+  const isSameColor = cards.every(card => card.color === firstColor);
+  if (!isSameColor) return 'normal';
+
+  if (firstColor === 'red') return 'fire';
+  if (firstColor === 'blue') return 'water';
+  if (firstColor === 'green') return 'nature';
+  return 'normal';
+}
+
 function buildInitialState() {
   const shuffled = shuffle(CARD_POOL);
   return {
@@ -93,6 +106,7 @@ export function useGameLogic() {
   const [gameOver,     setGameOver]     = useState(null);
   const [battlePhase,  setBattlePhase]  = useState(null);
   const [bossAttacking,setBossAttacking]= useState(false);
+  const [attackEffect,setAttackEffect]  = useState(null);
 
   const selectedCards = useMemo(
     () => selected.map(id => hand.find(c => c.id === id)).filter(Boolean),
@@ -129,10 +143,13 @@ export function useGameLogic() {
 
     const score     = evaluation.totalScore;
     const newBossHp = bossHp - score;
+    const effectMode = getAttackEffectMode(selectedCards);
 
     setLastScore(score);
     setTotalScore(prev => prev + score);
     setBattlePhase('player');
+    setAttackEffect({ id: Date.now(), mode: effectMode });
+    setTimeout(() => setAttackEffect(null), 1200);
 
     if (newBossHp <= 0) {
       setBossHp(0);
@@ -198,7 +215,7 @@ export function useGameLogic() {
     setDiscards(MAX_DISCARDS);
     // 护盾跨回合保留，充能值不重置
     setSkillCooldowns(prev => ({ shield: prev.shield }));
-  }, [selected, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
+  }, [selected, selectedCards, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
 
   const clearSelected = useCallback(() => setSelected([]), []);
 
@@ -281,6 +298,7 @@ export function useGameLogic() {
     setGameOver(null);
     setBattlePhase(null);
     setBossAttacking(false);
+    setAttackEffect(null);
     setSkillCooldowns({ shield: false });
     setSkillCharges(3);
   }, []);
@@ -311,6 +329,7 @@ export function useGameLogic() {
     gameOver,
     restartGame,
     battlePhase,
+    attackEffect,
     bossAttacking,
     skillCooldowns,
     skillCharges,
