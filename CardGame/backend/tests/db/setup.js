@@ -1,31 +1,34 @@
-import 'dotenv/config';
-
 import mongoose from 'mongoose';
+import { before, after, beforeEach } from 'node:test';
+import dotenv from 'dotenv';
 
-import {connectDB, disconnectDB} from '../../src/db.js';
+dotenv.config();
 
+// 严格遵守你们 CI 中的配置
 const TEST_MONGO_URI = process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/balatro_test';
-const EXPECTED_TEST_DB_NAME = 'balatro_test';
 
-const connectTestDB = async () => {
-    await connectDB(`${TEST_MONGO_URI}?serverSelectionTimeoutMS=1000`);
-}
+before(async () => {
+  try {
+    await mongoose.connect(TEST_MONGO_URI, {
+      serverSelectionTimeoutMS: 5000
+    });
+    console.log('✅ Connected to Test Database');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err);
+    process.exit(1);
+  }
+});
 
-const clearDatabase = async () => {
-    const currentDbName = mongoose.connection.name;
-    if (currentDbName !== EXPECTED_TEST_DB_NAME) {
-        throw new Error(`Refusing to clear non-test database: ${currentDbName}`);
+after(async () => {
+  await mongoose.connection.close();
+});
+
+// 每个测试用例执行前清空所有集合
+beforeEach(async () => {
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+      await collections[key].deleteMany({});
     }
-
-    const {collections} = mongoose.connection;
-
-    for (const collection of Object.values(collections)) {
-        await collection.deleteMany({});
-    }
-};
-
-const disconnectTestDB = async () => {
-    await disconnectDB();
-};
-
-export {connectTestDB, clearDatabase, disconnectTestDB};
+  }
+});
