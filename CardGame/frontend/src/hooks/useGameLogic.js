@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
-import { CARD_POOL } from '../data/cards';
-import { HAND_TYPES } from '../data/handTypes';
+import { CARD_POOL } from '../data/cards.js';
+import { HAND_TYPES } from '../data/handTypes.js';
+import { shouldAdvanceRound } from '../game/roundProgression.js';
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -157,7 +158,12 @@ export function useGameLogic() {
           if (skillCooldowns.shield) {
             setBattlePhase('shield_break');
             setSkillCooldowns({ shield: false });
-            setTimeout(() => setBattlePhase(null), 800);
+            setTimeout(() => {
+              setBattlePhase(null);
+              if (shouldAdvanceRound({ bossDefeated: false, playerDefeated: false })) {
+                setRound(r => r + 1);
+              }
+            }, 800);
           } else {
             const newPlayerHp = playerHp - 5;
             if (newPlayerHp <= 0) {
@@ -167,7 +173,12 @@ export function useGameLogic() {
               return;
             }
             setPlayerHp(newPlayerHp);
-            setTimeout(() => setBattlePhase(null), 600);
+            setTimeout(() => {
+              setBattlePhase(null);
+              if (shouldAdvanceRound({ bossDefeated: false, playerDefeated: false })) {
+                setRound(r => r + 1);
+              }
+            }, 600);
           }
         }, 800);
       }, 1400);
@@ -185,7 +196,6 @@ export function useGameLogic() {
 
     setSelected([]);
     setDiscards(MAX_DISCARDS);
-    setRound(r => r + 1);
     // 护盾跨回合保留，充能值不重置
     setSkillCooldowns(prev => ({ shield: prev.shield }));
   }, [selected, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);

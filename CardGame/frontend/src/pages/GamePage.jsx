@@ -1,9 +1,9 @@
 // src/pages/GamePage.jsx
-import Battlefield  from '../components/game/Battlefield';
-import HandArea     from '../components/game/HandArea';
-import ScorePanel   from '../components/game/ScorePanel';
-import SkillBar     from '../components/game/SkillBar';
-import { useGameLogic } from '../hooks/useGameLogic';
+import Battlefield  from '../components/game/Battlefield.jsx';
+import HandArea     from '../components/game/HandArea.jsx';
+import ScorePanel   from '../components/game/ScorePanel.jsx';
+import SkillBar     from '../components/game/SkillBar.jsx';
+import { useGameLogic } from '../hooks/useGameLogic.js';
 
 export default function GamePage() {
   const {

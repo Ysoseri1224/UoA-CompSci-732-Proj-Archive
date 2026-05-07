@@ -1,5 +1,5 @@
 // src/components/game/ScorePanel.jsx
-import HandTypeDisplay from './HandTypeDisplay';
+import HandTypeDisplay from './HandTypeDisplay.jsx';
 
 export default function ScorePanel({
   evaluation,
