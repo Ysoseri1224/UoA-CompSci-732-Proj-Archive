@@ -56,14 +56,16 @@ export default function HandArea({
               animation: 'shieldPulse 2s ease-in-out infinite',
               zIndex: 11, pointerEvents: 'none',
             }} />
-            <div style={{
-              position: 'absolute', top: -8, right: -8,
-              width: 22, height: 22, borderRadius: '50%',
-              background: '#2563eb', border: '2px solid #93c5fd',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, zIndex: 12,
-              boxShadow: '0 0 10px rgba(59,130,246,0.8)',
-            }}>🛡</div>
+     <div style={{
+  position: 'absolute', top: -4, right: -4,
+  width: 24, height: 24,
+}}>
+  <img
+    src="/images/skill-shield.png"
+    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+    alt=""
+  />
+</div>
           </>
         )}
         <PlayerHUD
