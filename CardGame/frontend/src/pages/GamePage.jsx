@@ -29,6 +29,7 @@ export default function GamePage() {
     gameOver,
     restartGame,
     battlePhase,
+    skillCharges,
     skillCooldowns,
     skillChangeColor,
     skillChangeCost,
@@ -74,13 +75,14 @@ export default function GamePage() {
       {/* ── 主体 ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        <SkillBar
-          hand={hand}
-          skillCooldowns={skillCooldowns}
-          skillChangeColor={skillChangeColor}
-          skillChangeCost={skillChangeCost}
-          skillActivateShield={skillActivateShield}
-        />
+      <SkillBar
+  hand={hand}
+  skillCooldowns={skillCooldowns}
+  skillCharges={skillCharges}
+  skillChangeColor={skillChangeColor}
+  skillChangeCost={skillChangeCost}
+  skillActivateShield={skillActivateShield}
+/>
 
         <Battlefield
           bossHp={bossHp}
