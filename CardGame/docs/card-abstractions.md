@@ -544,11 +544,11 @@ src/
 │   └── events.ts        // 所有 Action/Event 类型
 ├── lib/
 │   ├── deck.ts          // createFullDeck, initDeckState, drawCards, playCards, shuffleHand
-│   ├── cards.ts         // createCard, rankToDisplay, rankToChipValue
+│   ├── cards.ts         // createCard, rankToDisplay, rankToChipValue（已迁入 types/card.ts）
 │   ├── hand.ts          // identifyHand, detectHandType, calculateDamage
 │   ├── skills.ts        // skillChangeColor, skillChangeCost
-│   ├── boss.ts          // createBoss, Boss 数值
-│   └── upgrades.ts      // generateUpgradePool, FIRST_LAYER_UPGRADES
+│   ├── boss.ts          // createBoss, Boss 数值（待实现，Step 6）
+│   └── upgrades.ts      // generateUpgradePool, FIRST_LAYER_UPGRADES（已迁入 types/buff.ts）
 └── store/
     ├── gameStore.ts     // Zustand: GameState slice
     ├── battleStore.ts   // Zustand: BattleState slice

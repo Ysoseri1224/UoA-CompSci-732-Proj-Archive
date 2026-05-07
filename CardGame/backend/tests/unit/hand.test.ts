@@ -62,13 +62,8 @@ test('Straight Flush: not triggered when element mismatch', () => {
 // ══════════════════════════════════════════════════════════════════
 
 test('Four of a Kind: 4 cards same rank across different elements', () => {
-  const cards = makeCards([
-    ['WATER', 8], ['FIRE', 8], ['GRASS', 8], ['WATER', 8], // WATER_8 doesn't exist twice! Use different elements
-  ]);
-  // Fix: 4 of same rank needs 3 elements + 1 duplicate element won't work because cards are unique
-  // Actually createCard creates unique cards per element+rank. So we can only have at most 3 of same rank (one per element).
-  // Four of a Kind can only happen with skills that create copies or additional cards.
-  // For now we still test the detection logic with mocked cards that bypass uniqueness:
+  // Four of a Kind needs 4 cards of same rank. Since only 3 exist per rank
+  // (one per element), we test with mocked cards that bypass uniqueness:
   const mockFour = [
     { id: 'WATER_8', element: 'WATER', rank: 8, displayRank: '8', chipValue: 8 },
     { id: 'FIRE_8', element: 'FIRE', rank: 8, displayRank: '8', chipValue: 8 },

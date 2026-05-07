@@ -316,9 +316,7 @@ test('resetRoundSkills resets changeColor and changeCost, preserves shield', () 
     changeCost:  { used: true },
     shield:      { active: true, onCooldown: false },
   };
-  const shuffle = { remaining: 0 };
-
-  const result = resetRoundSkills(skills, shuffle);
+  const result = resetRoundSkills(skills);
 
   assert.equal(result.skills.changeColor.used, false);
   assert.equal(result.skills.changeCost.used, false);
@@ -335,9 +333,7 @@ test('resetRoundSkills does not mutate original', () => {
     changeCost:  { used: true },
     shield:      { active: false, onCooldown: true },
   };
-  const shuffle = { remaining: 0 };
-
-  resetRoundSkills(skills, shuffle);
+  resetRoundSkills(skills);
 
   assert.equal(skills.changeColor.used, true);
   assert.equal(skills.shield.onCooldown, true);

@@ -154,6 +154,7 @@ export function createGameState(opts: {
 }
 
 export function createSavepoint(gameState: GameState): SavePoint {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { savepoint, ...rest } = gameState;
   return { layer: gameState.layer, timestamp: Date.now(), gameState: rest };
 }
