@@ -48,12 +48,12 @@ function Navbar() {
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 md:gap-3 shrink-0">
-          <div
-            className="w-8 h-8 min-[1512px]:w-9 min-[1512px]:h-9 rounded-lg flex items-center justify-center select-none"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-          >
-            <span className="text-white font-black text-sm min-[1512px]:text-base">♠</span>
-          </div>
+          <img
+            src="/logo/logo-icon-transparent.png"
+            alt=""
+            className="w-8 h-8 min-[1512px]:w-9 min-[1512px]:h-9 shrink-0 object-contain"
+            draggable={false}
+          />
           <span className="text-white font-bold text-base md:text-lg min-[1512px]:text-xl tracking-wide">
             Card Rogue
           </span>

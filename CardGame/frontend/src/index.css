@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* App shell — matches Home / auth pages; avoids white flash on overscroll / rubber-band */
+@layer base {
+  html {
+    background-color: #040410;
+  }
+  body {
+    background-color: #040410;
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+  #root {
+    background-color: #040410;
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+}

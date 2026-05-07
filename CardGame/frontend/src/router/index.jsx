@@ -19,8 +19,8 @@ function RootLayout() {
   return (
     <>
       <Navbar />
-      {/* pt-20 offsets the fixed navbar (h-20 = 80px) so page content starts below it */}
-      <main className="pt-20">
+      {/* Offset matches Navbar via --navbar-height; dark paint so ancestors never flash white */}
+      <main className="min-h-[100dvh] bg-[#040410] pt-[var(--navbar-height)]">
         <Outlet />
       </main>
     </>
