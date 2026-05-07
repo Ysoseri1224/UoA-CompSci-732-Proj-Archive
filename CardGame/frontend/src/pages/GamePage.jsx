@@ -29,6 +29,7 @@ export default function GamePage() {
     gameOver,
     restartGame,
     battlePhase,
+    attackEffect,
     skillCharges,
     skillCooldowns,
     skillChangeColor,
@@ -90,6 +91,7 @@ export default function GamePage() {
           floor={floor}
           lastScore={lastScore}
           battlePhase={battlePhase}
+          attackEffect={attackEffect}
         />
 
         <ScorePanel
