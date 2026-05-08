@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.ts",
- "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "test": "node --import tsx --test --test-concurrency=1 \"tests/**/*.test.js\" \"tests/**/*.test.ts\"",
-    "test:unit": "node --import tsx --test --test-concurrency=1 \"tests/unit/**/*.test.js\" \"tests/unit/**/*.test.ts\"",
-    "test:db": "node --test --test-concurrency=1 tests/db/",
-    "test:api": "node --import tsx --test --test-concurrency=1 \"tests/api/**/*.test.js\" \"tests/api/**/*.test.ts\"",
+  "scripts": {
+    "start": "tsx src/index.js",
+    "dev": "nodemon --exec tsx src/index.js",
+    "test": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
+    "test:unit": "node --import tsx --test --test-concurrency=1 tests/unit/**/*.test.ts",
+    "test:db": "node --import tsx --test --test-concurrency=1 tests/db/**/*.test.ts",
+    "test:api": "node --import tsx --test --test-concurrency=1 tests/api/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

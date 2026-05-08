@@ -5,25 +5,24 @@ const savePointSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true,
-    unique: true // 确保每个用户只有一个“当前进行中”的存档。如果允许开多个档，去掉此项
+    unique: true 
   },
-  roomId: { 
+  runId: { 
     type: String, 
     required: true 
   },
-  // 核心：存储整个 XState 的快照 JSON
-  // 这里使用 Object (Mixed) 类型，因为 XState 的快照结构比较复杂，
-  // 包含了 value, context (即你的 room, player, bot), status 等。
-  snapshot: { 
+  // 存储符合 GameState 接口的自定义状态
+  gameState: { 
     type: mongoose.Schema.Types.Mixed, 
     required: true 
   },
   layer: { 
     type: Number, 
-    default: 1 // 预留给未来的层数进度
+    required: true,
+    default: 1 
   }
 }, {
-  timestamps: true // 记录存档时间和创建时间
+  timestamps: true 
 });
 
 export const SavePoint = mongoose.model('SavePoint', savePointSchema);
