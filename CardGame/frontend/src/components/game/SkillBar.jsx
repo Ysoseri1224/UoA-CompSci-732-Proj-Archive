@@ -15,6 +15,7 @@ function costLabel(c) {
 export default function SkillBar({
   hand,
   skillCooldowns,
+  shieldActive,
   skillChangeColor,
   skillChangeCost,
   skillActivateShield,
@@ -103,7 +104,7 @@ export default function SkillBar({
         used={skillCooldowns.shield}
         active={panel === 'shield'}
         onClick={openShieldSkill}
-        activated={skillCooldowns.shield}
+        activated={shieldActive}
       />
 
       {/* ── 浮层面板 ── */}

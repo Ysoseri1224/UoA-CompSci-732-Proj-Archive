@@ -24,7 +24,7 @@ import {
   roundEndConfirm,
 } from '../types/events.js';
 import type { GameContext } from '../pve/roundMachine.js';
-import { ROUND_PHASE } from '../types/state.js';
+import { ROUND_PHASE } from '../types/state.ts';
 
 // ══════════════════════════════════════════════════════════════════
 //  注册 Socket 事件处理器
@@ -153,15 +153,38 @@ export function registerPveHandlers(socket: Socket): void {
     r = sendRoomEvent(roomId, resolveComplete());
     if (!r.ok) { emitError(r.error ?? 'Resolve failed'); return; }
     if (r.ctx) {
+      const score = r.ctx.roundState.play.score ?? null;
+      logger.info({
+        socketId: socket.id,
+        roomId,
+        round: r.ctx.round,
+        score,
+        battleResult: r.ctx.battleResult,
+      }, `pve score resolved roomId=${roomId} round=${r.ctx.round} score=${score} battleResult=${r.ctx.battleResult}`);
       emit(r.ctx);
       if (r.ctx.battleResult === 'WIN') {
         socket.emit('battleWin', { layer: r.ctx.boss.layer });
         return;
       }
     }
+  });
 
-    // 自动：BOSS_ATTACK
-    r = sendRoomEvent(roomId, bossAttackComplete());
+  // resolveAnimationComplete -> boss_attack for Player attack animation played
+  socket.on('resolveAnimationComplete', () => {
+    const roomId = getRoomId(socket.id);
+    if (!roomId) return;
+
+    const currentRoom = getRoom(roomId);
+    if (!currentRoom) {
+      emitError(`Room ${roomId} not found`);
+      return;
+    }
+
+    if (currentRoom.roundState.phase !== ROUND_PHASE.BOSS_ATTACK) {
+      return;
+    }
+
+    let r = sendRoomEvent(roomId, bossAttackComplete());
     if (!r.ok) { emitError(r.error ?? 'Boss attack failed'); return; }
     if (r.ctx) {
       emit(r.ctx);
@@ -171,11 +194,9 @@ export function registerPveHandlers(socket: Socket): void {
       }
     }
 
-    // 自动：ROUND_END → DRAW
     r = sendRoomEvent(roomId, roundEndConfirm());
     if (r.ctx) {
       emit(r.ctx);
-      // 自动：DRAW → BOSS_TELEGRAPH → SKILL（下一回合开始）
       r = sendRoomEvent(roomId, drawComplete());
       if (r.ctx) emit(r.ctx);
       r = sendRoomEvent(roomId, bossTelegraphComplete());
