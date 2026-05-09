@@ -1,6 +1,7 @@
 import { test, describe, before, afterEach } from 'node:test';
 import assert from 'node:assert';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { User } from '../../src/models/User.js';
 
 describe('User Model DB Tests', () => {
@@ -36,5 +37,18 @@ describe('User Model DB Tests', () => {
         const json = user.toJSON();
         assert.strictEqual(json.passwordHash, undefined);
         assert.strictEqual(json.username, 'hidden');
+    });
+
+    test('should compare plaintext password against passwordHash', async () => {
+        const passwordHash = await bcrypt.hash('Password123!', 10);
+        const user = new User({
+            username: 'compare-user',
+            email: 'compare@example.com',
+            passwordHash,
+        });
+        await user.save();
+
+        assert.strictEqual(await user.comparePassword('Password123!'), true);
+        assert.strictEqual(await user.comparePassword('WrongPassword!'), false);
     });
 });
