@@ -557,7 +557,10 @@ export default function LobbyPage() {
 
               <button
                   type="button"
-                  onClick={() => navigate('/room/:roomId/game')}
+                  onClick={() => {
+                    const roomId = `solo-${Date.now()}`;
+                    navigate(`/room/${roomId}/game`);
+                  }}
                   className={`${actionCardBase} ${soloCardGlow} flex w-full flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem] md:w-1/2 md:max-w-[50%]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>

@@ -86,6 +86,7 @@ export default function GamePage() {
 
 	        <SkillBar
 	          hand={hand}
+	          skillCharges={skillCharges}
 	          skillCooldowns={skillCooldowns}
               shieldActive={shieldActive}
 	          skillChangeColor={skillChangeColor}

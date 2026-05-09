@@ -16,6 +16,7 @@ const W = 90;
 
 export default function SkillBar({
   hand,
+  skillCharges = 0,
   skillCooldowns,
   shieldActive,
   skillChangeColor,
@@ -98,15 +99,18 @@ export default function SkillBar({
         overflow: 'visible',
       }}>
 
-      {/* ── 技能3：护盾 ── */}
-      <SkillButton
-        icon="🛡️"
-        label="护盾"
-        used={skillCooldowns.shield}
-        active={panel === 'shield'}
-        onClick={openShieldSkill}
-        activated={shieldActive}
-      />
+        {/* 顶部装饰 */}
+        <img
+          src="/images/skillbar-top.png"
+          alt=""
+          style={{
+            width: '100%',
+            height: Math.round(W * 1208 / 1302),
+            display: 'block',
+            flexShrink: 0,
+            objectFit: 'fill',
+          }}
+        />
 
         {/* 中间 */}
         <div style={{
