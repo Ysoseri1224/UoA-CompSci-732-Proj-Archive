@@ -2,10 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "tsx src/index.js",
-    "dev": "nodemon --exec tsx src/index.js",
+    "start": "tsx src/index.ts",
+    "dev": "nodemon --exec tsx src/index.ts",
     "test": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "test:unit": "node --import tsx --test --test-concurrency=1 tests/unit/**/*.test.ts",
     "test:db": "node --import tsx --test --test-concurrency=1 tests/db/**/*.test.ts",
