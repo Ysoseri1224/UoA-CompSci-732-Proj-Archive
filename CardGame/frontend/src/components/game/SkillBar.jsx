@@ -15,8 +15,13 @@ function costLabel(c) {
 const W = 90;
 
 export default function SkillBar({
-  hand, skillCooldowns, skillCharges,
-  skillChangeColor, skillChangeCost, skillActivateShield,
+  hand,
+  skillCharges = 0,
+  skillCooldowns,
+  shieldActive,
+  skillChangeColor,
+  skillChangeCost,
+  skillActivateShield,
 }) {
   const [panel,      setPanel]      = useState(null);
   const [targetCard, setTargetCard] = useState(null);
@@ -94,13 +99,13 @@ export default function SkillBar({
         overflow: 'visible',
       }}>
 
-        {/* 顶部 */}
+        {/* 顶部装饰 */}
         <img
           src="/images/skillbar-top.png"
           alt=""
           style={{
             width: '100%',
-            height: topH,
+            height: Math.round(W * 1208 / 1302),
             display: 'block',
             flexShrink: 0,
             objectFit: 'fill',

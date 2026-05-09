@@ -60,7 +60,11 @@ const router = createBrowserRouter([
       },
       {
         path: '/room/:roomId/game',
-        element: <GamePage />,
+        element: (
+          <PrivateRoute>
+            <GamePage />
+          </PrivateRoute>
+        ),
       },
       {
         path: '/match/:matchId/replay',

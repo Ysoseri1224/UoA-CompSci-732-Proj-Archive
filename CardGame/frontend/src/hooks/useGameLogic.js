@@ -1,33 +1,37 @@
-import { useState, useCallback, useMemo } from 'react';
-import { CARD_POOL } from '../data/cards.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+import usePveSocketStore from '../store/pveSocketStore.js';
+import { adaptPveGameState } from '../socket/pveSocketAdapter.js';
+import { useAuth } from './useAuth.js';
 import { HAND_TYPES } from '../data/handTypes.js';
-import { shouldAdvanceRound } from '../game/roundProgression.js';
 
-const HAND_SIZE = 7;
 const MAX_SELECT = 5;
-const MAX_DISCARDS = 2;
+const EMPTY_EVALUATION = {
+  handType: null,
+  baseAttack: 0,
+  bonusAttack: 0,
+  multiplier: 0,
+  totalScore: 0,
+};
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+const COLOR_TO_ELEMENT = {
+  red: 'FIRE',
+  blue: 'WATER',
+  green: 'GRASS',
+};
 
 function getHandType(cards) {
-  if (cards.length === 0) return HAND_TYPES.find(h => h.id === 'high_card');
+  if (cards.length === 0) return HAND_TYPES.find((h) => h.id === 'high_card');
 
-  const costs  = cards.map(c => c.cost);
-  const colors = cards.map(c => c.color);
+  const costs = cards.map((c) => c.cost);
+  const colors = cards.map((c) => c.color);
 
   const costCount = {};
-  costs.forEach(c => { costCount[c] = (costCount[c] || 0) + 1; });
+  costs.forEach((c) => { costCount[c] = (costCount[c] || 0) + 1; });
   const counts = Object.values(costCount).sort((a, b) => b - a);
 
   const colorCount = {};
-  colors.forEach(c => { colorCount[c] = (colorCount[c] || 0) + 1; });
+  colors.forEach((c) => { colorCount[c] = (colorCount[c] || 0) + 1; });
   const isFlush = cards.length === 5 && Object.keys(colorCount).length === 1;
 
   const isStraight = (() => {
@@ -36,306 +40,347 @@ function getHandType(cards) {
     if (sorted.length !== 5) return false;
     if (sorted[4] - sorted[0] === 4) return true;
     const highStraight = [1, 10, 11, 12, 13];
-    return highStraight.every(v => sorted.includes(v));
+    return highStraight.every((v) => sorted.includes(v));
   })();
 
   const isRoyalFlush = (() => {
     if (!isFlush || !isStraight) return false;
     const sorted = [...costs].sort((a, b) => a - b);
     const royal = [1, 10, 11, 12, 13];
-    return royal.every(v => sorted.includes(v));
+    return royal.every((v) => sorted.includes(v));
   })();
 
-  if (isRoyalFlush)                        return HAND_TYPES.find(h => h.id === 'royal_flush');
-  if (isFlush && isStraight)               return HAND_TYPES.find(h => h.id === 'straight_flush');
-  if (counts[0] === 4)                     return HAND_TYPES.find(h => h.id === 'four_of_a_kind');
-  if (counts[0] === 3 && counts[1] === 2)  return HAND_TYPES.find(h => h.id === 'full_house');
-  if (isFlush)                             return HAND_TYPES.find(h => h.id === 'flush');
-  if (isStraight)                          return HAND_TYPES.find(h => h.id === 'straight');
-  if (counts[0] === 3)                     return HAND_TYPES.find(h => h.id === 'three_of_a_kind');
-  if (counts[0] === 2 && counts[1] === 2)  return HAND_TYPES.find(h => h.id === 'two_pair');
-  if (counts[0] === 2)                     return HAND_TYPES.find(h => h.id === 'one_pair');
-  return HAND_TYPES.find(h => h.id === 'high_card');
+  if (isRoyalFlush) return HAND_TYPES.find((h) => h.id === 'royal_flush');
+  if (isFlush && isStraight) return HAND_TYPES.find((h) => h.id === 'straight_flush');
+  if (counts[0] === 4) return HAND_TYPES.find((h) => h.id === 'four_of_a_kind');
+  if (counts[0] === 3 && counts[1] === 2) return HAND_TYPES.find((h) => h.id === 'full_house');
+  if (isFlush) return HAND_TYPES.find((h) => h.id === 'flush');
+  if (isStraight) return HAND_TYPES.find((h) => h.id === 'straight');
+  if (counts[0] === 3) return HAND_TYPES.find((h) => h.id === 'three_of_a_kind');
+  if (counts[0] === 2 && counts[1] === 2) return HAND_TYPES.find((h) => h.id === 'two_pair');
+  if (counts[0] === 2) return HAND_TYPES.find((h) => h.id === 'one_pair');
+  return HAND_TYPES.find((h) => h.id === 'high_card');
 }
 
 export function evaluateHand(cards) {
-  const handType    = getHandType(cards);
-  const baseAttack  = cards.reduce((sum, c) => sum + c.cost, 0);
+  const handType = getHandType(cards);
+  const baseAttack = cards.reduce((sum, c) => sum + c.cost, 0);
   const bonusAttack = handType.baseBonus;
-  const multiplier  = handType.multiplier;
-  const totalScore  = Math.round((baseAttack + bonusAttack) * multiplier);
+  const multiplier = handType.multiplier;
+  const totalScore = Math.round((baseAttack + bonusAttack) * multiplier);
   return { handType, baseAttack, bonusAttack, multiplier, totalScore };
 }
 
-function getAttackEffectMode(cards) {
-  if (cards.length !== MAX_SELECT) return 'normal';
-
-  const firstColor = cards[0]?.color;
-  const isSameColor = cards.every(card => card.color === firstColor);
-  if (!isSameColor) return 'normal';
-
-  if (firstColor === 'red') return 'fire';
-  if (firstColor === 'blue') return 'water';
-  if (firstColor === 'green') return 'nature';
-  return 'normal';
+function createSocket(accessToken) {
+  return io('/', {
+    path: '/socket.io',
+    autoConnect: false,
+    auth: accessToken ? { token: accessToken } : undefined,
+  });
 }
 
-function buildInitialState() {
-  const shuffled = shuffle(CARD_POOL);
-  return {
-    hand: shuffled.slice(0, HAND_SIZE),
-    deck: shuffled.slice(HAND_SIZE),
-  };
-}
+export function useGameLogic(roomId = null) {
+  const { accessToken } = useAuth();
 
-export function useGameLogic() {
-  const [{ hand, deck }, setState] = useState(buildInitialState);
-  const [selected,    setSelected]   = useState([]);
-  const [discards,    setDiscards]   = useState(MAX_DISCARDS);
-  const [round,       setRound]      = useState(1);
-  const [totalScore,  setTotalScore] = useState(0);
-  const [lastScore,   setLastScore]  = useState(null);
+  const {
+    hand,
+    deckCount,
+    player,
+    boss,
+    round,
+    floor,
+    phase,
+    skills,
+    shuffle,
+    play,
+    bossRound,
+    battleResult,
+    shieldActive,
+    gameOver,
+    connectionStatus,
+    lastError,
+    applyServerState,
+    setConnectionStatus,
+    setError,
+    setRoomId,
+    reset,
+  } = usePveSocketStore();
 
-  const [skillCooldowns, setSkillCooldowns] = useState({ shield: false });
-  const [skillCharges,   setSkillCharges]   = useState(3);
+  const socketRef = useRef(null);
+  const resolvedScoreKeyRef = useRef(null);
+  const pendingEvaluationRef = useRef(null);
+  const battlePhaseTimerRef = useRef(null);
+  const prevPhaseRef = useRef(phase);
+  const prevShieldActiveRef = useRef(shieldActive);
+  const prevPlayerHpRef = useRef(player.hp);
 
-  const [playerHp,     setPlayerHp]     = useState(20);
-  const [bossHp,       setBossHp]       = useState(300);
-  const [bossMaxHp,    setBossMaxHp]    = useState(300);
-  const [floor,        setFloor]        = useState(1);
-  const [gameOver,     setGameOver]     = useState(null);
-  const [battlePhase,  setBattlePhase]  = useState(null);
-  const [bossAttacking,setBossAttacking]= useState(false);
-  const [attackEffect,setAttackEffect]  = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [totalScore, setTotalScore] = useState(0);
+  const [lastScore, setLastScore] = useState(null);
+  const [battlePhase, setBattlePhase] = useState(null);
+  const [resolvedEvaluation, setResolvedEvaluation] = useState(EMPTY_EVALUATION);
+  const [restartNonce, setRestartNonce] = useState(0);
 
   const selectedCards = useMemo(
-    () => selected.map(id => hand.find(c => c.id === id)).filter(Boolean),
-    [hand, selected]
+    () => selected.map((id) => hand.find((c) => c.id === id)).filter(Boolean),
+    [hand, selected],
   );
 
-  const evaluation = useMemo(() => evaluateHand(selectedCards), [selectedCards]);
+  const previewEvaluation = useMemo(
+    () => (selectedCards.length ? evaluateHand(selectedCards) : EMPTY_EVALUATION),
+    [selectedCards],
+  );
 
-  const toggleSelect = useCallback((cardId) => {
-    setSelected(prev => {
-      if (prev.includes(cardId)) return prev.filter(id => id !== cardId);
-      if (prev.length >= MAX_SELECT) return prev;
-      return [...prev, cardId];
-    });
-  }, []);
+  const evaluation = selectedCards.length ? previewEvaluation : resolvedEvaluation;
+  const battlePhaseDurationMs = 1500;
 
-  const discardSelected = useCallback(() => {
-    if (discards <= 0 || selected.length === 0) return;
-    setState(prev => {
-      const kept      = prev.hand.filter(c => !selected.includes(c.id));
-      const discarded = prev.hand.filter(c =>  selected.includes(c.id));
-      const count     = discarded.length;
-      const newDeck   = shuffle([...prev.deck, ...discarded]);
-      const drawn     = newDeck.slice(0, count);
-      const rest      = newDeck.slice(count);
-      return { hand: [...kept, ...drawn], deck: rest };
-    });
-    setSelected([]);
-    setDiscards(d => d - 1);
-  }, [discards, selected]);
+  const ensureSocket = useCallback(() => socketRef.current, []);
 
-  const playHand = useCallback(() => {
-    if (selected.length === 0 || gameOver || battlePhase) return;
-
-    const score     = evaluation.totalScore;
-    const newBossHp = bossHp - score;
-    const effectMode = getAttackEffectMode(selectedCards);
-
-    setLastScore(score);
-    setTotalScore(prev => prev + score);
-    setBattlePhase('player');
-    setAttackEffect({ id: Date.now(), mode: effectMode });
-    setTimeout(() => setAttackEffect(null), 1200);
-
-    if (newBossHp <= 0) {
-      setBossHp(0);
-      setTimeout(() => {
-        const nextFloor     = floor + 1;
-        const nextBossMaxHp = Math.round(300 * Math.pow(1.5, nextFloor - 1));
-        setBossHp(nextBossMaxHp);
-        setBossMaxHp(nextBossMaxHp);
-        setFloor(nextFloor);
-        setPlayerHp(20);
-        setBattlePhase(null);
-      }, 1200);
-    } else {
-      setBossHp(newBossHp);
-
-      setTimeout(() => {
-        setBattlePhase('boss');
-        setBossAttacking(true);
-
-        setTimeout(() => {
-          setBossAttacking(false);
-
-          if (skillCooldowns.shield) {
-            setBattlePhase('shield_break');
-            setSkillCooldowns({ shield: false });
-            setTimeout(() => {
-              setBattlePhase(null);
-              if (shouldAdvanceRound({ bossDefeated: false, playerDefeated: false })) {
-                setRound(r => r + 1);
-              }
-            }, 800);
-          } else {
-            const newPlayerHp = playerHp - 5;
-            if (newPlayerHp <= 0) {
-              setPlayerHp(0);
-              setGameOver('lose');
-              setBattlePhase(null);
-              return;
-            }
-            setPlayerHp(newPlayerHp);
-            setTimeout(() => {
-              setBattlePhase(null);
-              if (shouldAdvanceRound({ bossDefeated: false, playerDefeated: false })) {
-                setRound(r => r + 1);
-              }
-            }, 600);
-          }
-        }, 800);
-      }, 1400);
+  const beginBattlePhase = useCallback((nextPhase, onComplete = null) => {
+    if (battlePhaseTimerRef.current) {
+      clearTimeout(battlePhaseTimerRef.current);
     }
+    setBattlePhase(nextPhase);
+    battlePhaseTimerRef.current = setTimeout(() => {
+      setBattlePhase(null);
+      battlePhaseTimerRef.current = null;
+      if (onComplete) onComplete();
+    }, battlePhaseDurationMs);
+  }, [battlePhaseDurationMs]);
 
-    setState(prev => {
-      const kept    = prev.hand.filter(c => !selected.includes(c.id));
-      const needed  = HAND_SIZE - kept.length;
-      const played  = prev.hand.filter(c =>  selected.includes(c.id));
-      const newDeck = shuffle([...prev.deck, ...played]);
-      const drawn   = newDeck.slice(0, needed);
-      const rest    = newDeck.slice(needed);
-      return { hand: [...kept, ...drawn], deck: rest };
-    });
-
+  useEffect(() => {
+    reset();
     setSelected([]);
-    setDiscards(MAX_DISCARDS);
-    // 护盾跨回合保留，充能值不重置
-    setSkillCooldowns(prev => ({ shield: prev.shield }));
-  }, [selected, selectedCards, evaluation, bossHp, playerHp, floor, gameOver, battlePhase, skillCooldowns.shield]);
-
-  const clearSelected = useCallback(() => setSelected([]), []);
-
-  // ── 技能1：变色 ──────────────────────────────────────
-  const skillChangeColor = useCallback((cardId, newColor) => {
-    if (skillCharges <= 0) return;
-
-    setState(prev => {
-      const card = prev.hand.find(c => c.id === cardId);
-      if (!card) return prev;
-
-      let template = CARD_POOL.find(c =>
-        c.color === newColor && c.cost === card.cost
-      );
-      if (!template) {
-        template = CARD_POOL
-          .filter(c => c.color === newColor)
-          .sort((a, b) =>
-            Math.abs(a.cost - card.cost) - Math.abs(b.cost - card.cost)
-          )[0];
-      }
-      if (!template) return prev;
-
-      const transformed = { ...template, id: `transformed_${Date.now()}` };
-      return {
-        ...prev,
-        hand: prev.hand.map(c => c.id === cardId ? transformed : c),
-      };
-    });
-
-    setSkillCharges(s => s - 1);
-  }, [skillCharges]);
-
-  // ── 技能2：变费 ──────────────────────────────────────
-  const skillChangeCost = useCallback((cardId, newCost) => {
-    if (skillCharges <= 0) return;
-
-    setState(prev => {
-      const card = prev.hand.find(c => c.id === cardId);
-      if (!card) return prev;
-
-      const template = CARD_POOL.find(c =>
-        c.color === card.color && c.cost === newCost
-      );
-      if (!template) return prev;
-
-      const transformed = { ...template, id: `transformed_${Date.now()}` };
-      return {
-        ...prev,
-        hand: prev.hand.map(c => c.id === cardId ? transformed : c),
-      };
-    });
-
-    setSkillCharges(s => s - 1);
-  }, [skillCharges]);
-
-  // ── 技能3：护盾 ──────────────────────────────────────
-  const skillActivateShield = useCallback(() => {
-    if (skillCharges <= 0 || skillCooldowns.shield) return;
-    setSkillCharges(s => s - 1);
-    setSkillCooldowns({ shield: true });
-  }, [skillCharges, skillCooldowns.shield]);
-
-  const breakShield = useCallback(() => {
-    setSkillCooldowns({ shield: false });
-  }, []);
-
-  // ── 重新开始 ──────────────────────────────────────────
-  const restartGame = useCallback(() => {
-    setState(buildInitialState());
-    setSelected([]);
-    setDiscards(MAX_DISCARDS);
-    setRound(1);
     setTotalScore(0);
     setLastScore(null);
-    setPlayerHp(20);
-    setBossHp(300);
-    setBossMaxHp(300);
-    setFloor(1);
-    setGameOver(null);
+    setResolvedEvaluation(EMPTY_EVALUATION);
+    resolvedScoreKeyRef.current = null;
+    pendingEvaluationRef.current = null;
+    setRoomId(roomId);
+
+    const socket = createSocket(accessToken);
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setConnectionStatus('connected');
+      socket.emit('startPveGame');
+    });
+
+    socket.on('disconnect', () => {
+      setConnectionStatus('disconnected');
+    });
+
+    socket.on('connect_error', (error) => {
+      setConnectionStatus('error');
+      setError(error.message || 'Socket connection failed.');
+    });
+
+    socket.on('gameError', (payload) => {
+      setError(payload?.message ?? 'PvE socket error.');
+    });
+
+    socket.on('gameState', (payload) => {
+      applyServerState(adaptPveGameState(payload));
+    });
+
+    setConnectionStatus('connecting');
+    socket.connect();
+
+    return () => {
+      if (battlePhaseTimerRef.current) {
+        clearTimeout(battlePhaseTimerRef.current);
+      }
+      socket.disconnect();
+      socketRef.current = null;
+      reset();
+    };
+  }, [accessToken, applyServerState, reset, restartNonce, roomId, setConnectionStatus, setError, setRoomId]);
+
+  useEffect(() => {
+    setSelected((prev) => prev.filter((id) => hand.some((card) => card.id === id)));
+  }, [hand]);
+
+  useEffect(() => {
+    const score = play?.score;
+    if (score == null) return;
+
+    const key = `${round}:${score}`;
+    if (resolvedScoreKeyRef.current === key) return;
+
+    resolvedScoreKeyRef.current = key;
+    setLastScore(score);
+    setTotalScore((current) => current + score);
+    setResolvedEvaluation(pendingEvaluationRef.current ?? {
+      handType: play.handType,
+      baseAttack: 0,
+      bonusAttack: 0,
+      multiplier: 0,
+      totalScore: score,
+    });
+    pendingEvaluationRef.current = null;
+  }, [play, round]);
+
+  useEffect(() => {
+    const prevPhase = prevPhaseRef.current;
+    const prevShieldActive = prevShieldActiveRef.current;
+    const prevPlayerHp = prevPlayerHpRef.current;
+    const playerTookDamage = player.hp < prevPlayerHp;
+
+    // for Player attack animation played DON'T CHANGE
+    if (prevPhase === 'RESOLVE' && phase === 'BOSS_ATTACK') {
+      beginBattlePhase('player', () => {
+        const socket = ensureSocket();
+        if (!socket) return;
+        socket.emit('resolveAnimationComplete');
+      });
+    } else if (prevShieldActive && !shieldActive && prevPhase === 'BOSS_ATTACK' && phase === 'ROUND_END') {
+      beginBattlePhase('shield_break');
+    } else if (prevPhase === 'BOSS_ATTACK' && playerTookDamage) {
+      beginBattlePhase('boss');
+    }
+
+    prevPhaseRef.current = phase;
+    prevShieldActiveRef.current = shieldActive;
+    prevPlayerHpRef.current = player.hp;
+  }, [beginBattlePhase, ensureSocket, phase, player.hp, shieldActive]);
+
+  const toggleSelect = useCallback((cardId) => {
+    const socket = ensureSocket();
+    if (!socket || connectionStatus !== 'connected' || gameOver) return;
+
+    if (phase !== 'PLAY') {
+      socket.emit('enterPlay');
+    }
+
+    let changed = false;
+    setSelected((prev) => {
+      if (prev.includes(cardId)) {
+        changed = true;
+        return prev.filter((id) => id !== cardId);
+      }
+      if (prev.length >= MAX_SELECT) return prev;
+      changed = true;
+      return [...prev, cardId];
+    });
+
+    if (changed) {
+      socket.emit('selectCard', { cardId });
+    }
+  }, [connectionStatus, ensureSocket, gameOver, phase]);
+
+  const clearSelected = useCallback(() => {
+    const socket = ensureSocket();
+    if (!socket) return;
+    selected.forEach((cardId) => socket.emit('selectCard', { cardId }));
+    setSelected([]);
+  }, [ensureSocket, selected]);
+
+  const discardSelected = useCallback(() => {
+    const socket = ensureSocket();
+    if (!socket || selected.length === 0) return;
+    socket.emit('shuffleCards', { cardIds: selected });
+    setSelected([]);
+  }, [ensureSocket, selected]);
+
+  const playHand = useCallback(() => {
+    const socket = ensureSocket();
+    if (!socket || selected.length === 0 || gameOver) return;
+    pendingEvaluationRef.current = previewEvaluation;
+    socket.emit('confirmPlay');
+    setSelected([]);
+  }, [ensureSocket, gameOver, previewEvaluation, selected.length]);
+
+  const skillChangeColor = useCallback((cardId, newColor) => {
+    const socket = ensureSocket();
+    if (!socket) return;
+    socket.emit('useSkill', {
+      skill: 'changeColor',
+      cardId,
+      target: COLOR_TO_ELEMENT[newColor] ?? 'FIRE',
+    });
+  }, [ensureSocket]);
+
+  const skillChangeCost = useCallback((cardId, newCost) => {
+    const socket = ensureSocket();
+    if (!socket) return;
+    socket.emit('useSkill', {
+      skill: 'changeCost',
+      cardId,
+      targetRank: newCost,
+    });
+  }, [ensureSocket]);
+
+  const skillActivateShield = useCallback(() => {
+    const socket = ensureSocket();
+    if (!socket) return;
+    socket.emit('useSkill', { skill: 'shield' });
+  }, [ensureSocket]);
+
+  const restartGame = useCallback(() => {
+    reset();
+    setSelected([]);
+    setTotalScore(0);
+    setLastScore(null);
+    setResolvedEvaluation(EMPTY_EVALUATION);
+    resolvedScoreKeyRef.current = null;
+    pendingEvaluationRef.current = null;
     setBattlePhase(null);
-    setBossAttacking(false);
-    setAttackEffect(null);
-    setSkillCooldowns({ shield: false });
-    setSkillCharges(3);
-  }, []);
+    setRestartNonce((value) => value + 1);
+  }, [reset]);
+
+  const isActionPhase = phase === 'SKILL' || phase === 'SHUFFLE' || phase === 'PLAY';
+  const shieldUnavailable = skills.shield.active || skills.shield.onCooldown;
+
+  /** Matches SkillBar pip count: one slot per skill still available this round */
+  const skillCharges = useMemo(() => {
+    let n = 0;
+    if (!skills.changeColor.used) n += 1;
+    if (!skills.changeCost.used) n += 1;
+    if (!skills.shield.active && !skills.shield.onCooldown) n += 1;
+    return n;
+  }, [
+    skills.changeColor.used,
+    skills.changeCost.used,
+    skills.shield.active,
+    skills.shield.onCooldown,
+  ]);
 
   return {
     hand,
-    deck,
-    deckCount:    deck.length,
+    deckCount,
     selected,
     selectedCards,
     toggleSelect,
     clearSelected,
     evaluation,
     discardSelected,
-    discards,
-    maxDiscards:  MAX_DISCARDS,
-    canDiscard:   discards > 0 && selected.length > 0,
-    canPlay:      selected.length > 0 && !gameOver,
+    discards: shuffle.remaining,
+    maxDiscards: 2,
+    canDiscard: connectionStatus === 'connected' && isActionPhase && shuffle.remaining > 0 && selected.length > 0,
+    canPlay: connectionStatus === 'connected' && selected.length > 0 && !gameOver,
     playHand,
     round,
     totalScore,
     lastScore,
-    playerHp,
-    playerMaxHp:  20,
-    bossHp,
-    bossMaxHp,
+    playerHp: player.hp,
+    playerMaxHp: player.maxHp,
+    bossHp: boss?.hp ?? 0,
+    bossMaxHp: boss?.maxHp ?? 300,
     floor,
     gameOver,
     restartGame,
-    battlePhase,
-    attackEffect,
-    bossAttacking,
-    skillCooldowns,
     skillCharges,
+    skillCooldowns: {
+      changeColor: skills.changeColor.used,
+      changeCost: skills.changeCost.used,
+      shield: shieldUnavailable,
+    },
+    shieldActive,
     skillChangeColor,
     skillChangeCost,
     skillActivateShield,
-    breakShield,
+    battlePhase,
+    connectionStatus,
+    errorMessage: lastError,
   };
 }

@@ -55,3 +55,25 @@ export function selectUpgrade(upgradeId: string) {
 export function upgradeApplied()         { return { type: EVENT.UPGRADE_APPLIED } as const; }
 export function loadSavepoint()          { return { type: EVENT.LOAD_SAVEPOINT } as const; }
 export function startBattle()            { return { type: EVENT.START_BATTLE } as const; }
+
+/** Union of all possible game event types */
+export type GameEvent = ReturnType<typeof skillChangeColor>
+  | ReturnType<typeof skillChangeCost>
+  | ReturnType<typeof skillShield>
+  | ReturnType<typeof shuffleSelect>
+  | ReturnType<typeof shuffleConfirm>
+  | ReturnType<typeof shuffleCancel>
+  | ReturnType<typeof playSelect>
+  | ReturnType<typeof playConfirm>
+  | ReturnType<typeof drawComplete>
+  | ReturnType<typeof bossTelegraphComplete>
+  | ReturnType<typeof resolveComplete>
+  | ReturnType<typeof bossAttackComplete>
+  | ReturnType<typeof roundEndConfirm>
+  | ReturnType<typeof battleWin>
+  | ReturnType<typeof battleLose>
+  | ReturnType<typeof upgradeOptionsReady>
+  | ReturnType<typeof selectUpgrade>
+  | ReturnType<typeof upgradeApplied>
+  | ReturnType<typeof loadSavepoint>
+  | ReturnType<typeof startBattle>;
