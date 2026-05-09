@@ -4,6 +4,7 @@ import { createPlayerState, createRoundState } from '../types/state.js';
 import { transition } from './roundMachine.js';
 import { Match } from '../models/Match.js';
 import { MatchReplay } from '../models/MatchReplay.js';
+import { User } from '../models/User.js';
 import type { GameContext } from './actions.js';
 import type { GameEvent } from '../types/events.js';
 
@@ -127,28 +128,53 @@ export async function archiveGame(roomId: string): Promise<void> {
   const { ctx, userId, totalDamage, turns } = entry;
   const isWin = ctx.battleResult === 'WIN';
 
-  const match = await Match.create({
-    matchType: 'PVE',
-    userId: userId ?? undefined,
-    bossId: ctx.boss.id,
-    layer: ctx.boss.layer,
-    isWin,
-    chosenElement: ctx.player.chosenElement,
-    totalDamageDealt: totalDamage,
-    roundsPlayed: ctx.round,
-    endedAt: new Date(),
-  });
-
-  if (turns.length > 0) {
-    await MatchReplay.create({
-      matchId: match._id,
-      turns: turns.map((t) => ({
-        turnNumber: t.turnNumber,
-        initialHand: t.initialHand,
-        events: t.events,
-        result: t.result ? { ...t.result } : undefined,
-      })),
+  // Only persist the match when we have an authenticated user (userId is required by schema)
+  if (userId) {
+    const match = await Match.create({
+      matchType: 'PVE',
+      userId,
+      bossId: ctx.boss.id,
+      layer: ctx.boss.layer,
+      isWin,
+      chosenElement: ctx.player.chosenElement,
+      totalDamageDealt: totalDamage,
+      roundsPlayed: ctx.round,
+      endedAt: new Date(),
     });
+
+    if (turns.length > 0) {
+      await MatchReplay.create({
+        matchId: match._id,
+        turns: turns.map((t) => ({
+          turnNumber: t.turnNumber,
+          initialHand: t.initialHand,
+          events: t.events,
+          result: t.result ? { ...t.result } : undefined,
+        })),
+      });
+    }
+
+    // Update the user's aggregate stats so the leaderboard reflects real gameplay
+    const statsInc: Record<string, number> = { 'stats.totalGames': 1 };
+    if (isWin) statsInc['stats.totalWins'] = 1;
+    if (totalDamage > 0) statsInc['stats.maxDamage'] = 0; // handled via $max below
+
+    const updateOps: Record<string, unknown> = { $inc: statsInc };
+    if (totalDamage > 0) {
+      updateOps.$max = { 'stats.maxDamage': totalDamage };
+    }
+
+    const updated = await User.findByIdAndUpdate(userId, updateOps, {
+      new: true,
+      select: 'stats',
+    });
+
+    // Persist the derived winRate field so profile endpoints can read it directly
+    if (updated?.stats) {
+      const { totalGames, totalWins } = updated.stats;
+      const winRate = totalGames > 0 ? totalWins / totalGames : 0;
+      await User.updateOne({ _id: userId }, { $set: { 'stats.winRate': winRate } });
+    }
   }
 }
 

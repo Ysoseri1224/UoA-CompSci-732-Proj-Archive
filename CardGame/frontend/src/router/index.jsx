@@ -38,7 +38,14 @@ const router = createBrowserRouter([
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/profile/:userId', element: <ProfilePage /> },
-      { path: '/leaderboard', element: <LeaderboardPage /> },
+      {
+        path: '/leaderboard',
+        element: (
+          <PrivateRoute>
+            <LeaderboardPage />
+          </PrivateRoute>
+        ),
+      },
       { path: '/attack-effect-preview', element: <AttackEffectPreviewPage /> },
 
       // --- Protected routes (require a valid token in localStorage) ---

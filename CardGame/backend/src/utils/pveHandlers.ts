@@ -1,4 +1,5 @@
 import type { Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { logger } from '../middleware/logger.js';
 import {
   getRoomId,
@@ -30,8 +31,24 @@ import { ROUND_PHASE } from '../types/state.js';
 //  注册 Socket 事件处理器
 // ══════════════════════════════════════════════════════════════════
 
+function resolveSocketUserId(socket: Socket): string | null {
+  try {
+    const token = (socket.handshake.auth as Record<string, unknown>)?.token;
+    if (!token || typeof token !== 'string') return null;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return null;
+    const decoded = jwt.verify(token, secret) as Record<string, unknown>;
+    const uid = decoded?.userId;
+    return uid ? String(uid) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function registerPveHandlers(socket: Socket): void {
   logger.info({ socketId: socket.id }, 'socket connected');
+
+  const userId = resolveSocketUserId(socket);
 
   /** 将当前状态推送回客户端 */
   function emit(ctx: GameContext) {
@@ -70,7 +87,7 @@ export function registerPveHandlers(socket: Socket): void {
   socket.on('startPveGame', () => {
     try {
       const roomId = ensureRoomId();
-      const ctx = createRoom({ roomId, socketId: socket.id });
+      const ctx = createRoom({ roomId, socketId: socket.id, userId: userId ?? undefined });
       emit(ctx);
 
       // 自动推进：DRAW → BOSS_TELEGRAPH → SKILL
