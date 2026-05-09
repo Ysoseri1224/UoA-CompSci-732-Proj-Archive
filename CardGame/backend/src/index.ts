@@ -1,14 +1,15 @@
 import 'dotenv/config';
 
 import express from 'express';
-import http from 'http';
+import type { Request, Response } from 'express';
+import http from 'node:http';
 import cors from 'cors';
 
-import {connectDB} from './db.js';
-import {connectRedis} from './redis.js';
+import { connectDB } from './db.js';
+import { connectRedis } from './redis.js';
 import initSocket from './socket.js';
 
-import {loggerMiddleWare} from "./middleware/logger.js";
+import { loggerMiddleWare } from './middleware/logger.js';
 import errorHandler from './middleware/errorHandler.js';
 import apiRoutes from './routes/index.js';
 import authRoutes from './routes/auth.js';
@@ -24,7 +25,6 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
-
 app.use(loggerMiddleWare);
 
 // Route mounting
@@ -35,31 +35,24 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/achievements', achievementRoutes);
 
 // Health check
-app.get('/', (req, res) => res.json({ success: true, message: 'Backend API is running', data: null }));
+app.get('/', (_req: Request, res: Response) =>
+  res.json({ success: true, message: 'Backend API is running', data: null }),
+);
 
-// Global error handler (must be after all routes)
+// Global error handler
 app.use(errorHandler);
 
 async function start() {
-  // 1. Connect to database
   await connectDB();
-
-  // 2. Connect to Redis
   await connectRedis();
-
-  // 3. Initialise Socket.io
   initSocket(server);
-
-  // 4. Start server
   server.listen(PORT, () => {
     console.log(`Backend listening on ${PORT}`);
   });
 }
 
-// 仅在非测试环境下自动启动服务器
 if (process.env.NODE_ENV !== 'test') {
   start();
 }
 
-// 导出 app 供超测 (supertest) 使用
 export { app };
