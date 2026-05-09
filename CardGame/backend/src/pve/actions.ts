@@ -1,4 +1,4 @@
-import { drawCards, shuffleHand } from '../lib/deck.js';
+import { drawCards, playCards, shuffleHand } from '../lib/deck.js';
 import { calculateDamage } from '../lib/hand.js';
 import { skillChangeColor as skillChangeColorFn, skillChangeCost as skillChangeCostFn } from '../lib/skills.js';
 import { activateShield, shatterShield, voidShield } from '../lib/skills.js';
@@ -223,14 +223,17 @@ export function doPlayConfirm(ctx: GameContext): GameContext {
   const cards = ctx.hand.filter((c) => selected.includes(c.id));
   const isDefending = ctx.roundState.bossRound.isDefending;
   const score = calculateDamage(cards, ctx.player.buffs, isDefending);
+  const resolvedDeckState = playCards(deckState(ctx), selected);
 
   return {
     ...ctx,
+    ...resolvedDeckState,
     roundState: {
       ...ctx.roundState,
       phase: ROUND_PHASE.RESOLVE,
       play: {
         ...ctx.roundState.play,
+        selectedCards: [],
         handType: score.handType,
         score: score.total,
       },

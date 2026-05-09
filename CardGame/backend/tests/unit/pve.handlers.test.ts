@@ -42,11 +42,16 @@ test('confirmPlay waits in BOSS_ATTACK until resolveAnimationComplete arrives', 
   socket.clientEmit('enterPlay');
 
   const roomAfterEnterPlay = getRoom(roomId)!;
-  socket.clientEmit('selectCard', { cardId: roomAfterEnterPlay.hand[0].id });
+  const handIdsBeforePlay = roomAfterEnterPlay.hand.map((card) => card.id);
+  const selectedCardId = roomAfterEnterPlay.hand[0].id;
+  socket.clientEmit('selectCard', { cardId: selectedCardId });
   socket.clientEmit('confirmPlay');
 
   let room = getRoom(roomId)!;
   assert.equal(room.roundState.phase, ROUND_PHASE.BOSS_ATTACK);
+  assert.ok(!room.hand.some((card) => card.id === selectedCardId));
+  assert.equal(room.hand.length, 7);
+  assert.notDeepEqual(room.hand.map((card) => card.id), handIdsBeforePlay);
 
   socket.clientEmit('resolveAnimationComplete');
 
