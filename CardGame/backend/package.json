@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "src/index.js",
   "scripts": {
     "start": "tsx src/index.js",
     "dev": "nodemon --exec tsx src/index.js",

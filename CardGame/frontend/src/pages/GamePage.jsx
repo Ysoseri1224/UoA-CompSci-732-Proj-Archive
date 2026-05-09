@@ -1,11 +1,13 @@
 // src/pages/GamePage.jsx
-import Battlefield  from '../components/game/Battlefield.jsx';
-import HandArea     from '../components/game/HandArea.jsx';
-import ScorePanel   from '../components/game/ScorePanel.jsx';
-import SkillBar     from '../components/game/SkillBar.jsx';
-import { useGameLogic } from '../hooks/useGameLogic.js';
+import Battlefield  from '../components/game/Battlefield';
+import HandArea     from '../components/game/HandArea';
+import ScorePanel   from '../components/game/ScorePanel';
+import SkillBar     from '../components/game/SkillBar';
+import { useGameLogic } from '../hooks/useGameLogic';
+import { useParams } from 'react-router-dom';
 
 export default function GamePage() {
+  const { roomId } = useParams();
   const {
     hand,
     deckCount,
@@ -32,10 +34,13 @@ export default function GamePage() {
     attackEffect,
     skillCharges,
     skillCooldowns,
+    shieldActive,
     skillChangeColor,
     skillChangeCost,
     skillActivateShield,
-  } = useGameLogic();
+    connectionStatus,
+    errorMessage,
+  } = useGameLogic(roomId);
 
   return (
     <div
@@ -56,6 +61,9 @@ export default function GamePage() {
           CARD  ROGUE
         </div>
         <div className="flex items-center gap-4">
+          <span className="text-stone-500 text-[11px] font-mono tracking-widest">
+            {connectionStatus.toUpperCase()}
+          </span>
           <span className="text-yellow-900 text-xs font-mono tracking-widest">
             ROUND  {round}
           </span>
@@ -74,16 +82,16 @@ export default function GamePage() {
       </div>
 
       {/* ── 主体 ── */}
-      <div className="flex flex-1 overflow-hidden">
+	      <div className="flex flex-1 overflow-hidden">
 
-      <SkillBar
-  hand={hand}
-  skillCooldowns={skillCooldowns}
-  skillCharges={skillCharges}
-  skillChangeColor={skillChangeColor}
-  skillChangeCost={skillChangeCost}
-  skillActivateShield={skillActivateShield}
-/>
+	        <SkillBar
+	          hand={hand}
+	          skillCooldowns={skillCooldowns}
+              shieldActive={shieldActive}
+	          skillChangeColor={skillChangeColor}
+	          skillChangeCost={skillChangeCost}
+	          skillActivateShield={skillActivateShield}
+        />
 
         <Battlefield
           bossHp={bossHp}
@@ -117,8 +125,14 @@ export default function GamePage() {
         deckCount={deckCount}
         playerHp={playerHp}
         playerMaxHp={playerMaxHp}
-        shieldActive={skillCooldowns.shield}
+        shieldActive={shieldActive}
       />
+
+      {errorMessage && (
+        <div className="absolute left-1/2 top-16 z-[60] -translate-x-1/2 rounded-xl border border-rose-500/30 bg-rose-950/90 px-4 py-2 text-sm text-rose-100 shadow-lg shadow-black/40">
+          {errorMessage}
+        </div>
+      )}
 
       {/* ── 游戏结束遮罩 ── */}
       {gameOver && (

@@ -67,7 +67,7 @@ backend/src/lib/
 
 ## 第 3 步：牌型识别 + 伤害计算
 
-**目标**：实现 9 种扑克牌型识别 + 伤害公式，直接替换后端现有的 `evaluator.ts` + `scoring.ts`。
+**目标**：实现 9 种扑克牌型识别 + 伤害公式，新增独立模块（旧 `evaluator.js` / `scoring.js` 保留不动）。
 
 **文件**：
 ```
@@ -130,7 +130,7 @@ backend/src/pve/
 
 **状态转移**（对齐 state-machine.md §4.2）：
 ```
-DRAW → SKILL/SHUFFLE（玩家任意操作，可交替）→ PLAY → RESOLVE
+DRAW → BOSS_TELEGRAPH（确定意图，展示UI）→ SKILL/SHUFFLE（玩家操作）→ PLAY → RESOLVE
   ├─ Boss HP ≤ 0 → WIN
   └─ Boss HP > 0 → BOSS_ATTACK
        ├─ Player HP ≤ 0 → LOSE
@@ -163,9 +163,10 @@ frontend/src/store/
 **后端扩展**：
 ```
 backend/src/lib/
-  boss.ts         ← createBoss, Boss 数值缩放公式
-  upgrades.ts     ← FIRST_LAYER_UPGRADES, generateUpgradePool
-  savepoint.ts    ← createSavepoint, loadSavepoint, 序列化/反序列化
+  boss.ts         ← createBoss, Boss 数值缩放公式（待实现）
+  savepoint.ts    ← createSavepoint, loadSavepoint, 序列化/反序列化（待实现）
+```
+注：`FIRST_LAYER_UPGRADES` / `generateUpgradePool` 已在 `types/buff.ts` 中实现。
 ```
 
 **验收标准**：
@@ -285,15 +286,13 @@ backend/src/
     buff.ts          ← Buff, Upgrade
     events.ts        ← Action/Event 类型
   lib/
-    cards.ts         ← createCard, rankToDisplay, rankToChipValue
     deck.ts          ← createFullDeck, shuffle, initDeckState, drawCards, playCards, shuffleHand
     hand.ts          ← HAND_SCORES, identifyHand, detectHandType, calculateDamage
     skills.ts        ← skillChangeColor, skillChangeCost, shieldStateMachine
-    boss.ts          ← createBoss
-    upgrades.ts      ← generateUpgradePool, FIRST_LAYER_UPGRADES
-    savepoint.ts     ← createSavepoint, loadSavepoint
+    boss.ts          ← createBoss（待实现）
+    savepoint.ts     ← createSavepoint, loadSavepoint（待实现）
   pve/
-    roundMachine.ts  ← XState round 状态机
+    roundMachine.ts  ← 自定义状态机：transition(state, event)
     guards.ts        ← 守卫条件
     actions.ts       ← 副作用
     runtime.ts       ← Actor 生命周期 + Socket 事件路由

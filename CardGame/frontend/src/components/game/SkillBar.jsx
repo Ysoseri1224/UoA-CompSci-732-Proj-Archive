@@ -15,8 +15,12 @@ function costLabel(c) {
 const W = 90;
 
 export default function SkillBar({
-  hand, skillCooldowns, skillCharges,
-  skillChangeColor, skillChangeCost, skillActivateShield,
+  hand,
+  skillCooldowns,
+  shieldActive,
+  skillChangeColor,
+  skillChangeCost,
+  skillActivateShield,
 }) {
   const [panel,      setPanel]      = useState(null);
   const [targetCard, setTargetCard] = useState(null);
@@ -94,18 +98,15 @@ export default function SkillBar({
         overflow: 'visible',
       }}>
 
-        {/* 顶部 */}
-        <img
-          src="/images/skillbar-top.png"
-          alt=""
-          style={{
-            width: '100%',
-            height: topH,
-            display: 'block',
-            flexShrink: 0,
-            objectFit: 'fill',
-          }}
-        />
+      {/* ── 技能3：护盾 ── */}
+      <SkillButton
+        icon="🛡️"
+        label="护盾"
+        used={skillCooldowns.shield}
+        active={panel === 'shield'}
+        onClick={openShieldSkill}
+        activated={shieldActive}
+      />
 
         {/* 中间 */}
         <div style={{
