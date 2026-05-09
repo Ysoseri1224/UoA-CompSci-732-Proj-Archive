@@ -1,6 +1,6 @@
 import { createActor } from "xstate";
 
-import { loadGame, saveGame } from '../../lib/savepoint.ts';
+import { loadGame, saveGame } from '../../lib/savepoint.js';
 import { createInitialPveState } from "./state.js";
 import { createPveMachine } from "./machine.js";
 

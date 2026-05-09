@@ -24,7 +24,7 @@ import {
   roundEndConfirm,
 } from '../types/events.js';
 import type { GameContext } from '../pve/roundMachine.js';
-import { ROUND_PHASE } from '../types/state.ts';
+import { ROUND_PHASE } from '../types/state.js';
 
 // ══════════════════════════════════════════════════════════════════
 //  注册 Socket 事件处理器
