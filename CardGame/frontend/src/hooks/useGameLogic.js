@@ -109,6 +109,7 @@ export function useGameLogic(roomId = null) {
   const socketRef = useRef(null);
   const resolvedScoreKeyRef = useRef(null);
   const pendingEvaluationRef = useRef(null);
+  const pendingPlayConfirmRef = useRef(false);
   const battlePhaseTimerRef = useRef(null);
   const prevPhaseRef = useRef(phase);
   const prevShieldActiveRef = useRef(shieldActive);
@@ -156,6 +157,7 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayConfirmRef.current = false;
     setRoomId(roomId);
 
     const socket = createSocket(accessToken);
@@ -190,6 +192,7 @@ export function useGameLogic(roomId = null) {
       if (battlePhaseTimerRef.current) {
         clearTimeout(battlePhaseTimerRef.current);
       }
+      pendingPlayConfirmRef.current = false;
       socket.disconnect();
       socketRef.current = null;
       reset();
@@ -221,6 +224,18 @@ export function useGameLogic(roomId = null) {
   }, [play, round]);
 
   useEffect(() => {
+    if (!pendingPlayConfirmRef.current || phase !== 'PLAY' || selected.length === 0 || gameOver) return;
+
+    const socket = ensureSocket();
+    if (!socket) return;
+
+    pendingEvaluationRef.current = previewEvaluation;
+    pendingPlayConfirmRef.current = false;
+    socket.emit('confirmPlay');
+    setSelected([]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
+
+  useEffect(() => {
     const prevPhase = prevPhaseRef.current;
     const prevShieldActive = prevShieldActiveRef.current;
     const prevPlayerHp = prevPlayerHpRef.current;
@@ -248,10 +263,6 @@ export function useGameLogic(roomId = null) {
     const socket = ensureSocket();
     if (!socket || connectionStatus !== 'connected' || gameOver) return;
 
-    if (phase !== 'PLAY') {
-      socket.emit('enterPlay');
-    }
-
     let changed = false;
     setSelected((prev) => {
       if (prev.includes(cardId)) {
@@ -263,7 +274,7 @@ export function useGameLogic(roomId = null) {
       return [...prev, cardId];
     });
 
-    if (changed) {
+    if (changed && phase === 'PLAY') {
       socket.emit('selectCard', { cardId });
     }
   }, [connectionStatus, ensureSocket, gameOver, phase]);
@@ -285,10 +296,18 @@ export function useGameLogic(roomId = null) {
   const playHand = useCallback(() => {
     const socket = ensureSocket();
     if (!socket || selected.length === 0 || gameOver) return;
+    if (phase !== 'PLAY') {
+      pendingPlayConfirmRef.current = true;
+      socket.emit('enterPlay');
+      selected.forEach((cardId) => {
+        socket.emit('selectCard', { cardId });
+      });
+      return;
+    }
     pendingEvaluationRef.current = previewEvaluation;
     socket.emit('confirmPlay');
     setSelected([]);
-  }, [ensureSocket, gameOver, previewEvaluation, selected.length]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
 
   const skillChangeColor = useCallback((cardId, newColor) => {
     const socket = ensureSocket();
@@ -324,6 +343,7 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayConfirmRef.current = false;
     setBattlePhase(null);
     setRestartNonce((value) => value + 1);
   }, [reset]);
