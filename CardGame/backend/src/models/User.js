@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const userAchievementSchema = new mongoose.Schema({
   achievementId: { type: String, required: true },
@@ -47,5 +48,9 @@ const userSchema = new mongoose.Schema({
     }
   }
 });
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
 
 export const User = mongoose.model('User', userSchema);
