@@ -1,32 +1,51 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
-const { Schema } = mongoose;
+const userAchievementSchema = new mongoose.Schema({
+  achievementId: { type: String, required: true },
+  unlockedAt: { type: Date, default: Date.now }
+}, { _id: false });
 
-const UserSchema = new Schema({
-  username: { type: String, required: true, unique: true },
-  avatar: { type: String, default: 'default' },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  passwordHash: { type: String, required: true },
-  
-  // Statistics updated after each match as per req_pve.md 8.3
-  stats: {
-    totalGames: { type: Number, default: 0, min: 0 },
-    totalWins: { type: Number, default: 0, min: 0 },
+const userSchema = new mongoose.Schema({
+  username: { 
+    type: String, 
+    required: [true, 'Username is required'], 
+    unique: true, 
+    minlength: 3, 
+    maxlength: 20 
   },
-  
-  // List of unlocked achievement IDs or slugs
-  achievements: [{ type: String }]
+  email: { 
+    type: String, 
+    required: [true, 'Email is required'], 
+    unique: true 
+  },
+  // 队友要求的字段名，alias 确保了 API 层的 'password' 映射
+  passwordHash: { 
+    type: String, 
+    required: [true, 'Password is required'],
+    alias: 'password', // 建立 API 字段 password 与数据库字段 passwordHash 的映射
+    minlength: 8 
+  },
+  avatar: { 
+    type: String, 
+    default: 'default' 
+  },
+  stats: {
+    totalGames: { type: Number, default: 0 },
+    totalWins: { type: Number, default: 0 },
+    winRate: { type: Number, default: 0 },
+    maxDamage: { type: Number, default: 0 }
+  },
+  achievements: [userAchievementSchema]
 }, {
-  timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
+  timestamps: true,
+  // 确保 API 响应时不泄漏 passwordHash
+  toJSON: {
+    transform: (doc, ret) => {
+      delete ret.passwordHash;
+      delete ret.__v;
+      return ret;
+    }
+  }
 });
 
-// Password verification helper
-UserSchema.methods.comparePassword = async function (candidatePassword) {
-  if (!this.passwordHash) return false;
-  return bcrypt.compare(candidatePassword, this.passwordHash);
-};
-
-const User = mongoose.model('User', UserSchema);
-
-export { UserSchema, User };
+export const User = mongoose.model('User', userSchema);

@@ -1,20 +1,19 @@
 import mongoose from 'mongoose';
 
-const { Schema } = mongoose;
-
-const AchievementSchema = new Schema({
-  // Unique identifier for the achievement (e.g., 'first_win')
-  id: { type: String, required: true, unique: true },
+const achievementSchema = new mongoose.Schema({
+  achievementId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   description: { type: String, required: true },
-  // Category: 'milestone', 'skill', 'hidden', etc.
-  type: { type: String, default: 'milestone' },
-  // Optional: points or rewards
-  value: { type: Number, default: 0 }
+  icon: { type: String, default: 'default' },
+  // 对应 User 模型 stats 中的字段
+  conditionType: { 
+    type: String, 
+    enum: ['totalWins', 'maxLayer', 'maxDamage', 'totalGames'],
+    required: true 
+  },
+  conditionValue: { type: Number, required: true }
 }, {
-  timestamps: true
+  timestamps: true 
 });
 
-const Achievement = mongoose.model('Achievement', AchievementSchema);
-
-export { Achievement };
+export const Achievement = mongoose.model('Achievement', achievementSchema);

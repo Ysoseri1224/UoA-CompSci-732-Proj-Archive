@@ -1,0 +1,16 @@
+{
+  "name": "CardGame Backend",
+  "dockerComposeFile": ["../docker-compose.yml"], // 指向你的 compose 文件
+  "service": "backend",                          // 指定要进入的服务名
+  "workspaceFolder": "/app",                     // 容器内的工作目录
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"      // 确保容器内安装了 TS 支持
+      ]
+    }
+  },
+  "remoteUser": "node"                           // 如果你的镜像里有 node 用户
+}
