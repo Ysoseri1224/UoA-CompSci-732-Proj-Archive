@@ -39,7 +39,7 @@ function opponentLabelFromMatch(match) {
   const t = match?.matchType;
   if (t === 'PVE') {
     const boss = match?.bossId != null ? String(match.bossId) : '';
-    return boss.includes('boss') ? 'vs Boss' : 'vs AI';
+    return boss.toLowerCase().includes('boss') ? 'vs Boss' : 'vs AI';
   }
   if (t === 'PVP') return 'vs Player';
   return 'vs Opponent';
