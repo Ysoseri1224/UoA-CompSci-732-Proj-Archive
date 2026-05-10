@@ -58,6 +58,22 @@ const LOBBY_LOGO_ICON_URL = '/logo/logo-icon-transparent.png';
 /** Ambient lobby background clip (`public/lobby/`). */
 const LOBBY_BACKGROUND_VIDEO_URL = '/lobby/lobbyBackground.mp4';
 
+/** Season 1 countdown target (UTC midnight). */
+const SEASON_END_UTC_MS = new Date('2026-06-10T00:00:00Z').getTime();
+
+/**
+ * @param {number} remainingMs
+ * @returns {string | null} `Nd Nh Nm` while time left, or null when ended / non-positive
+ */
+function formatSeasonCountdown(remainingMs) {
+  if (remainingMs <= 0) return null;
+  const totalMinutes = Math.floor(remainingMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return `${days}d ${hours}h ${minutes}m`;
+}
+
 const navIconWrap = 'h-[1.125rem] w-[1.125rem] shrink-0';
 const headerToolbarActionIconClass =
     'h-[1.35rem] w-[1.35rem] shrink-0 text-violet-50 sm:h-[1.5rem] sm:w-[1.5rem]';
@@ -240,6 +256,36 @@ export default function LobbyPage() {
   const [recentMatchRows, setRecentMatchRows] = useState([]);
   const [recentMatchesLoading, setRecentMatchesLoading] = useState(false);
   const [recentMatchesError, setRecentMatchesError] = useState(false);
+
+  const [seasonCountdownText, setSeasonCountdownText] = useState(() => {
+    const fmt = formatSeasonCountdown(SEASON_END_UTC_MS - Date.now());
+    return fmt ?? 'Season Ended';
+  });
+  const seasonHasEnded = seasonCountdownText === 'Season Ended';
+
+  useEffect(() => {
+    let intervalId = null;
+
+    function tick() {
+      const fmt = formatSeasonCountdown(SEASON_END_UTC_MS - Date.now());
+      if (fmt === null) {
+        setSeasonCountdownText('Season Ended');
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+      setSeasonCountdownText(fmt);
+    }
+
+    tick();
+    intervalId = window.setInterval(tick, 60_000);
+
+    return () => {
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, []);
 
   const displayName = user?.username?.trim() || 'Traveler';
   const profilePath = user?.id ? `/profile/${user.id}` : '/leaderboard';
@@ -1099,10 +1145,20 @@ export default function LobbyPage() {
                 </div>
 
                 <footer className="mt-12 flex w-full flex-col items-center gap-3 sm:mt-14">
-                  <p className="font-sans text-[0.7rem] font-medium tracking-wide text-slate-500">Season ends in:</p>
-                  <p className="font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl">
-                    24d 18h 32m
-                  </p>
+                  {!seasonHasEnded ? (
+                    <>
+                      <p className="font-sans text-[0.7rem] font-medium tracking-wide text-slate-500">Season ends in:</p>
+                      <p
+                        className="max-w-full text-center font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl tabular-nums whitespace-nowrap"
+                      >
+                        {seasonCountdownText}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="max-w-full whitespace-nowrap text-center font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl">
+                      Season Ended
+                    </p>
+                  )}
                 </footer>
               </div>
 
