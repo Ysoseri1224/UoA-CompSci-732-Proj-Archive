@@ -2,13 +2,44 @@
 import HandCard from './HandCard.jsx';
 import PlayerHUD from './PlayerHUD.jsx';
 
+function PlayerBossDamageFloat({ value }) {
+  return (
+    <div style={{
+      position: 'absolute',
+      left: '50%',
+      bottom: '100%',
+      marginBottom: 8,
+      transform: 'translateX(-50%)',
+      zIndex: 22,
+      animation: 'handPlayerDamageFloat 1.2s ease-out forwards',
+      pointerEvents: 'none',
+      fontFamily: 'monospace',
+      fontWeight: 900,
+      fontSize: 28,
+      color: '#ff4444',
+      textShadow: '0 0 16px rgba(255,50,50,0.9), 0 2px 4px rgba(0,0,0,0.9)',
+      whiteSpace: 'nowrap',
+    }}>
+      -{value.toLocaleString()}
+    </div>
+  );
+}
+
 export default function HandArea({
-  hand, selected, onToggle, deckCount,
-  playerHp, playerMaxHp, shieldActive,
+  hand,
+  selected,
+  onToggle,
+  deckCount,
+  displayedPlayerHp,
+  playerMaxHp,
+  shieldActive,
+  playerDamageFlash = null,
+  playerHudShakeNonce = 0,
 }) {
   return (
     <div style={{
       position:   'relative',
+      zIndex:     52,
       height:     175,
       display:    'flex',
       alignItems: 'flex-end',
@@ -38,7 +69,8 @@ export default function HandArea({
       {/* ── 左侧：玩家 HUD ── */}
       <div style={{
         position: 'absolute',
-        left: 12, bottom: 16,
+        left: 12,
+        bottom: 16,
         zIndex: 10,
       }}>
         {/* 护盾光环 */}
@@ -56,23 +88,37 @@ export default function HandArea({
               animation: 'shieldPulse 2s ease-in-out infinite',
               zIndex: 11, pointerEvents: 'none',
             }} />
-     <div style={{
-  position: 'absolute', top: -4, right: -4,
-  width: 24, height: 24,
-}}>
-  <img
-    src="/images/skill-shield.png"
-    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-    alt=""
-  />
-</div>
+            <div style={{
+              position: 'absolute', top: -4, right: -4,
+              width: 24, height: 24,
+            }}>
+              <img
+                src="/images/skill-shield.png"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                alt=""
+              />
+            </div>
           </>
         )}
-        <PlayerHUD
-          hp={playerHp}
-          maxHp={playerMaxHp}
-          avatar="/images/player.png"
-        />
+        <div
+          key={`player-hud-inner-${playerHudShakeNonce}`}
+          style={{
+            position: 'relative',
+            animation: playerHudShakeNonce ? 'handHudShake 0.42s ease' : 'none',
+          }}
+        >
+          {playerDamageFlash && (
+            <PlayerBossDamageFloat
+              key={playerDamageFlash.id}
+              value={playerDamageFlash.amount}
+            />
+          )}
+          <PlayerHUD
+            hp={displayedPlayerHp}
+            maxHp={playerMaxHp}
+            avatar="/images/player.png"
+          />
+        </div>
       </div>
 
       {/* ── 手牌 ── */}
@@ -134,6 +180,18 @@ export default function HandArea({
         @keyframes shieldRing {
           0%   { transform: scale(1);   opacity: 0.6; }
           100% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes handHudShake {
+          0%,100% { transform: translateX(0); }
+          20%     { transform: translateX(-5px); }
+          40%     { transform: translateX(5px); }
+          60%     { transform: translateX(-3px); }
+          80%     { transform: translateX(3px); }
+        }
+        @keyframes handPlayerDamageFloat {
+          0%   { opacity: 1; transform: translateX(-50%) translateY(0px)   scale(1.08); }
+          30%  { opacity: 1; transform: translateX(-50%) translateY(-16px) scale(1.2); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-72px) scale(0.85); }
         }
       `}</style>
     </div>

@@ -111,6 +111,8 @@ export function useGameLogic(roomId = null) {
   const pendingEvaluationRef = useRef(null);
   const pendingPlayConfirmRef = useRef(false);
   const battlePhaseTimerRef = useRef(null);
+  /** Isolated BOSS_ATTACK → resolveAnimationComplete schedule (must not share beginBattlePhase's clearTimeout). */
+  const bossAttackResolveScheduleRef = useRef({ id: 0, timer: /** @type {ReturnType<typeof setTimeout> | null} */ (null) });
   const prevPhaseRef = useRef(phase);
   const prevShieldActiveRef = useRef(shieldActive);
   const prevPlayerHpRef = useRef(player.hp);
@@ -146,6 +148,22 @@ export function useGameLogic(roomId = null) {
       setBattlePhase(null);
       battlePhaseTimerRef.current = null;
       if (onComplete) onComplete();
+    }, battlePhaseDurationMs);
+  }, [battlePhaseDurationMs]);
+
+  const scheduleResolveAnimationCompleteForBossAttack = useCallback(() => {
+    const s = bossAttackResolveScheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    const dispatchId = ++s.id;
+    s.timer = setTimeout(() => {
+      s.timer = null;
+      if (bossAttackResolveScheduleRef.current.id !== dispatchId) return;
+      const socket = socketRef.current;
+      if (!socket?.connected) return;
+      socket.emit('resolveAnimationComplete');
     }, battlePhaseDurationMs);
   }, [battlePhaseDurationMs]);
 
@@ -192,6 +210,12 @@ export function useGameLogic(roomId = null) {
       if (battlePhaseTimerRef.current) {
         clearTimeout(battlePhaseTimerRef.current);
       }
+      const s = bossAttackResolveScheduleRef.current;
+      if (s.timer) {
+        clearTimeout(s.timer);
+        s.timer = null;
+      }
+      s.id += 1;
       pendingPlayConfirmRef.current = false;
       socket.disconnect();
       socketRef.current = null;
@@ -241,13 +265,11 @@ export function useGameLogic(roomId = null) {
     const prevPlayerHp = prevPlayerHpRef.current;
     const playerTookDamage = player.hp < prevPlayerHp;
 
-    // for Player attack animation played DON'T CHANGE
+    // Player resolve → Boss attack banner: presentation timer may be overwritten by shield_break / boss
+    // without clearing the Boss resolve emit (see bossAttackResolveScheduleRef).
     if (prevPhase === 'RESOLVE' && phase === 'BOSS_ATTACK') {
-      beginBattlePhase('player', () => {
-        const socket = ensureSocket();
-        if (!socket) return;
-        socket.emit('resolveAnimationComplete');
-      });
+      beginBattlePhase('player');
+      scheduleResolveAnimationCompleteForBossAttack();
     } else if (prevShieldActive && !shieldActive && prevPhase === 'BOSS_ATTACK' && phase === 'ROUND_END') {
       beginBattlePhase('shield_break');
     } else if (prevPhase === 'BOSS_ATTACK' && playerTookDamage) {
@@ -257,7 +279,13 @@ export function useGameLogic(roomId = null) {
     prevPhaseRef.current = phase;
     prevShieldActiveRef.current = shieldActive;
     prevPlayerHpRef.current = player.hp;
-  }, [beginBattlePhase, ensureSocket, phase, player.hp, shieldActive]);
+  }, [
+    beginBattlePhase,
+    phase,
+    player.hp,
+    scheduleResolveAnimationCompleteForBossAttack,
+    shieldActive,
+  ]);
 
   const toggleSelect = useCallback((cardId) => {
     const socket = ensureSocket();
@@ -336,6 +364,13 @@ export function useGameLogic(roomId = null) {
   }, [ensureSocket]);
 
   const restartGame = useCallback(() => {
+    const s = bossAttackResolveScheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    s.id += 1;
+
     reset();
     setSelected([]);
     setTotalScore(0);
@@ -388,6 +423,7 @@ export function useGameLogic(roomId = null) {
     skillChangeCost,
     skillActivateShield,
     battlePhase,
+    phase,
     connectionStatus,
     errorMessage: lastError,
   };

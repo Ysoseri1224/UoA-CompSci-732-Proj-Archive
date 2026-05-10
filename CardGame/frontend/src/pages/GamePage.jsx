@@ -1,10 +1,25 @@
 // src/pages/GamePage.jsx
-import Battlefield  from '../components/game/Battlefield';
-import HandArea     from '../components/game/HandArea';
-import ScorePanel   from '../components/game/ScorePanel';
-import SkillBar     from '../components/game/SkillBar';
+import Battlefield from '../components/game/Battlefield';
+import HandArea from '../components/game/HandArea';
+import ScorePanel from '../components/game/ScorePanel';
+import SkillBar from '../components/game/SkillBar';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+const BOSS_ATTACK_UX_FALLBACK_MS = 12_500;
+
+/** Mirror Battlefield boss-attack detection: phase edge or fallback battlePhase banner when phase unset. */
+function detectBossAttackEntrance(prevPhase, phase, prevBattlePhase, battlePhase) {
+  const phaseUnset = !(typeof phase === 'string') || phase.trim() === '';
+  const enteredBossAttackPhase =
+    phase === 'BOSS_ATTACK' && prevPhase !== 'BOSS_ATTACK';
+  const enteredBossBattleBanner =
+    phaseUnset &&
+    battlePhase === 'boss' &&
+    prevBattlePhase !== 'boss';
+  return enteredBossAttackPhase || enteredBossBattleBanner;
+}
 
 export default function GamePage() {
   const { roomId } = useParams();
@@ -31,6 +46,7 @@ export default function GamePage() {
     gameOver,
     restartGame,
     battlePhase,
+    phase,
     attackEffect,
     skillCharges,
     maxCharges,
@@ -43,6 +59,138 @@ export default function GamePage() {
     errorMessage,
   } = useGameLogic(roomId);
 
+  /** Authoritative HP from server / hook — never mutated for UX. */
+  const truthHpRef = useRef(playerHp);
+  truthHpRef.current = playerHp;
+
+  /** Player HP drawn in HUD until boss-attack.mp4 completes; mirrors truth when not held. */
+  const [displayedPlayerHp, setDisplayedPlayerHp] = useState(() => playerHp);
+  /** While true: hide defeat overlay until boss attack presentation flushes (win overlay ignores this). */
+  const [bossAttackPresentationHold, setBossAttackPresentationHold] = useState(false);
+  /** Victory overlay gated until boss-hit.mp4 ends (truth `gameOver` may already be `win`). */
+  const [winRevealUnlocked, setWinRevealUnlocked] = useState(true);
+
+  /** When true: skip syncing displayedPlayerHp from truth (during boss attack clip). */
+  const holdHpSyncDuringBossAttackRef = useRef(false);
+  /** displayedPlayerHp snapshot at boss attack UX start — for damage delta after video. */
+  const displayedHpSnapAtBossAttackRef = useRef(displayedPlayerHp);
+
+  /** displayed HP each render — boss-attack layout reads without adding effect deps. */
+  const displayedPlayerHpLiveRef = useRef(displayedPlayerHp);
+  displayedPlayerHpLiveRef.current = displayedPlayerHp;
+
+  const prevPhaseGpRef = useRef(phase);
+  const prevBattlePhaseGpRef = useRef(battlePhase);
+  const fallbackBossAttackUxTimerRef = useRef(null);
+  /** Guards duplicate flush (video ended + watchdog). */
+  const bossAttackUxFlushedRef = useRef(true);
+
+  /** When match ends and user dismisses overlay, tear down deferred boss UX. */
+  const prevEndedMatchRef = useRef(gameOver);
+
+  /** Float + shake after attack video applies displayed HP drop. */
+  const [playerDamageFlash, setPlayerDamageFlash] = useState(null);
+  const [playerHudShakeNonce, setPlayerHudShakeNonce] = useState(0);
+
+  useEffect(() => {
+    if (gameOver !== 'win') {
+      setWinRevealUnlocked(true);
+      return undefined;
+    }
+    setWinRevealUnlocked(false);
+    const t = window.setTimeout(() => setWinRevealUnlocked(true), 14_000);
+    return () => window.clearTimeout(t);
+  }, [gameOver]);
+
+  const revealWinOverlayAfterBossHit = useCallback(() => {
+    setWinRevealUnlocked(true);
+  }, []);
+
+  const clearBossFallbackTimer = useCallback(() => {
+    if (fallbackBossAttackUxTimerRef.current !== null) {
+      window.clearTimeout(fallbackBossAttackUxTimerRef.current);
+      fallbackBossAttackUxTimerRef.current = null;
+    }
+  }, []);
+
+  const flushBossAttackPresentation = useCallback(() => {
+    if (bossAttackUxFlushedRef.current) return;
+    bossAttackUxFlushedRef.current = true;
+
+    clearBossFallbackTimer();
+    holdHpSyncDuringBossAttackRef.current = false;
+    const snap = displayedHpSnapAtBossAttackRef.current;
+    const truth = truthHpRef.current;
+    const dmg = Math.max(0, Math.round(snap - truth));
+
+    setDisplayedPlayerHp(truth);
+    setBossAttackPresentationHold(false);
+
+    if (dmg > 0) {
+      setPlayerHudShakeNonce((n) => n + 1);
+      setPlayerDamageFlash({ id: Date.now(), amount: dmg });
+    }
+  }, [clearBossFallbackTimer]);
+
+  useEffect(() => {
+    if (!playerDamageFlash) return undefined;
+    const t = window.setTimeout(() => setPlayerDamageFlash(null), 1300);
+    return () => window.clearTimeout(t);
+  }, [playerDamageFlash]);
+
+  useEffect(() => {
+    if (holdHpSyncDuringBossAttackRef.current) return;
+    setDisplayedPlayerHp(playerHp);
+  }, [playerHp]);
+
+  useLayoutEffect(() => {
+    const prevPh = prevPhaseGpRef.current;
+    const prevBp = prevBattlePhaseGpRef.current;
+    const entered = detectBossAttackEntrance(prevPh, phase, prevBp, battlePhase);
+    prevPhaseGpRef.current = phase;
+    prevBattlePhaseGpRef.current = battlePhase;
+
+    if (!entered) return;
+
+    bossAttackUxFlushedRef.current = false;
+    holdHpSyncDuringBossAttackRef.current = true;
+    displayedHpSnapAtBossAttackRef.current = displayedPlayerHpLiveRef.current;
+    setBossAttackPresentationHold(true);
+
+    clearBossFallbackTimer();
+    fallbackBossAttackUxTimerRef.current = window.setTimeout(() => {
+      fallbackBossAttackUxTimerRef.current = null;
+      flushBossAttackPresentation();
+    }, BOSS_ATTACK_UX_FALLBACK_MS);
+  }, [phase, battlePhase, clearBossFallbackTimer, flushBossAttackPresentation]);
+
+  /** Room change: tear down deferred UX held over from prior session (same tab). */
+  useEffect(() => {
+    prevPhaseGpRef.current = phase;
+    prevBattlePhaseGpRef.current = battlePhase;
+    clearBossFallbackTimer();
+    holdHpSyncDuringBossAttackRef.current = false;
+    bossAttackUxFlushedRef.current = true;
+    setBossAttackPresentationHold(false);
+    setWinRevealUnlocked(true);
+    setDisplayedPlayerHp(truthHpRef.current);
+    // Sync only room navigation; stale phase/playerHp closure is intentional on id change edge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only roomId triggers full presentation reset
+  }, [roomId]);
+
+  /** Local restart clears match — reset deferral so the next encounter is not blocked. */
+  useEffect(() => {
+    const prev = prevEndedMatchRef.current;
+    prevEndedMatchRef.current = gameOver;
+    const wasTerminal = prev === 'win' || prev === 'lose';
+    if (!wasTerminal || gameOver != null) return;
+    clearBossFallbackTimer();
+    holdHpSyncDuringBossAttackRef.current = false;
+    bossAttackUxFlushedRef.current = true;
+    setBossAttackPresentationHold(false);
+    setWinRevealUnlocked(true);
+    setDisplayedPlayerHp(truthHpRef.current);
+  }, [gameOver, clearBossFallbackTimer]);
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden"
@@ -83,7 +231,7 @@ export default function GamePage() {
       </div>
 
       {/* ── 主体 ── */}
-	      <div className="flex flex-1 overflow-hidden">
+	      <div className="relative z-0 flex flex-1 overflow-hidden">
 
 	        <SkillBar
 	          hand={hand}
@@ -102,7 +250,11 @@ export default function GamePage() {
           floor={floor}
           lastScore={lastScore}
           battlePhase={battlePhase}
+          phase={phase}
           attackEffect={attackEffect}
+          gameOver={gameOver}
+          onBossAttackEnded={flushBossAttackPresentation}
+          onBossDefeatedAnimationEnd={revealWinOverlayAfterBossHit}
         />
 
         <ScorePanel
@@ -126,9 +278,11 @@ export default function GamePage() {
         selected={selected}
         onToggle={toggleSelect}
         deckCount={deckCount}
-        playerHp={playerHp}
+        displayedPlayerHp={displayedPlayerHp}
         playerMaxHp={playerMaxHp}
         shieldActive={shieldActive}
+        playerDamageFlash={playerDamageFlash}
+        playerHudShakeNonce={playerHudShakeNonce}
       />
 
       {errorMessage && (
@@ -137,35 +291,20 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* ── 游戏结束遮罩 ── */}
-      {gameOver && (
+      {/* ── 胜利：延后到 boss-hit 播完（或超时）；失败仍延后 boss-attack ── */}
+      {gameOver === 'win' && winRevealUnlocked && (
         <div className="fixed inset-0 z-50 flex items-center justify-center
                         bg-black/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6
                           bg-stone-900 border border-yellow-800/50
                           rounded-2xl px-12 py-10
                           shadow-2xl shadow-black">
-
-            {gameOver === 'lose' ? (
-              <>
-                <div className="text-6xl">💀</div>
-                <div className="text-red-400 text-3xl font-black tracking-widest">
-                  游戏结束
-                </div>
-                <div className="text-stone-400 text-sm text-center leading-relaxed">
-                  到达第 <span className="text-yellow-400 font-bold">{floor}</span> 层<br />
-                  累计得分 <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-6xl">🏆</div>
-                <div className="text-yellow-300 text-3xl font-black tracking-widest">
-                  通关！
-                </div>
-              </>
-            )}
-
+            <>
+              <div className="text-6xl">🏆</div>
+              <div className="text-yellow-300 text-3xl font-black tracking-widest">
+                通关！
+              </div>
+            </>
             <button
               onClick={restartGame}
               className="mt-2 px-8 py-3 rounded-xl font-black text-sm
@@ -177,7 +316,37 @@ export default function GamePage() {
             >
               再来一局
             </button>
-
+          </div>
+        </div>
+      )}
+      {gameOver === 'lose' && !bossAttackPresentationHold && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center
+                        bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6
+                          bg-stone-900 border border-yellow-800/50
+                          rounded-2xl px-12 py-10
+                          shadow-2xl shadow-black">
+            <>
+              <div className="text-6xl">💀</div>
+              <div className="text-red-400 text-3xl font-black tracking-widest">
+                游戏结束
+              </div>
+              <div className="text-stone-400 text-sm text-center leading-relaxed">
+                到达第 <span className="text-yellow-400 font-bold">{floor}</span> 层<br />
+                累计得分 <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
+              </div>
+            </>
+            <button
+              onClick={restartGame}
+              className="mt-2 px-8 py-3 rounded-xl font-black text-sm
+                         tracking-widest bg-gradient-to-b from-yellow-600
+                         to-yellow-800 text-yellow-100
+                         hover:from-yellow-500 hover:to-yellow-700
+                         active:scale-95 transition-all
+                         shadow-lg shadow-yellow-900/50"
+            >
+              再来一局
+            </button>
           </div>
         </div>
       )}
