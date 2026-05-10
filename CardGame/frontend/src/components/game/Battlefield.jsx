@@ -730,6 +730,30 @@ export default function Battlefield({
           border-radius: 100% 0 100% 0;
         }
 
+        /* Host scales entire attack VFX on small viewports without fighting attackEffectIn keyframes’ transform. */
+        .battlefield-attack-effects-host {
+          position: absolute;
+          inset: 0;
+          z-index: 18;
+          pointer-events: none;
+        }
+
+        /* Laptop / short window: ~26% smaller (within 20–35% target). */
+        @media (max-width: 1440px), (max-height: 850px) {
+          .battlefield-attack-effects-host {
+            transform: scale(0.74);
+            transform-origin: 50% 36%;
+          }
+        }
+
+        /* 13–14" / tighter height: ~34% smaller vs default. */
+        @media (max-width: 1280px), (max-height: 760px) {
+          .battlefield-attack-effects-host {
+            transform: scale(0.66);
+            transform-origin: 50% 33%;
+          }
+        }
+
         /* ── Boss portal column: breakpoints only touch ≤1512 / ≤1440 / ≤1280 ── */
         @media (max-width: 1512px) {
           .battlefield-boss-area {
@@ -927,7 +951,9 @@ export default function Battlefield({
           zIndex: 45,
         }}>
 
-          {attackEffect && <AttackEffect key={attackEffect.id} mode={attackEffect.mode} />}
+          <div className="battlefield-attack-effects-host" aria-hidden>
+            {attackEffect ? <AttackEffect key={attackEffect.id} mode={attackEffect.mode} /> : null}
+          </div>
 
           {/* 伤害飘字 */}
           {floats.map(f => <DamageFloat key={f.id} value={f.value} />)}

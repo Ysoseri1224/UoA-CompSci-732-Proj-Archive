@@ -21,6 +21,34 @@ const COLOR_TO_ELEMENT = {
   green: 'GRASS',
 };
 
+/** Player attack VFX duration (Battlefield AttackEffect ~1.05s). */
+const ATTACK_EFFECT_CLEAR_MS = 1050;
+
+/**
+ * Infer AttackEffect mode: only pure mono-element hands get fire/water/nature; mixed or unknown → normal.
+ * @param {Array<{ color?: string }>|null|undefined} cards
+ * @returns {'normal'|'fire'|'water'|'nature'}
+ */
+function inferAttackEffectModeFromCards(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) return 'normal';
+
+  function contribution(card) {
+    if (!card) return null;
+    if (card.color === 'red') return 'fire';
+    if (card.color === 'blue') return 'water';
+    if (card.color === 'green') return 'nature';
+    return null;
+  }
+
+  const modes = cards.map(contribution);
+  if (modes.some((m) => m == null)) return 'normal';
+
+  const unique = new Set(modes);
+  if (unique.size !== 1) return 'normal';
+
+  return modes[0];
+}
+
 function getHandType(cards) {
   if (cards.length === 0) return HAND_TYPES.find((h) => h.id === 'high_card');
 
@@ -110,7 +138,10 @@ export function useGameLogic(roomId = null) {
   const socketRef = useRef(null);
   const resolvedScoreKeyRef = useRef(null);
   const pendingEvaluationRef = useRef(null);
+  /** Snapshot of cards sent with last `confirmPlay` (for attack VFX element). */
+  const pendingPlayedCardsRef = useRef(null);
   const pendingPlayConfirmRef = useRef(false);
+  const attackEffectClearTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
   const battlePhaseTimerRef = useRef(null);
   /** Isolated BOSS_ATTACK → resolveAnimationComplete schedule (must not share beginBattlePhase's clearTimeout). */
   const bossAttackResolveScheduleRef = useRef({ id: 0, timer: /** @type {ReturnType<typeof setTimeout> | null} */ (null) });
@@ -124,6 +155,18 @@ export function useGameLogic(roomId = null) {
   const [battlePhase, setBattlePhase] = useState(null);
   const [resolvedEvaluation, setResolvedEvaluation] = useState(EMPTY_EVALUATION);
   const [restartNonce, setRestartNonce] = useState(0);
+  const [attackEffect, setAttackEffect] = useState(null);
+
+  const scheduleAttackEffectClear = useCallback(() => {
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    attackEffectClearTimerRef.current = setTimeout(() => {
+      attackEffectClearTimerRef.current = null;
+      setAttackEffect(null);
+    }, ATTACK_EFFECT_CLEAR_MS);
+  }, []);
 
   const selectedCards = useMemo(
     () => selected.map((id) => hand.find((c) => c.id === id)).filter(Boolean),
@@ -176,7 +219,13 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayedCardsRef.current = null;
     pendingPlayConfirmRef.current = false;
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    setAttackEffect(null);
     setRoomId(roomId);
 
     const socket = createSocket(accessToken);
@@ -218,6 +267,12 @@ export function useGameLogic(roomId = null) {
       }
       s.id += 1;
       pendingPlayConfirmRef.current = false;
+      pendingPlayedCardsRef.current = null;
+      if (attackEffectClearTimerRef.current != null) {
+        clearTimeout(attackEffectClearTimerRef.current);
+        attackEffectClearTimerRef.current = null;
+      }
+      setAttackEffect(null);
       socket.disconnect();
       socketRef.current = null;
       reset();
@@ -246,7 +301,15 @@ export function useGameLogic(roomId = null) {
       totalScore: score,
     });
     pendingEvaluationRef.current = null;
-  }, [play, round]);
+
+    const playedSnapshot = pendingPlayedCardsRef.current;
+    pendingPlayedCardsRef.current = null;
+    if (score > 0) {
+      const mode = inferAttackEffectModeFromCards(playedSnapshot);
+      setAttackEffect({ id: Date.now(), mode });
+      scheduleAttackEffectClear();
+    }
+  }, [play, round, scheduleAttackEffectClear]);
 
   useEffect(() => {
     if (!pendingPlayConfirmRef.current || phase !== 'PLAY' || selected.length === 0 || gameOver) return;
@@ -255,10 +318,11 @@ export function useGameLogic(roomId = null) {
     if (!socket) return;
 
     pendingEvaluationRef.current = previewEvaluation;
+    pendingPlayedCardsRef.current = selectedCards.slice();
     pendingPlayConfirmRef.current = false;
     socket.emit('confirmPlay');
     setSelected([]);
-  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected, selectedCards]);
 
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -337,9 +401,10 @@ export function useGameLogic(roomId = null) {
       return;
     }
     pendingEvaluationRef.current = previewEvaluation;
+    pendingPlayedCardsRef.current = selectedCards.slice();
     socket.emit('confirmPlay');
     setSelected([]);
-  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected, selectedCards]);
 
   const skillChangeColor = useCallback((cardId, newColor) => {
     const socket = ensureSocket();
@@ -385,7 +450,13 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayedCardsRef.current = null;
     pendingPlayConfirmRef.current = false;
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    setAttackEffect(null);
     setBattlePhase(null);
     setRestartNonce((value) => value + 1);
   }, [reset]);
@@ -431,6 +502,7 @@ export function useGameLogic(roomId = null) {
     skillActivateShield,
     battlePhase,
     phase,
+    attackEffect,
     connectionStatus,
     errorMessage: lastError,
   };
