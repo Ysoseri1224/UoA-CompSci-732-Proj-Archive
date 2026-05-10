@@ -208,19 +208,17 @@ test('BOSS_ATTACK → player dies → LOSE', () => {
   assert.equal(result.ctx.player.hp, 0);
 });
 
-test('ROUND_END → ROUND_END_CONFIRM → DRAW (skills reset, round++)', () => {
+test('ROUND_END → ROUND_END_CONFIRM → DRAW (energy persists, shuffle resets)', () => {
   const rs = createRoundState({ roundPhase: 'ROUND_END' });
-  rs.skills.changeColor.used = true;
-  rs.skills.changeCost.used = true;
-  rs.shuffle.remaining = 1;
+  rs.skills.energy = 1; // depleted from 3
+  rs.shuffle.remaining = 0;
   const ctx = makeCtx({ round: 3, roundState: rs });
 
   const result = transition(ctx, roundEndConfirm());
   assert.equal(result.ok, true);
   assert.equal(result.ctx.roundState.phase, ROUND_PHASE.DRAW);
   assert.equal(result.ctx.round, 4);
-  assert.equal(result.ctx.roundState.skills.changeColor.used, false);
-  assert.equal(result.ctx.roundState.skills.changeCost.used, false);
+  assert.equal(result.ctx.roundState.skills.energy, 1); // persists
   assert.equal(result.ctx.roundState.shuffle.remaining, 2);
 });
 
@@ -264,13 +262,17 @@ test('Skills rejected outside player action phase', () => {
   assert.equal(transition(ctx, skillShield()).ok, false);
 });
 
-test('Skill used twice is rejected (changeColor)', () => {
-  const ctx = makeCtx({ roundState: createRoundState({ roundPhase: 'SKILL' }) });
+test('Skill used depletes energy, then rejected', () => {
+  const rs = createRoundState({ roundPhase: 'SKILL' });
+  rs.skills.energy = 1; // only 1 energy
+  const ctx = makeCtx({ roundState: rs });
   const r1 = transition(ctx, skillChangeColor(ctx.hand[0].id, 'FIRE'));
-  // Can't use again (already used)
+  assert.equal(r1.ok, true);
+  assert.equal(r1.ctx.roundState.skills.energy, 0);
+  // No energy left
   const r2 = transition(r1.ctx, skillChangeColor(r1.ctx.hand[0].id, 'WATER'));
   assert.equal(r2.ok, false);
-  assert.ok(r2.error?.includes('Cannot'));
+  assert.ok(r2.error?.includes('energy'));
 });
 
 // ══════════════════════════════════════════════════════════════════

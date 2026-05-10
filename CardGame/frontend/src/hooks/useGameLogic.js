@@ -386,19 +386,8 @@ export function useGameLogic(roomId = null) {
   const isActionPhase = phase === 'SKILL' || phase === 'SHUFFLE' || phase === 'PLAY';
   const shieldUnavailable = skills.shield.active || skills.shield.onCooldown;
 
-  /** Matches SkillBar pip count: one slot per skill still available this round */
-  const skillCharges = useMemo(() => {
-    let n = 0;
-    if (!skills.changeColor.used) n += 1;
-    if (!skills.changeCost.used) n += 1;
-    if (!skills.shield.active && !skills.shield.onCooldown) n += 1;
-    return n;
-  }, [
-    skills.changeColor.used,
-    skills.changeCost.used,
-    skills.shield.active,
-    skills.shield.onCooldown,
-  ]);
+  /** Energy pool: remaining skill charges (cross-round, refilled per floor) */
+  const skillCharges = useMemo(() => skills.energy, [skills.energy]);
 
   return {
     hand,
@@ -425,9 +414,8 @@ export function useGameLogic(roomId = null) {
     gameOver,
     restartGame,
     skillCharges,
+    maxCharges: player.skillEnergyMax ?? 3,
     skillCooldowns: {
-      changeColor: skills.changeColor.used,
-      changeCost: skills.changeCost.used,
       shield: shieldUnavailable,
     },
     shieldActive,

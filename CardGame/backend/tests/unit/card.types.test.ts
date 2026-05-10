@@ -201,10 +201,9 @@ test('createShieldState defaults to inactive and not on cooldown', () => {
   assert.equal(shield.onCooldown, false);
 });
 
-test('createRoundSkills initialises with nothing used', () => {
+test('createRoundSkills initialises with 3 energy', () => {
   const skills = createRoundSkills();
-  assert.equal(skills.changeColor.used, false);
-  assert.equal(skills.changeCost.used, false);
+  assert.equal(skills.energy, 3);
   assert.equal(skills.shield.active, false);
   assert.equal(skills.shield.onCooldown, false);
 });
