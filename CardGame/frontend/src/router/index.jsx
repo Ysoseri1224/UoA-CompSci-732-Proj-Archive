@@ -1,22 +1,22 @@
+import { Suspense, lazy, useEffect } from 'react';
 import { createBrowserRouter, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
 
 import Navbar from '../components/layout/Navbar.jsx';
 import PrivateRoute from './PrivateRoute.jsx';
 
-import HomePage from '../pages/HomePage.jsx';
-import LoginPage from '../pages/LoginPage.jsx';
-import RegisterPage from '../pages/RegisterPage.jsx';
-import LobbyPage from '../pages/LobbyPage.jsx';
-import SkillSelectPage from '../pages/SkillSelectPage.jsx';
-import GamePage from '../pages/GamePage.jsx';
-import ProfilePage from '../pages/ProfilePage.jsx';
-import LeaderboardPage from '../pages/LeaderboardPage.jsx';
-import ReplayPage from '../pages/ReplayPage.jsx';
-import AttackEffectPreviewPage from '../pages/AttackEffectPreviewPage.jsx';
-
 import useAuthStore from '../store/authStore.js';
 import { audioManager } from '../utils/audioManager.js';
+
+const HomePage = lazy(() => import('../pages/HomePage.jsx'));
+const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('../pages/RegisterPage.jsx'));
+const LobbyPage = lazy(() => import('../pages/LobbyPage.jsx'));
+const SkillSelectPage = lazy(() => import('../pages/SkillSelectPage.jsx'));
+const GamePage = lazy(() => import('../pages/GamePage.jsx'));
+const ProfilePage = lazy(() => import('../pages/ProfilePage.jsx'));
+const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage.jsx'));
+const ReplayPage = lazy(() => import('../pages/ReplayPage.jsx'));
+const AttackEffectPreviewPage = lazy(() => import('../pages/AttackEffectPreviewPage.jsx'));
 
 // Root layout wraps every page with the Navbar.
 // <Outlet /> renders the matched child route's component below the Navbar.
@@ -52,30 +52,42 @@ function RootLayout() {
   );
 }
 
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[calc(100dvh-var(--navbar-height))] items-center justify-center bg-[#040410] px-6 text-center text-sm tracking-[0.18em] text-stone-400">
+      Loading...
+    </div>
+  );
+}
+
+function withSuspense(element) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
+
 const router = createBrowserRouter([
   {
     // All routes share the RootLayout (Navbar + page area).
     element: <RootLayout />,
     children: [
       // --- Public routes ---
-      { path: '/', element: <HomePage /> },
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-      { path: '/profile/:userId', element: <ProfilePage /> },
+      { path: '/', element: withSuspense(<HomePage />) },
+      { path: '/login', element: withSuspense(<LoginPage />) },
+      { path: '/register', element: withSuspense(<RegisterPage />) },
+      { path: '/profile/:userId', element: withSuspense(<ProfilePage />) },
       {
         path: '/leaderboard',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <LeaderboardPage />
           </PrivateRoute>
         ),
       },
-      { path: '/attack-effect-preview', element: <AttackEffectPreviewPage /> },
+      { path: '/attack-effect-preview', element: withSuspense(<AttackEffectPreviewPage />) },
 
       // --- Protected routes (require a valid token in localStorage) ---
       {
         path: '/lobby',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <LobbyPage />
           </PrivateRoute>
@@ -83,7 +95,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/room/:roomId/skills',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <SkillSelectPage />
           </PrivateRoute>
@@ -91,7 +103,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/room/:roomId/game',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <GamePage />
           </PrivateRoute>
@@ -99,7 +111,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/match/:matchId/replay',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <ReplayPage />
           </PrivateRoute>
