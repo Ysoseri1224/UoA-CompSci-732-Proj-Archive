@@ -7,14 +7,16 @@ export interface ElementChipMult   { type: 'ELEMENT_CHIP_MULT';    element: Elem
 export interface ElementChipsBonus { type: 'ELEMENT_CHIPS_BONUS';  element: Element;  bonusChips: number }
 export interface ElementDrawBuff   { type: 'ELEMENT_DRAW_ON_SHUFFLE'; element: Element }
 export interface HighRankDrawBuff  { type: 'HIGH_RANK_DRAW_ON_SHUFFLE' }
+export interface HpBonusBuff       { type: 'HP_BONUS'; bonusHp: number }
 
-export type Buff = HandMultBonus | HandChipsBonus | AllChipsBonus | ElementChipMult | ElementChipsBonus | ElementDrawBuff | HighRankDrawBuff;
+export type Buff = HandMultBonus | HandChipsBonus | AllChipsBonus | ElementChipMult | ElementChipsBonus | ElementDrawBuff | HighRankDrawBuff | HpBonusBuff;
 
 export const BUFF_TYPE = {
   HAND_MULT_BONUS: 'HAND_MULT_BONUS', HAND_CHIPS_BONUS: 'HAND_CHIPS_BONUS',
   ALL_CHIPS_BONUS: 'ALL_CHIPS_BONUS', ELEMENT_CHIP_MULT: 'ELEMENT_CHIP_MULT',
   ELEMENT_CHIPS_BONUS: 'ELEMENT_CHIPS_BONUS', ELEMENT_DRAW_ON_SHUFFLE: 'ELEMENT_DRAW_ON_SHUFFLE',
   HIGH_RANK_DRAW_ON_SHUFFLE: 'HIGH_RANK_DRAW_ON_SHUFFLE',
+  HP_BONUS: 'HP_BONUS',
 } as const;
 
 export interface Upgrade { id: string; label: string; description: string; buff: Buff }
@@ -44,6 +46,10 @@ export function createHighRankDrawBuff(): HighRankDrawBuff {
 }
 export function createUpgrade(id: string, label: string, description: string, buff: Buff): Upgrade {
   return { id, label, description, buff };
+}
+
+export function createHpBonus(bonusHp: number = 5): HpBonusBuff {
+  return { type: 'HP_BONUS', bonusHp };
 }
 
 // ── 第一层：固定 3 选 1 ─────────────────────────────────────────

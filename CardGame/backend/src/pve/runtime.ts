@@ -1,5 +1,5 @@
 import { initDeckState } from '../lib/deck.js';
-import { createBossForLayer } from '../lib/boss.js';
+import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
 import { createPlayerState, createRoundState } from '../types/state.js';
 import { transition } from './roundMachine.js';
 import { Match } from '../models/Match.js';
@@ -58,7 +58,7 @@ export function createRoom(opts: {
     deck: deckState.deck,
     discardPile: deckState.discardPile,
     hand: deckState.hand,
-    player: createPlayerState(),
+    player: createPlayerState({ hp: playerHpForLayer(layer), maxHp: playerHpForLayer(layer) }),
     boss: createBossForLayer(layer),
     round: 1,
     roundState: createRoundState(),
