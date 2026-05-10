@@ -16,6 +16,7 @@ const GamePage = lazy(() => import('../pages/GamePage.jsx'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage.jsx'));
 const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage.jsx'));
 const ReplayPage = lazy(() => import('../pages/ReplayPage.jsx'));
+const RogueGamePage = lazy(() => import('../pages/RogueGamePage.jsx'));
 const AttackEffectPreviewPage = lazy(() => import('../pages/AttackEffectPreviewPage.jsx'));
 
 // Root layout wraps every page with the Navbar.
