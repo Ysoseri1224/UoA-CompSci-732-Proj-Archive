@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { getMatches } from '../api/matchApi.js';
 import { getUserStats } from '../api/userApi.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -10,12 +11,39 @@ const MOCK_STATS = {
   winRateDisplay: '—',
 };
 
-const MOCK_MATCH_ROWS = [
-  { result: 'Victory', opp: 'vs AI', ago: '2 hours ago', tone: 'text-emerald-400/95' },
-  { result: 'Defeat', opp: 'vs AI', ago: '5 hours ago', tone: 'text-rose-400/90' },
-  { result: 'Victory', opp: 'vs AI', ago: 'Yesterday', tone: 'text-emerald-400/95' },
-  { result: 'Defeat', opp: 'vs AI', ago: '2 days ago', tone: 'text-rose-400/90' },
-];
+/** @param {string|Date|null|undefined} endedAtInput */
+function formatMatchEndedRelative(endedAtInput) {
+  if (endedAtInput == null || endedAtInput === '') return '';
+  const d = new Date(endedAtInput);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return 'Just now';
+
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min === 1 ? '1 minute ago' : `${min} minutes ago`;
+
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr === 1 ? '1 hour ago' : `${hr} hours ago`;
+
+  const sod = (t) => new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  const calendarDays = Math.round((sod(now) - sod(d)) / 86400000);
+  if (calendarDays === 1) return 'Yesterday';
+  if (calendarDays > 1) return `${calendarDays} days ago`;
+  return `${Math.max(1, Math.floor(hr / 24))} days ago`;
+}
+
+function opponentLabelFromMatch(match) {
+  const t = match?.matchType;
+  if (t === 'PVE') {
+    const boss = match?.bossId != null ? String(match.bossId) : '';
+    return boss.includes('boss') ? 'vs Boss' : 'vs AI';
+  }
+  if (t === 'PVP') return 'vs Player';
+  return 'vs Opponent';
+}
 
 /** Lobby card-back art (Profile card decorative background). */
 const LOBBY_SOLO_CARD_BG_URL = '/lobby/cardBack.png';
@@ -196,7 +224,7 @@ function SidebarIconLogout({ iconClass }) {
 }
 
 /**
- * Authenticated lobby dashboard — references images under /lobby/*. Match list remains mock-only.
+ * Authenticated lobby dashboard — references images under /lobby/*.
  */
 export default function LobbyPage() {
   const { user, clearAuth } = useAuth();
@@ -208,6 +236,10 @@ export default function LobbyPage() {
     winRateDisplay: null,
     loaded: false,
   });
+
+  const [recentMatchRows, setRecentMatchRows] = useState([]);
+  const [recentMatchesLoading, setRecentMatchesLoading] = useState(false);
+  const [recentMatchesError, setRecentMatchesError] = useState(false);
 
   const displayName = user?.username?.trim() || 'Traveler';
   const profilePath = user?.id ? `/profile/${user.id}` : '/leaderboard';
@@ -266,6 +298,53 @@ export default function LobbyPage() {
     }
 
     loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecent() {
+      if (!user?.id) {
+        if (!cancelled) {
+          setRecentMatchRows([]);
+          setRecentMatchesLoading(false);
+          setRecentMatchesError(false);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setRecentMatchesLoading(true);
+        setRecentMatchesError(false);
+      }
+
+      try {
+        const data = await getMatches(user.id, 1, 5);
+        if (cancelled) return;
+        const matches = Array.isArray(data?.matches) ? data.matches : [];
+        const rows = matches.map((m) => ({
+          key: String(m?._id ?? ''),
+          resultLabel: m?.isWin === true ? 'Victory' : 'Defeat',
+          opp: opponentLabelFromMatch(m),
+          ago: formatMatchEndedRelative(m?.endedAt),
+          tone: m?.isWin === true ? 'text-emerald-400/95' : 'text-rose-400/90',
+          isWin: m?.isWin === true,
+        })).filter((r) => r.key);
+        setRecentMatchRows(rows);
+      } catch {
+        if (!cancelled) {
+          setRecentMatchRows([]);
+          setRecentMatchesError(true);
+        }
+      } finally {
+        if (!cancelled) setRecentMatchesLoading(false);
+      }
+    }
+
+    loadRecent();
     return () => {
       cancelled = true;
     };
@@ -992,7 +1071,7 @@ export default function LobbyPage() {
               </div>
             </main>
 
-            {/* RIGHT — season + recent matches (mock) */}
+            {/* RIGHT — season + recent matches */}
             <aside className="lobby-dash-aside flex min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
               <div
                   className={`lobby-season-panel ${panelSurface} flex flex-col items-center px-5 pb-6 pt-6 text-center md:px-6 md:pb-7 md:pt-7`}
@@ -1033,38 +1112,52 @@ export default function LobbyPage() {
                   <button
                       type="button"
                       disabled
-                      title="Match API not ready"
+                      title="Coming soon"
                       className="cursor-not-allowed text-[0.75rem] font-semibold uppercase tracking-wide text-cyan-200/95 underline-offset-2 sm:text-[0.8125rem]"
                   >
                     View All
                   </button>
                 </div>
-                <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
-                  Mock-only — no match API.
-                </p>
-                <ul className="lobby-recent-list mt-4 flex flex-col gap-3 overflow-y-auto text-[0.9rem] sm:text-[0.95rem]">
-                  {MOCK_MATCH_ROWS.map((row, i) => (
-                      <li
-                          key={`${row.result}-${i}`}
-                          className="flex items-center gap-3 border-b border-white/[0.06] pb-3 last:border-0 last:pb-0"
-                      >
-                        <img
-                            src={row.result === 'Victory' ? LOBBY_VICTORY_ICON_URL : LOBBY_LOSE_ICON_URL}
-                            alt=""
-                            className="h-10 w-10 shrink-0 object-contain mix-blend-screen brightness-105 contrast-105 drop-shadow-[0_0_12px_rgba(139,92,246,0.35)] sm:h-11 sm:w-11"
-                        />
-                        <div className="min-w-0 flex-1 leading-snug">
-                          <div>
-                            <span className={`font-semibold ${row.tone}`}>{row.result}</span>
-                            <span className="text-violet-100/92"> · {row.opp}</span>
+                {recentMatchesLoading ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    Loading recent matches...
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && recentMatchesError ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    Unable to load recent matches
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && !recentMatchesError && recentMatchRows.length === 0 ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    No recent matches yet
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && !recentMatchesError && recentMatchRows.length > 0 ? (
+                  <ul className="lobby-recent-list mt-4 flex flex-col gap-3 overflow-y-auto text-[0.9rem] sm:text-[0.95rem]">
+                    {recentMatchRows.map((row) => (
+                        <li
+                            key={row.key}
+                            className="flex items-center gap-3 border-b border-white/[0.06] pb-3 last:border-0 last:pb-0"
+                        >
+                          <img
+                              src={row.isWin ? LOBBY_VICTORY_ICON_URL : LOBBY_LOSE_ICON_URL}
+                              alt=""
+                              className="h-10 w-10 shrink-0 object-contain mix-blend-screen brightness-105 contrast-105 drop-shadow-[0_0_12px_rgba(139,92,246,0.35)] sm:h-11 sm:w-11"
+                          />
+                          <div className="min-w-0 flex-1 leading-snug">
+                            <div>
+                              <span className={`font-semibold ${row.tone}`}>{row.resultLabel}</span>
+                              <span className="text-violet-100/92"> · {row.opp}</span>
+                            </div>
+                            <div className="mt-1 text-[0.8rem] font-medium tracking-wide text-violet-50/92 sm:text-[0.875rem]">
+                              {row.ago}
+                            </div>
                           </div>
-                          <div className="mt-1 text-[0.8rem] font-medium tracking-wide text-violet-50/92 sm:text-[0.875rem]">
-                            {row.ago}
-                          </div>
-                        </div>
-                      </li>
-                  ))}
-                </ul>
+                        </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             </aside>
           </div>
