@@ -12,7 +12,8 @@
     "test:api": "node --import tsx --test --test-concurrency=1 tests/api/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
