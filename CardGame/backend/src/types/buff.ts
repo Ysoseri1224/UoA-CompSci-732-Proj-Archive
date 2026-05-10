@@ -10,9 +10,12 @@ export interface ElementDrawBuff   { type: 'ELEMENT_DRAW_ON_SHUFFLE'; element: E
 export interface HighRankDrawBuff  { type: 'HIGH_RANK_DRAW_ON_SHUFFLE' }
 export interface HpBonusBuff       { type: 'HP_BONUS'; bonusHp: number }
 
+export interface TieredChipsBonus  { type: 'TIERED_CHIPS_BONUS'; commonBonus: number; rareBonus: number; epicBonus: number }
+export interface TieredMultBonus   { type: 'TIERED_MULT_BONUS';  commonMult: number;  rareMult: number;  epicMult: number }
+
 export interface SkillEnergyMaxBuff { type: 'SKILL_ENERGY_MAX'; bonusEnergy: number }
 
-export type Buff = HandMultBonus | HandChipsBonus | AllChipsBonus | ElementChipMult | ElementChipsBonus | ElementDrawBuff | HighRankDrawBuff | HpBonusBuff | SkillEnergyMaxBuff;
+export type Buff = HandMultBonus | HandChipsBonus | AllChipsBonus | ElementChipMult | ElementChipsBonus | ElementDrawBuff | HighRankDrawBuff | HpBonusBuff | TieredChipsBonus | TieredMultBonus | SkillEnergyMaxBuff;
 
 export const BUFF_TYPE = {
   HAND_MULT_BONUS: 'HAND_MULT_BONUS', HAND_CHIPS_BONUS: 'HAND_CHIPS_BONUS',
@@ -20,6 +23,7 @@ export const BUFF_TYPE = {
   ELEMENT_CHIPS_BONUS: 'ELEMENT_CHIPS_BONUS', ELEMENT_DRAW_ON_SHUFFLE: 'ELEMENT_DRAW_ON_SHUFFLE',
   HIGH_RANK_DRAW_ON_SHUFFLE: 'HIGH_RANK_DRAW_ON_SHUFFLE',
   HP_BONUS: 'HP_BONUS',
+  TIERED_CHIPS_BONUS: 'TIERED_CHIPS_BONUS', TIERED_MULT_BONUS: 'TIERED_MULT_BONUS',
   SKILL_ENERGY_MAX: 'SKILL_ENERGY_MAX',
 } as const;
 
@@ -54,6 +58,13 @@ export function createUpgrade(id: string, label: string, description: string, bu
 
 export function createHpBonus(bonusHp: number = 5): HpBonusBuff {
   return { type: 'HP_BONUS', bonusHp };
+}
+
+export function createTieredChipsBonus(commonBonus: number, rareBonus: number, epicBonus: number): TieredChipsBonus {
+  return { type: 'TIERED_CHIPS_BONUS', commonBonus, rareBonus, epicBonus };
+}
+export function createTieredMultBonus(commonMult: number, rareMult: number, epicMult: number): TieredMultBonus {
+  return { type: 'TIERED_MULT_BONUS', commonMult, rareMult, epicMult };
 }
 
 export function createSkillEnergyMax(bonusEnergy: number = 1): SkillEnergyMaxBuff {
@@ -105,22 +116,9 @@ export function generateUpgradePool(
     // ── 通用伤害 ──
     createUpgrade(`all_chips_${layer}`, '固伤强化', '每张打出牌额外 +2 chip（可叠加）', createAllChipsBonus(2)),
 
-    // ── 牌型底分（常见 +10 / 稀有 +20 / 史诗 +35）──
-    createUpgrade(`pair_chips_${layer}`,       '一对·底分',       '一对牌型底分 +10（可叠加）',     createHandChipsBonus('PAIR', 10)),
-    createUpgrade(`two_pair_chips_${layer}`,   '两对·底分',       '两对牌型底分 +10（可叠加）',     createHandChipsBonus('TWO_PAIR', 10)),
-    createUpgrade(`three_kind_chips_${layer}`, '三条·底分',       '三条牌型底分 +10（可叠加）',     createHandChipsBonus('THREE_OF_A_KIND', 10)),
-    createUpgrade(`flush_chips_${layer}`,      '同花·底分',       '同花牌型底分 +20（可叠加）',     createHandChipsBonus('FLUSH', 20)),
-    createUpgrade(`straight_chips_${layer}`,   '顺子·底分',       '顺子牌型底分 +20（可叠加）',     createHandChipsBonus('STRAIGHT', 20)),
-    createUpgrade(`full_house_chips_${layer}`, '葫芦·底分',       '葫芦牌型底分 +35（可叠加）',     createHandChipsBonus('FULL_HOUSE', 35)),
-    createUpgrade(`four_kind_chips_${layer}`,  '四条·底分',       '四条牌型底分 +35（可叠加）',     createHandChipsBonus('FOUR_OF_A_KIND', 35)),
-    createUpgrade(`str_flush_chips_${layer}`,  '同花顺·底分',     '同花顺牌型底分 +35（可叠加）',   createHandChipsBonus('STRAIGHT_FLUSH', 35)),
-
-    // ── 牌型倍率（常见 +0 不入池，稀有 +2 / 史诗 +3）──
-    createUpgrade(`straight_mult_${layer}`,    '顺子·倍率',       '顺子牌型倍率 +2（可叠加）',      createHandMultBonus('STRAIGHT', 2)),
-    createUpgrade(`flush_mult_${layer}`,       '同花·倍率',       '同花牌型倍率 +2（可叠加）',      createHandMultBonus('FLUSH', 2)),
-    createUpgrade(`full_house_mult_${layer}`,  '葫芦·倍率',       '葫芦牌型倍率 +3（可叠加）',      createHandMultBonus('FULL_HOUSE', 3)),
-    createUpgrade(`four_kind_mult_${layer}`,   '四条·倍率',       '四条牌型倍率 +3（可叠加）',      createHandMultBonus('FOUR_OF_A_KIND', 3)),
-    createUpgrade(`str_flush_mult_${layer}`,   '同花顺·倍率',     '同花顺牌型倍率 +3（可叠加）',    createHandMultBonus('STRAIGHT_FLUSH', 3)),
+    // ── 分层牌型 buff（常见 +10/+0 / 稀有 +20/+2 / 史诗 +35/+3）──
+    createUpgrade(`tiered_chips_${layer}`, '牌型底分强化', '常见牌型底分 +10 / 稀有 +20 / 史诗 +35（可叠加）', createTieredChipsBonus(10, 20, 35)),
+    createUpgrade(`tiered_mult_${layer}`,  '牌型倍率强化', '稀有牌型倍率 +2 / 史诗 +3（常见 +0，可叠加）',    createTieredMultBonus(0, 2, 3)),
 
     // ── 生存 ──
     createUpgrade(`hp_boost_${layer}`, '生命强化', '最大 HP +5（可叠加）', createHpBonus(5)),

@@ -20,12 +20,13 @@ export {
 export type {
   Buff, Upgrade, HandMultBonus, HandChipsBonus, AllChipsBonus,
   ElementChipMult, ElementChipsBonus, ElementDrawBuff, HighRankDrawBuff,
-  HpBonusBuff, SkillEnergyMaxBuff,
+  HpBonusBuff, TieredChipsBonus, TieredMultBonus, SkillEnergyMaxBuff,
 } from './buff.js';
 export {
   BUFF_TYPE, createHandMultBonus, createHandChipsBonus, createAllChipsBonus,
   createElementChipMult, createElementChipsBonus, createElementDrawBuff,
-  createHighRankDrawBuff, createHpBonus, createSkillEnergyMax,
+  createHighRankDrawBuff, createHpBonus, createTieredChipsBonus, createTieredMultBonus,
+  createSkillEnergyMax,
   createUpgrade, FIRST_LAYER_UPGRADES, generateUpgradePool, applyPlayerBuffs,
 } from './buff.js';
 

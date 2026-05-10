@@ -39,6 +39,8 @@ import {
   createElementChipsBonus,
   createElementDrawBuff,
   createHighRankDrawBuff,
+  createTieredChipsBonus,
+  createTieredMultBonus,
   createUpgrade,
   FIRST_LAYER_UPGRADES,
   generateUpgradePool,
@@ -371,6 +373,22 @@ test('createHighRankDrawBuff creates correct buff', () => {
   assert.equal(buff.type, BUFF_TYPE.HIGH_RANK_DRAW_ON_SHUFFLE);
 });
 
+test('createTieredChipsBonus creates correct buff', () => {
+  const buff = createTieredChipsBonus(10, 20, 35);
+  assert.equal(buff.type, BUFF_TYPE.TIERED_CHIPS_BONUS);
+  assert.equal(buff.commonBonus, 10);
+  assert.equal(buff.rareBonus, 20);
+  assert.equal(buff.epicBonus, 35);
+});
+
+test('createTieredMultBonus creates correct buff', () => {
+  const buff = createTieredMultBonus(0, 2, 3);
+  assert.equal(buff.type, BUFF_TYPE.TIERED_MULT_BONUS);
+  assert.equal(buff.commonMult, 0);
+  assert.equal(buff.rareMult, 2);
+  assert.equal(buff.epicMult, 3);
+});
+
 test('createUpgrade returns complete object', () => {
   const buff = createElementChipMult('FIRE');
   const up = createUpgrade('u1', 'Test', 'Desc', buff);
@@ -407,16 +425,19 @@ test('generateUpgradePool honors excludeTypes', () => {
   assert.equal(hasSkillEnergy, false);
 });
 
-test('generateUpgradePool returns exactly 3 when excludeTypes removes most items', () => {
-  // Exclude almost everything — pool should still return what's left
-  const exclude = ['HAND_MULT_BONUS', 'HAND_CHIPS_BONUS', 'ALL_CHIPS_BONUS',
+test('generateUpgradePool returns exactly 3 when excludeTypes removes items', () => {
+  const exclude = ['TIERED_CHIPS_BONUS', 'TIERED_MULT_BONUS', 'ALL_CHIPS_BONUS',
     'ELEMENT_DRAW_ON_SHUFFLE', 'HIGH_RANK_DRAW_ON_SHUFFLE', 'HP_BONUS', 'SKILL_ENERGY_MAX'];
   const pool = generateUpgradePool('WATER', 2, exclude);
-  // Only ELEMENT_CHIP_MULT and ELEMENT_CHIPS_BONUS remain (2 items), so return min(2, 3) = 2
+  // ELEMENT_CHIP_MULT and ELEMENT_CHIPS_BONUS remain (2 items) → returns min(2, 3) = 2
   assert.ok(pool.length >= 1 && pool.length <= 3);
   const types = pool.map(u => u.buff.type);
   const invalid = types.filter(t => exclude.includes(t));
   assert.equal(invalid.length, 0);
+  // Every returned upgrade must be one of the remaining types
+  for (const t of types) {
+    assert.ok(t === 'ELEMENT_CHIP_MULT' || t === 'ELEMENT_CHIPS_BONUS');
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════
