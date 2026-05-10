@@ -4,7 +4,7 @@ import HandArea from '../components/game/HandArea';
 import ScorePanel from '../components/game/ScorePanel';
 import SkillBar from '../components/game/SkillBar';
 import { useGameLogic } from '../hooks/useGameLogic';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const BOSS_ATTACK_UX_FALLBACK_MS = 12_500;
@@ -22,6 +22,7 @@ function detectBossAttackEntrance(prevPhase, phase, prevBattlePhase, battlePhase
 }
 
 export default function GamePage() {
+  const navigate = useNavigate();
   const { roomId } = useParams();
   const {
     hand,
@@ -200,35 +201,54 @@ export default function GamePage() {
       }}
     >
 
-      {/* ── 顶部栏 ── */}
-      <div className="flex items-center justify-between px-5
-                      flex-shrink-0 border-b border-yellow-900/40
-                      bg-gradient-to-b from-stone-950 to-transparent"
-           style={{ height: 48 }}
+      {/* ── Top bar: stats stay centered; Exit + Settings grouped on the right ── */}
+      <header
+        className="flex min-h-12 flex-shrink-0 items-stretch border-b border-yellow-900/40
+                   bg-gradient-to-b from-stone-950 to-transparent px-2 py-1.5 sm:px-4 md:px-5"
       >
-        <div className="font-mono text-yellow-600 text-xs tracking-widest">
-          CARD  ROGUE
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <div className="shrink-0 font-mono text-[10px] tracking-widest text-yellow-600 sm:text-xs">
+            CARD&nbsp;&nbsp;ROGUE
+          </div>
+          <div
+            className="flex min-w-0 flex-1 basis-[50%] flex-wrap items-center justify-center gap-x-2
+                       gap-y-0.5 sm:gap-x-4 md:basis-auto"
+          >
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-stone-500 sm:text-[11px]">
+              {connectionStatus.toUpperCase()}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
+              ROUND&nbsp;{round}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
+              FLOOR&nbsp;{floor}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-700 sm:text-xs">
+              SCORE&nbsp;{totalScore.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <button
+              type="button"
+              aria-label="Exit to lobby"
+              title="Return to lobby"
+              onClick={() => navigate('/lobby')}
+              className="whitespace-nowrap rounded border border-amber-900/55 bg-stone-950/60 px-2 py-1
+                         text-[10px] font-medium text-amber-100/95 transition-colors
+                         hover:border-amber-700/70 hover:bg-amber-950/35 sm:px-3 sm:text-xs"
+            >
+              Exit
+            </button>
+            <button
+              type="button"
+              className="whitespace-nowrap rounded border border-stone-800 px-2 py-1 text-[10px]
+                         text-stone-600 transition-colors hover:text-stone-400 sm:px-3 sm:text-xs"
+            >
+              ⚙&nbsp;Settings
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-stone-500 text-[11px] font-mono tracking-widest">
-            {connectionStatus.toUpperCase()}
-          </span>
-          <span className="text-yellow-900 text-xs font-mono tracking-widest">
-            ROUND  {round}
-          </span>
-          <span className="text-yellow-900 text-xs font-mono tracking-widest">
-            FLOOR  {floor}
-          </span>
-          <span className="text-yellow-700 text-xs font-mono tracking-widest">
-            SCORE  {totalScore.toLocaleString()}
-          </span>
-        </div>
-        <button className="text-stone-600 hover:text-stone-400 text-xs
-                           border border-stone-800 rounded px-3 py-1
-                           transition-colors">
-          ⚙ 设置
-        </button>
-      </div>
+      </header>
 
       {/* ── 主体 ── */}
 	      <div className="relative z-0 flex flex-1 overflow-hidden">
