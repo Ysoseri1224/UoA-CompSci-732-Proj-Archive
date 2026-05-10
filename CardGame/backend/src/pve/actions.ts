@@ -339,8 +339,8 @@ export function doRoundEndConfirm(ctx: GameContext): GameContext {
     roundState: {
       ...createRoundState(),
       skills: {
-        energy: ctx.roundState.skills.energy,
-        shield: tickShieldCooldown(ctx.roundState.skills.shield), // shield 每回合递减冷却
+        energy: ctx.roundState.skills.energy,                          // 充能跨回合保留
+        shield: tickShieldCooldown(ctx.roundState.skills.shield),     // shield 每回合递减冷却
       },
     },
   };
