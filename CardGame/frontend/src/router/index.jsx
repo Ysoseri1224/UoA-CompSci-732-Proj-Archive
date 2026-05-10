@@ -120,7 +120,7 @@ const router = createBrowserRouter([
       },
       {
         path: '/rogue',
-        element: (
+        element: withSuspense(
           <PrivateRoute>
             <RogueGamePage />
           </PrivateRoute>
