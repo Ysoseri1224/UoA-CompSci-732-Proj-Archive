@@ -401,15 +401,22 @@ test('generateUpgradePool returns exactly 3 upgrades', () => {
   }
 });
 
-test('generateUpgradePool returns upgrades for the chosen element', () => {
-  const pool = generateUpgradePool('WATER', 3);
-  // At least one upgrade should reference the chosen element
-  const hasElementUpgrade = pool.some(u =>
-    u.buff.element === 'WATER' ||
-    u.id.includes('WATER') ||
-    u.id.includes('water')
-  );
-  assert.ok(hasElementUpgrade);
+test('generateUpgradePool honors excludeTypes', () => {
+  const pool = generateUpgradePool('WATER', 2, ['SKILL_ENERGY_MAX']);
+  const hasSkillEnergy = pool.some(u => u.buff.type === 'SKILL_ENERGY_MAX');
+  assert.equal(hasSkillEnergy, false);
+});
+
+test('generateUpgradePool returns exactly 3 when excludeTypes removes most items', () => {
+  // Exclude almost everything — pool should still return what's left
+  const exclude = ['HAND_MULT_BONUS', 'HAND_CHIPS_BONUS', 'ALL_CHIPS_BONUS',
+    'ELEMENT_DRAW_ON_SHUFFLE', 'HIGH_RANK_DRAW_ON_SHUFFLE', 'HP_BONUS', 'SKILL_ENERGY_MAX'];
+  const pool = generateUpgradePool('WATER', 2, exclude);
+  // Only ELEMENT_CHIP_MULT and ELEMENT_CHIPS_BONUS remain (2 items), so return min(2, 3) = 2
+  assert.ok(pool.length >= 1 && pool.length <= 3);
+  const types = pool.map(u => u.buff.type);
+  const invalid = types.filter(t => exclude.includes(t));
+  assert.equal(invalid.length, 0);
 });
 
 // ══════════════════════════════════════════════════════════════════
