@@ -1,4 +1,5 @@
 import { createBrowserRouter, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
 
 import Navbar from '../components/layout/Navbar.jsx';
 import PrivateRoute from './PrivateRoute.jsx';
@@ -14,9 +15,32 @@ import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import ReplayPage from '../pages/ReplayPage.jsx';
 import AttackEffectPreviewPage from '../pages/AttackEffectPreviewPage.jsx';
 
+import useAuthStore from '../store/authStore.js';
+import { audioManager } from '../utils/audioManager.js';
+
 // Root layout wraps every page with the Navbar.
 // <Outlet /> renders the matched child route's component below the Navbar.
 function RootLayout() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  useEffect(() => {
+    if (isAuthenticated) {
+      const tryPlayBGM = () => {
+        audioManager.playBGM();
+        document.removeEventListener('click', tryPlayBGM);
+        document.removeEventListener('keydown', tryPlayBGM);
+      };
+      audioManager.playBGM();
+      document.addEventListener('click', tryPlayBGM);
+      document.addEventListener('keydown', tryPlayBGM);
+      return () => {
+        document.removeEventListener('click', tryPlayBGM);
+        document.removeEventListener('keydown', tryPlayBGM);
+      };
+    } else {
+      audioManager.stopBGM();
+    }
+  }, [isAuthenticated]);
+
   return (
     <>
       <Navbar />

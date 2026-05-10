@@ -4,6 +4,7 @@ import usePveSocketStore from '../store/pveSocketStore.js';
 import { adaptPveGameState } from '../socket/pveSocketAdapter.js';
 import { useAuth } from './useAuth.js';
 import { HAND_TYPES } from '../data/handTypes.js';
+import { audioManager } from '../utils/audioManager.js';
 
 const MAX_SELECT = 5;
 const EMPTY_EVALUATION = {
@@ -260,6 +261,7 @@ export function useGameLogic(roomId = null) {
   }, [beginBattlePhase, ensureSocket, phase, player.hp, shieldActive]);
 
   const toggleSelect = useCallback((cardId) => {
+    audioManager.playSFX('select');
     const socket = ensureSocket();
     if (!socket || connectionStatus !== 'connected' || gameOver) return;
 
@@ -289,6 +291,7 @@ export function useGameLogic(roomId = null) {
   const discardSelected = useCallback(() => {
     const socket = ensureSocket();
     if (!socket || selected.length === 0) return;
+    audioManager.playSFX('discard');
     socket.emit('shuffleCards', { cardIds: selected });
     setSelected([]);
   }, [ensureSocket, selected]);
@@ -296,6 +299,7 @@ export function useGameLogic(roomId = null) {
   const playHand = useCallback(() => {
     const socket = ensureSocket();
     if (!socket || selected.length === 0 || gameOver) return;
+    audioManager.playSFX('play');
     if (phase !== 'PLAY') {
       pendingPlayConfirmRef.current = true;
       socket.emit('enterPlay');
@@ -312,6 +316,7 @@ export function useGameLogic(roomId = null) {
   const skillChangeColor = useCallback((cardId, newColor) => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_change');
     socket.emit('useSkill', {
       skill: 'changeColor',
       cardId,
@@ -322,6 +327,7 @@ export function useGameLogic(roomId = null) {
   const skillChangeCost = useCallback((cardId, newCost) => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_change');
     socket.emit('useSkill', {
       skill: 'changeCost',
       cardId,
@@ -332,6 +338,7 @@ export function useGameLogic(roomId = null) {
   const skillActivateShield = useCallback(() => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_shield');
     socket.emit('useSkill', { skill: 'shield' });
   }, [ensureSocket]);
 
