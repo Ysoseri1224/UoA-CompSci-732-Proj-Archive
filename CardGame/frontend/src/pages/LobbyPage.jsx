@@ -31,7 +31,7 @@ const LOBBY_LOGO_ICON_URL = '/logo/logo-icon-transparent.png';
 const LOBBY_BACKGROUND_VIDEO_URL = '/lobby/lobbyBackground.mp4';
 
 /** Season 1 countdown target (UTC midnight). */
-const SEASON_END_UTC_MS = Date.parse('2026-06-10T00:00:00Z');
+const SEASON_END_UTC_MS = new Date('2026-06-10T00:00:00Z').getTime();
 
 /**
  * @param {number} remainingMs
