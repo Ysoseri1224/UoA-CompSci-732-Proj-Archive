@@ -54,14 +54,18 @@ export function createRoom(opts: {
   }
 
   const deckState = initDeckState();
+  const player = createPlayerState({ hp: playerHpForLayer(layer), maxHp: playerHpForLayer(layer) });
+  const roundState = createRoundState();
+  roundState.skills.energy = player.skillEnergyMax; // 每层开始回满充能
+
   const ctx: GameContext = {
     deck: deckState.deck,
     discardPile: deckState.discardPile,
     hand: deckState.hand,
-    player: createPlayerState({ hp: playerHpForLayer(layer), maxHp: playerHpForLayer(layer) }),
+    player,
     boss: createBossForLayer(layer),
     round: 1,
-    roundState: createRoundState(),
+    roundState,
     battleResult: 'ONGOING',
   };
 

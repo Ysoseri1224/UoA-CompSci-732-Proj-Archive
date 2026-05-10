@@ -102,10 +102,7 @@ export function doSkillChangeColor(ctx: GameContext, cardId: string, newColor: E
     ...ds,
     roundState: {
       ...ctx.roundState,
-      skills: {
-        ...ctx.roundState.skills,
-        changeColor: { used: true },
-      },
+      skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
     },
   };
 }
@@ -121,10 +118,7 @@ export function doSkillChangeCost(ctx: GameContext, cardId: string, newCost: Ran
     ...ds,
     roundState: {
       ...ctx.roundState,
-      skills: {
-        ...ctx.roundState.skills,
-        changeCost: { used: true },
-      },
+      skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
     },
   };
 }
@@ -139,7 +133,7 @@ export function doSkillShield(ctx: GameContext): GameContext {
     roundState: {
       ...ctx.roundState,
       skills: {
-        ...ctx.roundState.skills,
+        energy: Math.max(0, ctx.roundState.skills.energy - 1),
         shield: activateShield(ctx.roundState.skills.shield),
       },
     },
@@ -345,7 +339,7 @@ export function doRoundEndConfirm(ctx: GameContext): GameContext {
     roundState: {
       ...createRoundState(),
       skills: {
-        ...createRoundState().skills,
+        energy: ctx.roundState.skills.energy,  // 充能跨回合保留
         shield: { ...ctx.roundState.skills.shield }, // shield persists
       },
     },

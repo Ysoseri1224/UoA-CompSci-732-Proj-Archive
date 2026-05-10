@@ -101,16 +101,16 @@ export function resetShieldCooldown(shield: ShieldState): ShieldState {
 //  守卫条件
 // ══════════════════════════════════════════════════════════════════
 
-export function canUseChangeColor(skills: { changeColor: { used: boolean } }, phase: string): boolean {
-  return !skills.changeColor.used && phase === 'SKILL';
+export function canUseChangeColor(energy: number, phase: string): boolean {
+  return energy > 0 && phase === 'SKILL';
 }
 
-export function canUseChangeCost(skills: { changeCost: { used: boolean } }, phase: string): boolean {
-  return !skills.changeCost.used && phase === 'SKILL';
+export function canUseChangeCost(energy: number, phase: string): boolean {
+  return energy > 0 && phase === 'SKILL';
 }
 
-export function canUseShield(shield: ShieldState, phase: string): boolean {
-  return !shield.active && !shield.onCooldown && phase === 'SKILL';
+export function canUseShield(energy: number, shield: ShieldState, phase: string): boolean {
+  return energy > 0 && !shield.active && !shield.onCooldown && phase === 'SKILL';
 }
 
 export function canShuffle(shuffle: { remaining: number }, phase: string): boolean {
@@ -130,9 +130,8 @@ export function resetRoundSkills(
 ): { skills: RoundSkills; shuffle: { remaining: number } } {
   return {
     skills: {
-      changeColor: { used: false },
-      changeCost:  { used: false },
-      shield:      { ...skills.shield },
+      energy: skills.energy,  // 充能跨回合保留
+      shield: { ...skills.shield },
     },
     shuffle: { remaining: 2 },
   };

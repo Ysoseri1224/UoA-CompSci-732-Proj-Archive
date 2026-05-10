@@ -273,25 +273,25 @@ test('shield full lifecycle: activate → block boss → shatter → cooldown �
 //  Guard conditions
 // ══════════════════════════════════════════════════════════════════
 
-test('canUseChangeColor: true only in SKILL phase and not used', () => {
-  assert.equal(canUseChangeColor({ changeColor: { used: false } }, 'SKILL'), true);
-  assert.equal(canUseChangeColor({ changeColor: { used: true } }, 'SKILL'), false);
-  assert.equal(canUseChangeColor({ changeColor: { used: false } }, 'PLAY'), false);
-  assert.equal(canUseChangeColor({ changeColor: { used: false } }, 'SHUFFLE'), false);
+test('canUseChangeColor: true only with energy > 0 in SKILL phase', () => {
+  assert.equal(canUseChangeColor(1, 'SKILL'), true);
+  assert.equal(canUseChangeColor(0, 'SKILL'), false);
+  assert.equal(canUseChangeColor(1, 'PLAY'), false);
 });
 
-test('canUseChangeCost: true only in SKILL phase and not used', () => {
-  assert.equal(canUseChangeCost({ changeCost: { used: false } }, 'SKILL'), true);
-  assert.equal(canUseChangeCost({ changeCost: { used: true } }, 'SKILL'), false);
-  assert.equal(canUseChangeCost({ changeCost: { used: false } }, 'DRAW'), false);
+test('canUseChangeCost: true only with energy > 0 in SKILL phase', () => {
+  assert.equal(canUseChangeCost(3, 'SKILL'), true);
+  assert.equal(canUseChangeCost(0, 'SKILL'), false);
+  assert.equal(canUseChangeCost(1, 'DRAW'), false);
 });
 
-test('canUseShield: true only when not active, not on cooldown, in SKILL phase', () => {
+test('canUseShield: true with energy > 0, not active, not cd, in SKILL', () => {
   const shield = { active: false, onCooldown: false };
-  assert.equal(canUseShield(shield, 'SKILL'), true);
-  assert.equal(canUseShield({ active: true, onCooldown: false }, 'SKILL'), false);
-  assert.equal(canUseShield({ active: false, onCooldown: true }, 'SKILL'), false);
-  assert.equal(canUseShield(shield, 'PLAY'), false);
+  assert.equal(canUseShield(1, shield, 'SKILL'), true);
+  assert.equal(canUseShield(0, shield, 'SKILL'), false);
+  assert.equal(canUseShield(1, { active: true, onCooldown: false }, 'SKILL'), false);
+  assert.equal(canUseShield(1, { active: false, onCooldown: true }, 'SKILL'), false);
+  assert.equal(canUseShield(1, shield, 'PLAY'), false);
 });
 
 test('canShuffle: true only when remaining > 0 and in SHUFFLE phase', () => {
@@ -310,31 +310,20 @@ test('canPlay: true only when at least 1 card selected and in PLAY phase', () =>
 //  resetRoundSkills
 // ══════════════════════════════════════════════════════════════════
 
-test('resetRoundSkills resets changeColor and changeCost, preserves shield', () => {
-  const skills = {
-    changeColor: { used: true },
-    changeCost:  { used: true },
-    shield:      { active: true, onCooldown: false },
-  };
+test('resetRoundSkills preserves energy and shield, resets shuffle', () => {
+  const skills = { energy: 1, shield: { active: true, onCooldown: false } };
   const result = resetRoundSkills(skills);
 
-  assert.equal(result.skills.changeColor.used, false);
-  assert.equal(result.skills.changeCost.used, false);
-  // Shield preserved
+  assert.equal(result.skills.energy, 1);  // energy persists
   assert.equal(result.skills.shield.active, true);
   assert.equal(result.skills.shield.onCooldown, false);
-  // Shuffle reset
   assert.equal(result.shuffle.remaining, 2);
 });
 
 test('resetRoundSkills does not mutate original', () => {
-  const skills = {
-    changeColor: { used: true },
-    changeCost:  { used: true },
-    shield:      { active: false, onCooldown: true },
-  };
+  const skills = { energy: 2, shield: { active: false, onCooldown: true } };
   resetRoundSkills(skills);
 
-  assert.equal(skills.changeColor.used, true);
+  assert.equal(skills.energy, 2);
   assert.equal(skills.shield.onCooldown, true);
 });
