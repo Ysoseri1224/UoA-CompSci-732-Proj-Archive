@@ -19,11 +19,11 @@ function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const isLobbyRoute = pathname === '/lobby';
-  /** Lobby uses its own sidebar; skip duplicate center links. */
-  const hideCenterNav = isAuthenticated && isLobbyRoute;
-  /** Hide Home in the dashboard shell (/lobby) when top links are visible. */
-  const showHomeLink = !isAuthenticated || !isLobbyRoute;
+  const dashboardShell = pathname === '/lobby' || pathname === '/leaderboard';
+  /** Lobby / leaderboard dashboards use inline sidebar; hide duplicate centre links when logged in. */
+  const hideCenterNav = isAuthenticated && dashboardShell;
+  /** Hide Home in dashboard shell routes when authenticated. */
+  const showHomeLink = !isAuthenticated || !dashboardShell;
 
   async function handleLogout() {
     try {

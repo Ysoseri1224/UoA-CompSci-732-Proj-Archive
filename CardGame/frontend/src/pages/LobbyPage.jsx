@@ -300,7 +300,7 @@ export default function LobbyPage() {
 
   return (
       <div
-          className="relative isolate flex h-[calc(100dvh-var(--navbar-height))] min-h-[calc(100dvh-var(--navbar-height))] w-full flex-col overflow-x-hidden bg-[#05050f] text-slate-200"
+          className="lobby-dash-root relative isolate flex h-[calc(100dvh-var(--navbar-height))] min-h-[calc(100dvh-var(--navbar-height))] w-full max-w-[100vw] flex-col overflow-x-hidden bg-[#05050f] text-slate-200"
       >
         <style>{`
         @keyframes lobby-pulse {
@@ -341,6 +341,64 @@ export default function LobbyPage() {
           filter: drop-shadow(0 3px 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 1px 0 rgba(167, 139, 250, 0.5))
             drop-shadow(0 0 18px rgba(186, 170, 255, 0.55)) drop-shadow(0 0 36px rgba(88, 28, 135, 0.45));
         }
+
+        /* ── 14″ / narrow desktop only: proportional tighten; ≥1601px unchanged ── */
+        @media (max-width: 1600px) {
+          .lobby-dash-root .lobby-dash-shell {
+            padding-left: clamp(0.85rem, 1.9vw, 2.75rem);
+            padding-right: clamp(0.85rem, 1.9vw, 2.75rem);
+            padding-top: clamp(0.95rem, 2vw, 1.35rem);
+            padding-bottom: clamp(0.95rem, 2vw, 1.35rem);
+          }
+          .lobby-dash-root .lobby-dash-header {
+            margin-bottom: clamp(1.35rem, 2.65vw, 2.65rem);
+          }
+          .lobby-dash-root .lobby-dash-main {
+            gap: clamp(1.65rem, 2.85vw, 2.85rem);
+          }
+          .lobby-dash-root .lobby-dash-aside {
+            gap: clamp(1.65rem, 2.85vw, 2.85rem);
+          }
+        }
+
+        @media (max-width: 1600px) and (min-width: 1024px) {
+          .lobby-dash-root .lobby-dash-grid {
+            gap: clamp(1.75rem, 3vw, 3rem);
+            grid-template-columns: minmax(220px, min(272px, 17.9vw)) minmax(0, 1fr) minmax(236px, min(292px, 19.25vw));
+          }
+        }
+
+        @media (max-width: 1512px) and (min-width: 1024px) {
+          .lobby-dash-root .lobby-dash-grid {
+            gap: clamp(1.35rem, 2.65vw, 2.65rem);
+            grid-template-columns: minmax(200px, min(252px, 17vw)) minmax(0, 1fr) minmax(220px, min(276px, 18.85vw));
+          }
+          .lobby-dash-root .lobby-dash-hero-title {
+            font-size: clamp(1.5rem, 3.95vw, 2.72rem);
+            letter-spacing: 0.032em;
+          }
+        }
+
+        @media (max-width: 1440px) and (min-width: 1024px) {
+          .lobby-dash-root .lobby-dash-grid {
+            gap: clamp(1.25rem, 2.35vw, 2.35rem);
+            grid-template-columns: minmax(192px, min(238px, 16.75vw)) minmax(0, 1fr) minmax(208px, min(264px, 18.65vw));
+          }
+          .lobby-dash-root .lobby-dash-shell {
+            padding-left: clamp(0.75rem, 1.65vw, 2.25rem);
+            padding-right: clamp(0.75rem, 1.65vw, 2.25rem);
+          }
+        }
+
+        @media (max-width: 1280px) and (min-width: 1024px) {
+          .lobby-dash-root .lobby-dash-grid {
+            gap: clamp(1.05rem, 2.05vw, 2.05rem);
+            grid-template-columns: minmax(180px, min(224px, 18vw)) minmax(0, 1fr) minmax(196px, min(248px, 21vw));
+          }
+          .lobby-dash-root .lobby-dash-hero-title {
+            font-size: clamp(1.38rem, 3.85vw, 2.48rem);
+          }
+        }
       `}</style>
 
         <video
@@ -366,10 +424,10 @@ export default function LobbyPage() {
             }}
         />
 
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-5 pt-5 sm:px-6 md:pb-6 xl:px-12">
+        <div className="lobby-dash-shell relative z-10 flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 pb-5 pt-5 sm:px-6 md:pb-6 xl:px-12">
           {/* —— Top bar (full width) —— */}
           <header
-              className={`${panelSurface} ${padStd} mb-7 flex shrink-0 flex-wrap items-center justify-between gap-4 lg:mb-10`}
+              className={`lobby-dash-header ${panelSurface} ${padStd} mb-7 flex shrink-0 flex-wrap items-center justify-between gap-4 lg:mb-10`}
           >
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:gap-x-6">
@@ -404,9 +462,9 @@ export default function LobbyPage() {
           </header>
 
           {/* —— Three columns (reference proportions) —— */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 pb-3 lg:grid-cols-[minmax(248px,280px)_minmax(0,1fr)_minmax(268px,300px)] lg:items-stretch lg:gap-12 xl:gap-16">
+          <div className="lobby-dash-grid grid min-h-0 min-w-0 max-w-full flex-1 grid-cols-1 gap-8 pb-3 lg:grid-cols-[minmax(248px,280px)_minmax(0,1fr)_minmax(268px,300px)] lg:items-stretch lg:gap-12 xl:gap-16">
             {/* LEFT — profile / XP / stats / nav */}
-            <aside className={`${panelSurface} ${padStd} flex min-h-0 flex-col overflow-y-auto`}>
+            <aside className={`${panelSurface} ${padStd} flex min-h-0 min-w-0 flex-col overflow-y-auto`}>
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-start lg:gap-5 lg:text-left">
                   <div
@@ -522,7 +580,7 @@ export default function LobbyPage() {
             </aside>
 
             {/* CENTER — hero + solo fills middle; leaderboard/profile at bottom */}
-            <main className="flex h-full min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
+            <main className="lobby-dash-main flex h-full min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
               <section
                   className="relative w-full shrink-0 self-start overflow-hidden rounded-2xl border border-violet-400/22 bg-black/35 shadow-[0_0_48px_rgba(88,28,135,0.18)] backdrop-blur-md min-h-[11rem] sm:min-h-[13rem] md:w-1/2 md:max-w-[50%] lg:min-h-[15rem]"
                   style={{
@@ -543,7 +601,7 @@ export default function LobbyPage() {
                 />
                 <div className="relative z-10 flex h-full flex-col justify-center p-5 md:p-7 lg:p-8">
                   <p className={`${labelUi} mb-2 text-cyan-300/90`}>WELCOME BACK,</p>
-                  <h1 className="lobby-display-serif text-[clamp(1.75rem,4.2vw,3rem)] font-bold uppercase leading-[1.05] tracking-[0.04em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)]">
+                  <h1 className="lobby-dash-hero-title lobby-display-serif text-[clamp(1.75rem,4.2vw,3rem)] font-bold uppercase leading-[1.05] tracking-[0.04em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)]">
                     {displayNameCaps}
                   </h1>
                   <p className="mt-3 text-base font-medium italic tracking-wide text-violet-200/95 sm:text-lg">
@@ -677,7 +735,7 @@ export default function LobbyPage() {
             </main>
 
             {/* RIGHT — season + recent matches (mock) */}
-            <aside className="flex min-h-0 flex-col gap-8 lg:gap-10">
+            <aside className="lobby-dash-aside flex min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
               <div className={`${panelSurface} flex flex-col items-center px-5 pb-6 pt-6 text-center md:px-6 md:pb-7 md:pt-7`}>
                 <header className="flex w-full flex-col items-center gap-2">
                   <p className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.32em] text-white/90">
