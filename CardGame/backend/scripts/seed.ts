@@ -18,14 +18,14 @@ interface SeedUser {
 }
 
 const SEED_USERS: SeedUser[] = [
-  { username: 'FireMage',    email: 'fire@test.com',    stats: { totalGames: 45, totalWins: 38, winRate: 84, maxDamage: 2500 } },
-  { username: 'WaterLord',   email: 'water@test.com',   stats: { totalGames: 62, totalWins: 48, winRate: 77, maxDamage: 3200 } },
-  { username: 'GrassKing',   email: 'grass@test.com',   stats: { totalGames: 30, totalWins: 22, winRate: 73, maxDamage: 1800 } },
-  { username: 'NoobPlayer',  email: 'noob@test.com',    stats: { totalGames: 12, totalWins: 3,  winRate: 25, maxDamage: 600  } },
-  { username: 'DeckMaster',  email: 'deck@test.com',    stats: { totalGames: 88, totalWins: 70, winRate: 79, maxDamage: 4100 } },
-  { username: 'CasualGamer', email: 'casual@test.com',   stats: { totalGames: 20, totalWins: 11, winRate: 55, maxDamage: 1200 } },
-  { username: 'BOSSslayer',  email: 'slayer@test.com',   stats: { totalGames: 55, totalWins: 44, winRate: 80, maxDamage: 3500 } },
-  { username: 'FreshStart',  email: 'fresh@test.com',    stats: { totalGames: 1,  totalWins: 1,  winRate: 100,maxDamage: 300  } },
+  { username: 'FireMage',    email: 'fire@test.com',    stats: { totalGames: 156, totalWins: 103, winRate: 66, maxDamage: 2500 } },
+  { username: 'WaterLord',   email: 'water@test.com',   stats: { totalGames: 234, totalWins: 149, winRate: 64, maxDamage: 3200 } },
+  { username: 'GrassKing',   email: 'grass@test.com',   stats: { totalGames: 98,  totalWins: 57,  winRate: 58, maxDamage: 1800 } },
+  { username: 'NoobPlayer',  email: 'noob@test.com',    stats: { totalGames: 47,  totalWins: 18,  winRate: 38, maxDamage: 600  } },
+  { username: 'DeckMaster',  email: 'deck@test.com',    stats: { totalGames: 312, totalWins: 218, winRate: 70, maxDamage: 4100 } },
+  { username: 'CasualGamer', email: 'casual@test.com',   stats: { totalGames: 73,  totalWins: 34,  winRate: 47, maxDamage: 1200 } },
+  { username: 'BossSlayer',  email: 'slayer@test.com',   stats: { totalGames: 189, totalWins: 125, winRate: 66, maxDamage: 3500 } },
+  { username: 'FreshStart',  email: 'fresh@test.com',    stats: { totalGames: 8,   totalWins: 4,   winRate: 50, maxDamage: 300  } },
 ];
 
 // ══════════════════════════════════════════════════════════════════
@@ -52,9 +52,9 @@ async function seed() {
   await mongoose.connect(MONGO_URI);
   console.log('Connected.');
 
-  // 清空已有种子数据（按 username 精确清理，避免误删真实数据）
-  const seedUsernames = SEED_USERS.map(u => u.username);
-  const deletedUsers = await User.deleteMany({ username: { $in: seedUsernames } });
+  // 清空已有种子数据（按 email 匹配 @test.com，避免误删真实数据）
+  const seedEmails = SEED_USERS.map(u => u.email);
+  const deletedUsers = await User.deleteMany({ email: { $in: seedEmails } });
   console.log(`Cleared ${deletedUsers.deletedCount} existing seed users.`);
 
   // 创建用户
@@ -79,24 +79,23 @@ async function seed() {
   }
   console.log(`Upserted ${SEED_ACHIEVEMENTS.length} achievements.`);
 
-  // 给高胜率用户创建几场 Match 记录
-  const topUsers = users.filter(u =>
-    ['FireMage', 'DeckMaster', 'BOSSslayer'].includes(u.username),
-  );
-  const bosses = ['boss_layer_1', 'boss_layer_3', 'boss_layer_5'];
+  // 给每个用户生成多场 Match 记录（模拟测试历史）
+  const bosses = ['boss_layer_1', 'boss_layer_2', 'boss_layer_3', 'boss_layer_4', 'boss_layer_5'];
+  const elements = ['WATER', 'FIRE', 'GRASS'] as const;
   const matches = [];
-  for (const user of topUsers) {
-    for (let i = 0; i < 3; i++) {
+  for (const user of users) {
+    const count = 8 + Math.floor(Math.random() * 12); // 每人 8~19 场
+    for (let i = 0; i < count; i++) {
       matches.push({
         matchType: 'PVE',
         userId: user._id,
-        bossId: bosses[i],
-        layer: i * 2 + 1,
-        isWin: Math.random() > 0.3,
-        chosenElement: ['WATER', 'FIRE', 'GRASS'][i],
-        totalDamageDealt: 500 + Math.floor(Math.random() * 2000),
-        roundsPlayed: 5 + Math.floor(Math.random() * 10),
-        endedAt: new Date(Date.now() - (i + 1) * 86400000),
+        bossId: bosses[i % bosses.length],
+        layer: (i % 5) + 1,
+        isWin: Math.random() < (user.stats.winRate / 100),
+        chosenElement: elements[i % 3],
+        totalDamageDealt: 400 + Math.floor(Math.random() * 2500),
+        roundsPlayed: 3 + Math.floor(Math.random() * 15),
+        endedAt: new Date(Date.now() - i * 43200000), // 每半天下沉一场
       });
     }
   }
