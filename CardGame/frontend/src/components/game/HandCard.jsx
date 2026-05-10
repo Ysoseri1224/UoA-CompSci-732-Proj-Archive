@@ -35,6 +35,7 @@ export default function HandCard({ card, isSelected, selectionIndex, onClick }) 
         onMouseLeave={() => setHovered(false)}
         style={{
           position:   'relative',
+          zIndex:     isSelected ? 220 : hovered ? 180 : 'auto',
           width:      96,
           height:     140,
           borderRadius: 12,
@@ -85,7 +86,7 @@ export default function HandCard({ card, isSelected, selectionIndex, onClick }) 
             bottom:        'calc(100% + 12px)',
             left:          '50%',
             transform:     'translateX(-50%)',
-            zIndex:        100,
+            zIndex:        280,
             pointerEvents: 'none',
             animation:     'popIn 0.15s ease-out forwards',
           }}>
