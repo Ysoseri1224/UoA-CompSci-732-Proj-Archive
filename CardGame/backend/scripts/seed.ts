@@ -18,14 +18,14 @@ interface SeedUser {
 }
 
 const SEED_USERS: SeedUser[] = [
-  { username: 'FireMage',    email: 'fire@test.com',    stats: { totalGames: 156, totalWins: 103, winRate: 66, maxDamage: 2500 } },
-  { username: 'WaterLord',   email: 'water@test.com',   stats: { totalGames: 234, totalWins: 149, winRate: 64, maxDamage: 3200 } },
-  { username: 'GrassKing',   email: 'grass@test.com',   stats: { totalGames: 98,  totalWins: 57,  winRate: 58, maxDamage: 1800 } },
-  { username: 'NoobPlayer',  email: 'noob@test.com',    stats: { totalGames: 47,  totalWins: 18,  winRate: 38, maxDamage: 600  } },
-  { username: 'DeckMaster',  email: 'deck@test.com',    stats: { totalGames: 312, totalWins: 218, winRate: 70, maxDamage: 4100 } },
-  { username: 'CasualGamer', email: 'casual@test.com',   stats: { totalGames: 73,  totalWins: 34,  winRate: 47, maxDamage: 1200 } },
-  { username: 'BossSlayer',  email: 'slayer@test.com',   stats: { totalGames: 189, totalWins: 125, winRate: 66, maxDamage: 3500 } },
-  { username: 'FreshStart',  email: 'fresh@test.com',    stats: { totalGames: 8,   totalWins: 4,   winRate: 50, maxDamage: 300  } },
+  { username: 'test01',   email: 'test01@test.com', stats: { totalGames: 67,  totalWins: 44, winRate: 66, maxDamage: 2500 } },
+  { username: 'test02',   email: 'test02@test.com', stats: { totalGames: 89,  totalWins: 55, winRate: 62, maxDamage: 2100 } },
+  { username: 'test03',   email: 'test03@test.com', stats: { totalGames: 34,  totalWins: 21, winRate: 62, maxDamage: 1800 } },
+  { username: 'player42', email: 'p42@test.com',    stats: { totalGames: 103, totalWins: 71, winRate: 69, maxDamage: 3200 } },
+  { username: 'player77', email: 'p77@test.com',    stats: { totalGames: 56,  totalWins: 38, winRate: 68, maxDamage: 2800 } },
+  { username: 'qwerty',   email: 'qw@test.com',      stats: { totalGames: 41,  totalWins: 16, winRate: 39, maxDamage: 900  } },
+  { username: 'asdfgh',   email: 'as@test.com',      stats: { totalGames: 22,  totalWins: 7,  winRate: 32, maxDamage: 500  } },
+  { username: 'newbie',   email: 'new@test.com',    stats: { totalGames: 5,   totalWins: 2,  winRate: 40, maxDamage: 250  } },
 ];
 
 // ══════════════════════════════════════════════════════════════════
@@ -103,7 +103,7 @@ async function seed() {
   console.log(`Inserted ${insertedMatches.length} sample matches.`);
 
   console.log('\nSeed complete. Test login:');
-  console.log(`  Email:    fire@test.com`);
+  console.log(`  Email:    test01@test.com`);
   console.log(`  Password: ${PASSWORD}`);
   console.log(`\nLeaderboard:  http://localhost:3000/api/leaderboard`);
 
