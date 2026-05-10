@@ -14,6 +14,7 @@ import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import ReplayPage from '../pages/ReplayPage.jsx';
 import AttackEffectPreviewPage from '../pages/AttackEffectPreviewPage.jsx';
+import RogueGamePage from '../pages/RogueGamePage.jsx';
 
 import useAuthStore from '../store/authStore.js';
 import { audioManager } from '../utils/audioManager.js';
@@ -102,6 +103,14 @@ const router = createBrowserRouter([
         element: (
           <PrivateRoute>
             <ReplayPage />
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: '/rogue',
+        element: (
+          <PrivateRoute>
+            <RogueGamePage />
           </PrivateRoute>
         ),
       },

@@ -6,8 +6,10 @@ import {
   getRoom,
   createRoom,
   sendRoomEvent,
+  updateRoom,
   stopRoomForSocket,
 } from '../pve/runtime.js';
+import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
 import {
   drawComplete,
   bossTelegraphComplete,
@@ -249,6 +251,97 @@ export function registerPveHandlers(socket: Socket): void {
       r = sendRoomEvent(roomId, bossTelegraphComplete());
       if (r.ctx) emit(r.ctx);
     }
+  });
+
+  // ── 推进到下一层（前端在 battleWin 动画后发送）────────────
+  socket.on('advanceLayer', (payload?: { shuffleCount?: number; buffs?: any[] }) => {
+    const roomId = getRoomId(socket.id);
+    if (!roomId) return;
+    const ctx = getRoom(roomId);
+    if (!ctx) { emitError('Room not found'); return; }
+
+    const nextLayer    = ctx.boss.layer + 1;
+    const nextBoss     = createBossForLayer(nextLayer);
+    const nextHp       = playerHpForLayer(nextLayer);
+    const shuffleCount = Math.max(2, Math.floor(payload?.shuffleCount ?? 2));
+    const buffs        = Array.isArray(payload?.buffs) ? payload.buffs : ctx.player.buffs ?? [];
+
+    const roundState = {
+      ...ctx.roundState,
+      phase: 'DRAW' as const,
+      skills: {
+        energy: ctx.player.skillEnergyMax,
+        shield: { active: false, onCooldown: false, cooldownRounds: 0 },
+      },
+      shuffle:   { remaining: shuffleCount, pendingDiscard: [] },
+      play:      { selectedCards: [], handType: null, score: null },
+      bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
+    };
+
+    const newCtx: GameContext = {
+      ...ctx,
+      player: { ...ctx.player, hp: nextHp, maxHp: nextHp, buffs },
+      boss: nextBoss,
+      round: 1,
+      roundState,
+      battleResult: 'ONGOING',
+    };
+    updateRoom(roomId, newCtx);
+
+    let r = sendRoomEvent(roomId, drawComplete());
+    if (r.ctx) emit(r.ctx);
+    r = sendRoomEvent(roomId, bossTelegraphComplete());
+    if (r.ctx) emit(r.ctx);
+
+    logger.info({ socketId: socket.id, roomId, nextLayer }, 'advanced to next layer');
+  });
+
+  // ── 从存档恢复─────────────────────────────
+  socket.on('restoreFromCheckpoint', (payload: {
+    layer: number;
+    playerHp: number;
+    bossHp: number;
+    shuffleCount?: number;
+  }) => {
+    const roomId = getRoomId(socket.id);
+    if (!roomId) { emitError('No active room'); return; }
+    const ctx = getRoom(roomId);
+    if (!ctx) { emitError('Room not found'); return; }
+
+    const layer = Math.max(1, Math.floor(payload.layer ?? 1));
+    const boss  = createBossForLayer(layer);
+    boss.hp = Math.max(1, Math.floor(payload.bossHp ?? boss.maxHp));
+    const maxHp = playerHpForLayer(layer);
+    const shuffleCount = Math.max(2, Math.floor(payload.shuffleCount ?? 2));
+
+    const roundState = {
+      ...ctx.roundState,
+      phase: 'DRAW' as const,
+      skills: {
+        energy: ctx.player.skillEnergyMax,
+        shield: { active: false, onCooldown: false, cooldownRounds: 0 },
+      },
+      shuffle:   { remaining: shuffleCount, pendingDiscard: [] },
+      play:      { selectedCards: [], handType: null, score: null },
+      bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
+    };
+
+    const restoredCtx: GameContext = {
+      ...ctx,
+      player: { ...ctx.player, hp: Math.max(1, Math.floor(payload.playerHp ?? maxHp)), maxHp },
+      boss,
+      round: 1,
+      roundState,
+      battleResult: 'ONGOING',
+    };
+    updateRoom(roomId, restoredCtx);
+
+    let r = sendRoomEvent(roomId, drawComplete());
+    if (r.ctx) emit(r.ctx);
+    r = sendRoomEvent(roomId, bossTelegraphComplete());
+    if (r.ctx) emit(r.ctx);
+
+    logger.info({ socketId: socket.id, roomId, layer }, 'restored from checkpoint');
   });
 
   // ── 断开 ──────────────────────────────────────

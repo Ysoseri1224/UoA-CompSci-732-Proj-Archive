@@ -1,7 +1,7 @@
 import { drawCards, playCards, shuffleHand } from '../lib/deck.js';
 import { calculateDamage } from '../lib/hand.js';
 import { skillChangeColor as skillChangeColorFn, skillChangeCost as skillChangeCostFn } from '../lib/skills.js';
-import { activateShield, shatterShield, voidShield } from '../lib/skills.js';
+import { activateShield, shatterShield, voidShield, tickShieldCooldown } from '../lib/skills.js';
 import { createBossRoundState, createRoundState, createShuffleState, createPlayState } from '../types/state.js';
 import { BOSS_WEIGHTS_BY_LAYER, ROUND_PHASE } from '../types/state.js';
 import type { DeckState } from '../lib/deck.js';
@@ -339,8 +339,8 @@ export function doRoundEndConfirm(ctx: GameContext): GameContext {
     roundState: {
       ...createRoundState(),
       skills: {
-        energy: ctx.roundState.skills.energy,  // 充能跨回合保留
-        shield: { ...ctx.roundState.skills.shield }, // shield persists
+        energy: ctx.roundState.skills.energy,
+        shield: tickShieldCooldown(ctx.roundState.skills.shield),
       },
     },
   };
