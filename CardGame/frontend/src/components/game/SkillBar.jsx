@@ -1,5 +1,6 @@
 // src/components/game/SkillBar.jsx
 import { useState } from 'react';
+import '../../styles/skill-bar.css';
 
 const COLORS = [
   { value: 'red',   label: 'Red',   dot: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
@@ -62,34 +63,6 @@ export default function SkillBar({
 
   return (
     <>
-      <style>{`
-        .skill-slot-inner {
-          transition: transform 0.5s ease;
-          transform-style: preserve-3d;
-          position: relative;
-          width: 100%;
-          height: 100%;
-        }
-        .skill-slot-inner.flipped {
-          transform: rotateY(180deg);
-        }
-        .skill-face, .skill-back {
-          position: absolute;
-          inset: 0;
-          backface-visibility: hidden;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-        .skill-back {
-          transform: rotateY(180deg);
-          background: radial-gradient(circle at 40% 30%, #1a2a4a, #0a0f1e);
-          border: 1px solid rgba(96,165,250,0.4);
-        }
-      `}</style>
-
       <div style={{
         position: 'relative',
         width: W,
