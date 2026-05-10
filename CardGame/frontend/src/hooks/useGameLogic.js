@@ -25,24 +25,18 @@ const COLOR_TO_ELEMENT = {
 const ATTACK_EFFECT_CLEAR_MS = 1050;
 
 /**
- * Infer AttackEffect mode: only pure mono-element hands get fire/water/nature; mixed or unknown → normal (white slash).
- * @param {Array<{ color?: string, element?: string }>|null|undefined} cards
+ * Infer AttackEffect mode: only pure mono-element hands get fire/water/nature; mixed or unknown → normal.
+ * @param {Array<{ color?: string }>|null|undefined} cards
  * @returns {'normal'|'fire'|'water'|'nature'}
  */
 function inferAttackEffectModeFromCards(cards) {
   if (!Array.isArray(cards) || cards.length === 0) return 'normal';
 
-  /** @returns {'fire'|'water'|'nature'|null} */
   function contribution(card) {
     if (!card) return null;
-    const el = typeof card.element === 'string' ? card.element.trim().toUpperCase() : '';
-    if (el === 'FIRE' || el === 'RED') return 'fire';
-    if (el === 'WATER' || el === 'BLUE') return 'water';
-    if (el === 'GRASS' || el === 'NATURE' || el === 'GREEN') return 'nature';
-    const col = String(card.color || '').toLowerCase();
-    if (col === 'red') return 'fire';
-    if (col === 'blue') return 'water';
-    if (col === 'green') return 'nature';
+    if (card.color === 'red') return 'fire';
+    if (card.color === 'blue') return 'water';
+    if (card.color === 'green') return 'nature';
     return null;
   }
 
