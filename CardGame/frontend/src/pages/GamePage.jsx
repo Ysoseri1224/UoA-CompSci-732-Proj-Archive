@@ -33,6 +33,7 @@ export default function GamePage() {
     battlePhase,
     attackEffect,
     skillCharges,
+    maxCharges,
     skillCooldowns,
     shieldActive,
     skillChangeColor,
@@ -87,6 +88,7 @@ export default function GamePage() {
 	        <SkillBar
 	          hand={hand}
 	          skillCharges={skillCharges}
+	          maxCharges={maxCharges}
 	          skillCooldowns={skillCooldowns}
               shieldActive={shieldActive}
 	          skillChangeColor={skillChangeColor}

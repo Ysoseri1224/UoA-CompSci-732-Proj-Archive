@@ -17,6 +17,7 @@ const W = 90;
 export default function SkillBar({
   hand,
   skillCharges = 0,
+  maxCharges = 3,
   skillCooldowns,
   shieldActive,
   skillChangeColor,
@@ -146,7 +147,7 @@ export default function SkillBar({
               {skillCharges}
             </div>
             <div style={{ display: 'flex', gap: 4 }}>
-              {[0,1,2].map(i => (
+              {Array.from({ length: maxCharges }, (_, i) => (
                 <div key={i} style={{
                   width: 9, height: 9, borderRadius: '50%',
                   background: i < skillCharges

@@ -10,8 +10,7 @@ const initialServerState = {
   floor: 1,
   phase: 'DRAW',
   skills: {
-    changeColor: { used: false },
-    changeCost: { used: false },
+    energy: 3,
     shield: { active: false, onCooldown: false },
   },
   shuffle: { remaining: 0, pendingDiscard: [] },
