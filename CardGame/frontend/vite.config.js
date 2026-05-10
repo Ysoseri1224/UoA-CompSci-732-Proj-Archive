@@ -1,24 +1,29 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: '0.0.0.0', // 允许 Windows 浏览器访问容器
-    port: 5173,
-    hmr: {
-      host: 'localhost', // 强制热更新走正确的本地网络
-    },
-    proxy: {
-      '/api': {
-        target: 'http://host.docker.internal:3000', // 解决 Docker 内部 localhost 指向错误的问题
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const backend = env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+  return {
+    plugins: [react()],
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      hmr: {
+        host: 'localhost',
       },
-      '/socket.io': {
-        target: 'http://host.docker.internal:3000',
-        changeOrigin: true,
-        ws: true,
+      proxy: {
+        '/api': {
+          target: backend,
+          changeOrigin: true,
+        },
+        '/socket.io': {
+          target: backend,
+          changeOrigin: true,
+          ws: true,
+        },
       },
     },
-  },
+  };
 });
