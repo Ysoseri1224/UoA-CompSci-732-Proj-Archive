@@ -2,6 +2,7 @@ import express from 'express';
 import { protect } from '../middleware/auth.js';
 import { saveGame, loadGame, clearSave } from '../lib/savepoint.js';
 import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
+import { FIRST_LAYER_UPGRADES, generateUpgradePool } from '../types/buff.js';
 
 const router = express.Router();
 
@@ -9,7 +10,21 @@ function getUserId(req) {
   return req.user?.userId;
 }
 
+// 增益选项 — 公开端点，不需要认证
+router.get('/upgrades', async (req, res, next) => {
+  try {
+    const layer = Math.max(1, parseInt(req.query.layer) || 1);
+    const elementOrder = ['WATER', 'FIRE', 'GRASS'];
+    const chosenElement = req.query.element || elementOrder[(layer - 1) % 3];
+    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer);
+    return res.status(200).json({ success: true, message: 'OK', data: options });
+  } catch (err) { next(err); }
+});
+
 router.use(protect);
+
+// 以下端点需要认证
+// 增益选项（已上移到 protect 之前）
 
 // 开始新局 — 清除旧存档
 router.post('/start', async (req, res, next) => {
@@ -57,6 +72,15 @@ router.put('/save', async (req, res, next) => {
     if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated', data: null });
 
     const { layer, playerHp, bossHp, enhancements, stats } = req.body || {};
+
+    if (typeof layer !== 'number' || layer < 1 || layer > 10)
+      return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
+    if (typeof playerHp !== 'number' || playerHp < 0)
+      return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
+    if (typeof bossHp !== 'number' || bossHp < 0)
+      return res.status(400).json({ success: false, message: 'Invalid bossHp', data: null });
+    if (enhancements !== undefined && !Array.isArray(enhancements))
+      return res.status(400).json({ success: false, message: 'enhancements must be an array', data: null });
     const save    = await loadGame(userId);
     const existing = save?.snapshot ?? {};
 
@@ -76,12 +100,18 @@ router.put('/save', async (req, res, next) => {
 });
 
 // 层通关 — 保存 checkpoint
+// 注意：每层通关后 HP 重置为该层标准属性值，不继承上层剩余 HP
 router.post('/floor-won', async (req, res, next) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated', data: null });
 
     const { layer, playerHp, enhancements } = req.body || {};
+
+    if (typeof layer !== 'number' || layer < 1 || layer > 10)
+      return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
+    if (typeof playerHp !== 'number' || playerHp < 0)
+      return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
     const nextLayer  = (layer ?? 1) + 1;
     const nextBoss   = createBossForLayer(nextLayer);
     const nextHp     = playerHpForLayer(nextLayer);
@@ -144,6 +174,15 @@ router.post('/choose-enhancement', async (req, res, next) => {
     if (!userId) return res.status(401).json({ success: false, message: 'Not authenticated', data: null });
 
     const { enhancement } = req.body || {};
+    if (!enhancement || typeof enhancement !== 'object' || !enhancement.id || !enhancement.buff) {
+      return res.status(400).json({ success: false, message: 'Invalid enhancement', data: null });
+    }
+    const validTypes = ['ELEMENT_CHIP_MULT', 'ELEMENT_CHIPS_BONUS', 'ELEMENT_DRAW_ON_SHUFFLE',
+      'HIGH_RANK_DRAW_ON_SHUFFLE', 'HAND_MULT_BONUS', 'HAND_CHIPS_BONUS',
+      'ALL_CHIPS_BONUS', 'HP_BONUS', 'SKILL_ENERGY_MAX'];
+    if (!validTypes.includes(enhancement.buff.type)) {
+      return res.status(400).json({ success: false, message: 'Invalid buff type', data: null });
+    }
     const save = await loadGame(userId);
     if (!save?.snapshot) return res.status(404).json({ success: false, message: 'No active run', data: null });
 

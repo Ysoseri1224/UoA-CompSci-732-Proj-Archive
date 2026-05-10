@@ -5,18 +5,13 @@ import {
   saveRogueProgress,
   notifyFloorWon,
   notifyFloorLost,
+  getUpgradeOptions,
 } from '../api/rogueapi.js';
-import { FIRST_LAYER_UPGRADES, generateUpgradePool } from '../data/upgrades.js';
-
-function buildEnhancementOptions(layer, chosenElement) {
-  if (layer === 1) return FIRST_LAYER_UPGRADES;
-  return generateUpgradePool(chosenElement ?? 'FIRE', layer);
-}
 
 export function useRogueLogic(onBattleWin = null) {
   const gameLogic     = useGameLogic(null);
-  const socketRef     = gameLogic._socketRef;
-  const chosenElement = gameLogic._chosenElement;
+  const socketRef     = gameLogic.socketRef;
+  const chosenElement = gameLogic.chosenElement;
 
   const [enhancements,        setEnhancements]        = useState([]);
   const [pendingEnhancements, setPendingEnhancements] = useState(null);
@@ -24,9 +19,17 @@ export function useRogueLogic(onBattleWin = null) {
   const [showLose,            setShowLose]            = useState(false);
   const [runComplete,         setRunComplete]         = useState(false);
 
-  const victoryTriggeredRef = useRef(false);
-  const winLayerRef         = useRef(0);
-  const pendingLayerRef     = useRef(null); // layer waiting for boss death animation
+  const victoryTriggeredRef  = useRef(false);
+  const winLayerRef          = useRef(0);
+  const pendingLayerRef      = useRef(null);
+  const onBattleWinRef       = useRef(onBattleWin);
+  onBattleWinRef.current     = onBattleWin;
+  const playerHpRef          = useRef(gameLogic.playerHp);
+  playerHpRef.current        = gameLogic.playerHp;
+  const enhancementsRef      = useRef(enhancements);
+  enhancementsRef.current    = enhancements;
+  const chosenElementRef     = useRef(chosenElement);
+  chosenElementRef.current   = chosenElement;
 
   const floor = gameLogic.floor;
 
@@ -39,9 +42,8 @@ export function useRogueLogic(onBattleWin = null) {
       if (victoryTriggeredRef.current) return;
       victoryTriggeredRef.current = true;
       winLayerRef.current = layer;
-      onBattleWin?.(layer);
-      notifyFloorWon(layer, gameLogic.playerHp, enhancements).catch(console.error);
-      // Store layer and wait for boss death animation to finish
+      onBattleWinRef.current?.(layer);
+      notifyFloorWon(layer, playerHpRef.current, enhancementsRef.current).catch(console.error);
       pendingLayerRef.current = layer;
     };
 
@@ -58,16 +60,16 @@ export function useRogueLogic(onBattleWin = null) {
       socket.off('battleWin',  onBattleWinEvt);
       socket.off('battleLose', onBattleLoseEvt);
     };
-  }, [chosenElement, enhancements, gameLogic.playerHp, onBattleWin, socketRef]);
+  }, [socketRef]); // stable ref only — no stale closure risk
 
-  //  Win detection (layer 10)
+  // Win detection (layer 10)
   useEffect(() => {
     if (gameLogic.gameOver === 'win' && winLayerRef.current >= 10 && !runComplete) {
       setRunComplete(true);
     }
   }, [gameLogic.gameOver, runComplete]);
 
-  // Auto-save progress
+  // Auto-save progress (3000ms debounce)
   useEffect(() => {
     if (!gameLogic.bossHp || gameLogic.gameOver) return;
     const t = setTimeout(() => {
@@ -78,22 +80,24 @@ export function useRogueLogic(onBattleWin = null) {
         enhancements,
         stats:       { totalRounds: gameLogic.round },
       }).catch(console.error);
-    }, 600);
+    }, 3000);
     return () => clearTimeout(t);
   }, [gameLogic.playerHp, gameLogic.round, gameLogic.bossHp, gameLogic.gameOver, floor, enhancements]);
 
-  // Called by RogueGamePage when boss death animation ends
+  // Called by RogueGamePage when boss death animation ends — fetch options from backend
   const showEnhancementAfterAnimation = useCallback(() => {
     const layer = pendingLayerRef.current;
     if (layer == null) return;
     pendingLayerRef.current = null;
     if (layer >= 10) return;
-    setPendingEnhancements(buildEnhancementOptions(layer, chosenElement));
-  }, [chosenElement]);
+    getUpgradeOptions(layer, chosenElementRef.current)
+      .then(options => setPendingEnhancements(options))
+      .catch(console.error);
+  }, []);
 
   // Confirm enhancement
   const confirmEnhancement = useCallback((enhancement) => {
-    const next = [...enhancements, enhancement];
+    const next = [...enhancementsRef.current, enhancement];
     setEnhancements(next);
     setPendingEnhancements(null);
     victoryTriggeredRef.current = false;
@@ -105,7 +109,7 @@ export function useRogueLogic(onBattleWin = null) {
       shuffleCount: 2,
       buffs: next.map(e => e.buff).filter(Boolean),
     });
-  }, [enhancements, socketRef]);
+  }, [socketRef]);
 
   // Retry floor
   const retryFloor = useCallback(async () => {

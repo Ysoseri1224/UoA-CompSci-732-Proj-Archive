@@ -72,12 +72,6 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
       glow: 'rgba(67,233,123,0.85)',
       image: '/images/icon-nature.png',
     },
-
-    shuffle_plus: {
-      symbol: '+1',
-      glow: 'rgba(212,192,161,0.85)',
-      image: '/images/icon-shuffle.png',
-    },
   };
 
   // 无属性卡
@@ -143,13 +137,14 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
         }}
       >
         {options.map((opt) => {
+          const buffElement = opt.buff?.element;
+          const isHighRankDraw = opt.buff?.type === 'HIGH_RANK_DRAW_ON_SHUFFLE';
           const rune = (opt.color && runeConfig[opt.color])
+            || (buffElement && runeConfig[buffElement])
             || (opt.element && runeConfig[opt.element])
-            || (opt.id && runeConfig[opt.id])
             || defaultRuneConfig;
 
-          // opt.icon overrides the rune image directly
-          const iconSrc = opt.icon ?? rune.image;
+          const iconSrc = isHighRankDraw ? '/images/icon-kcard.png' : (opt.icon ?? rune.image);
 
           return (
             <div
@@ -268,7 +263,7 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
                   zIndex: 2,
                 }}
               >
-                {opt.desc}
+                {opt.description}
               </div>
 
               {/* 底部符文 */}

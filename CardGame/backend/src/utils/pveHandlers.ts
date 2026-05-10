@@ -29,6 +29,19 @@ import {
 import type { GameContext } from '../pve/roundMachine.js';
 import { ROUND_PHASE } from '../types/state.js';
 
+function freshRoundState(energy: number, shuffleCount: number) {
+  return {
+    phase: 'DRAW' as const,
+    skills: {
+      energy,
+      shield: { active: false, onCooldown: false, cooldownRounds: 0 },
+    },
+    shuffle:   { remaining: shuffleCount, pendingDiscard: [] },
+    play:      { selectedCards: [], handType: null, score: null },
+    bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
+  };
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  注册 Socket 事件处理器
 // ══════════════════════════════════════════════════════════════════
@@ -264,26 +277,22 @@ export function registerPveHandlers(socket: Socket): void {
     const nextBoss     = createBossForLayer(nextLayer);
     const nextHp       = playerHpForLayer(nextLayer);
     const shuffleCount = Math.max(2, Math.floor(payload?.shuffleCount ?? 2));
-    const buffs        = Array.isArray(payload?.buffs) ? payload.buffs : ctx.player.buffs ?? [];
-
-    const roundState = {
-      ...ctx.roundState,
-      phase: 'DRAW' as const,
-      skills: {
-        energy: ctx.player.skillEnergyMax,
-        shield: { active: false, onCooldown: false, cooldownRounds: 0 },
-      },
-      shuffle:   { remaining: shuffleCount, pendingDiscard: [] },
-      play:      { selectedCards: [], handType: null, score: null },
-      bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
-    };
+    const existing = ctx.player.buffs ?? [];
+    const incoming  = Array.isArray(payload?.buffs) ? payload.buffs : [];
+    const merged    = [...existing];
+    for (const b of incoming) {
+      const idx = merged.findIndex(e => e.type === b.type && e.element === b.element);
+      if (idx >= 0) merged[idx] = b;
+      else merged.push(b);
+    }
+    const buffs = incoming.length > 0 ? merged : existing;
 
     const newCtx: GameContext = {
       ...ctx,
       player: { ...ctx.player, hp: nextHp, maxHp: nextHp, buffs },
       boss: nextBoss,
       round: 1,
-      roundState,
+      roundState: freshRoundState(ctx.player.skillEnergyMax, shuffleCount),
       battleResult: 'ONGOING',
     };
     updateRoom(roomId, newCtx);
@@ -309,29 +318,17 @@ export function registerPveHandlers(socket: Socket): void {
     if (!ctx) { emitError('Room not found'); return; }
 
     const layer = Math.max(1, Math.floor(payload.layer ?? 1));
-    const boss  = createBossForLayer(layer);
-    boss.hp = Math.max(1, Math.floor(payload.bossHp ?? boss.maxHp));
+    const bossTemplate = createBossForLayer(layer);
+    const boss = { ...bossTemplate, hp: Math.max(1, Math.floor(payload.bossHp ?? bossTemplate.maxHp)) };
     const maxHp = playerHpForLayer(layer);
     const shuffleCount = Math.max(2, Math.floor(payload.shuffleCount ?? 2));
-
-    const roundState = {
-      ...ctx.roundState,
-      phase: 'DRAW' as const,
-      skills: {
-        energy: ctx.player.skillEnergyMax,
-        shield: { active: false, onCooldown: false, cooldownRounds: 0 },
-      },
-      shuffle:   { remaining: shuffleCount, pendingDiscard: [] },
-      play:      { selectedCards: [], handType: null, score: null },
-      bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
-    };
 
     const restoredCtx: GameContext = {
       ...ctx,
       player: { ...ctx.player, hp: Math.max(1, Math.floor(payload.playerHp ?? maxHp)), maxHp },
       boss,
       round: 1,
-      roundState,
+      roundState: freshRoundState(ctx.player.skillEnergyMax, shuffleCount),
       battleResult: 'ONGOING',
     };
     updateRoom(roomId, restoredCtx);

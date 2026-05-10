@@ -523,8 +523,8 @@ export function useGameLogic(roomId = null) {
     attackEffect,
     connectionStatus,
     errorMessage: lastError,
-    // Internal refs exposed for rogue extension hook
-    _socketRef: socketRef,
-    _chosenElement: player.chosenElement ?? null,
+    // Refs exposed for rogue extension hook
+    socketRef,
+    chosenElement: player.chosenElement ?? null,
   };
 }

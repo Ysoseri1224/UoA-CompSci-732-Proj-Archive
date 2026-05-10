@@ -35,3 +35,8 @@ export async function notifyRogueWon() {
   const res = await client.post('/api/rogue/won');
   return res.data.data;
 }
+
+export async function getUpgradeOptions(layer, element) {
+  const res = await client.get('/api/rogue/upgrades', { params: { layer, element } });
+  return res.data.data;
+}

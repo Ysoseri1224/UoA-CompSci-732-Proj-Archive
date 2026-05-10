@@ -28,7 +28,11 @@ export default function RogueGamePage() {
 
   // Start a new run on mount
   useEffect(() => {
-    startRogueRun().catch(console.error);
+    let cancelled = false;
+    startRogueRun().catch(err => {
+      if (!cancelled) console.error(err);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const {
