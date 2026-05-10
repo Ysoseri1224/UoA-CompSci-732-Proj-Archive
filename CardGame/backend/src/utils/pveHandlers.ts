@@ -45,10 +45,39 @@ function resolveSocketUserId(socket: Socket): string | null {
   }
 }
 
+/** Warn when a PvE socket connection could not resolve a userId (match won't be persisted). */
+function warnIfNoUserId(socket: Socket, resolvedUserId: string | null): void {
+  if (resolvedUserId) return;
+
+  const auth = socket.handshake.auth as Record<string, unknown> | undefined;
+  const raw = auth?.token;
+  const tokenKind = raw == null ? 'missing' : typeof raw === 'string' ? `string(len=${raw.length})` : typeof raw;
+
+  let verifyHint = 'n/a';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    verifyHint = 'JWT_SECRET unset';
+  } else if (typeof raw !== 'string' || raw.length === 0) {
+    verifyHint = 'handshake.auth.token missing or empty';
+  } else {
+    try {
+      const decoded = jwt.verify(raw, secret) as Record<string, unknown>;
+      verifyHint = decoded?.userId
+        ? 'payload has userId but resolve returned null (unexpected)'
+        : 'payload missing userId';
+    } catch (err) {
+      verifyHint = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  logger.warn({ socketId: socket.id, tokenKind, verifyHint }, 'pve socket: userId not resolved — match will not be persisted');
+}
+
 export function registerPveHandlers(socket: Socket): void {
   logger.info({ socketId: socket.id }, 'socket connected');
 
   const userId = resolveSocketUserId(socket);
+  warnIfNoUserId(socket, userId);
 
   /** 将当前状态推送回客户端 */
   function emit(ctx: GameContext) {
@@ -87,6 +116,7 @@ export function registerPveHandlers(socket: Socket): void {
   socket.on('startPveGame', () => {
     try {
       const roomId = ensureRoomId();
+      logger.info({ roomId, socketId: socket.id, userIdPresent: Boolean(userId) }, 'pve startPveGame');
       const ctx = createRoom({ roomId, socketId: socket.id, userId: userId ?? undefined });
       emit(ctx);
 
