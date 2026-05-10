@@ -7,12 +7,11 @@ const savePointSchema = new mongoose.Schema({
     required: true,
     unique: true 
   },
-  runId: { 
+  roomId: { 
     type: String, 
     required: true 
   },
-  // 存储符合 GameState 接口的自定义状态
-  gameState: { 
+  snapshot: { 
     type: mongoose.Schema.Types.Mixed, 
     required: true 
   },

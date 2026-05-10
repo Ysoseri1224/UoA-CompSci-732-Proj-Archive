@@ -3,10 +3,8 @@ import client from './client.js';
 // ---------------------------------------------------------------------------
 // Match API — GET /api/matches/*
 //
-// All three endpoints are currently 501 stubs on the main branch.
-// The Match and MatchReplay MongoDB models have not been created yet.
-// These functions match docs/api.md exactly; no changes will be needed
-// once the backend implements them.
+// Backend lists matches from MongoDB; replay requires JWT (`protect`).
+// Response shape: `{ success, message, data: { matches, total, page, totalPages } }`.
 // ---------------------------------------------------------------------------
 
 /**

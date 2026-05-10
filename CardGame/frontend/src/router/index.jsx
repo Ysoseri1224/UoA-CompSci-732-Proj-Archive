@@ -117,6 +117,14 @@ const router = createBrowserRouter([
           </PrivateRoute>
         ),
       },
+      {
+        path: '/rogue',
+        element: (
+          <PrivateRoute>
+            <RogueGamePage />
+          </PrivateRoute>
+        ),
+      },
     ],
   },
 ]);
