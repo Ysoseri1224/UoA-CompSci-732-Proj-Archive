@@ -91,13 +91,31 @@ function getHandType(cards) {
   return HAND_TYPES.find((h) => h.id === 'high_card');
 }
 
+const HAND_SCORES_FRONTEND = {
+  royal_flush:      { chips: 100, mult: 8 },
+  straight_flush:   { chips: 100, mult: 8 },
+  four_of_a_kind:   { chips: 60,  mult: 7 },
+  full_house:       { chips: 40,  mult: 6 },
+  flush:            { chips: 35,  mult: 4 },
+  straight:         { chips: 30,  mult: 4 },
+  three_of_a_kind:  { chips: 30,  mult: 3 },
+  two_pair:         { chips: 20,  mult: 2 },
+  one_pair:         { chips: 10,  mult: 2 },
+  high_card:        { chips: 5,   mult: 1 },
+};
+
 export function evaluateHand(cards) {
   const handType = getHandType(cards);
-  const baseAttack = cards.reduce((sum, c) => sum + c.cost, 0);
-  const bonusAttack = handType.baseBonus;
-  const multiplier = handType.multiplier;
-  const totalScore = Math.round((baseAttack + bonusAttack) * multiplier);
-  return { handType, baseAttack, bonusAttack, multiplier, totalScore };
+  const { chips: baseChips, mult } = HAND_SCORES_FRONTEND[handType.id] ?? { chips: 5, mult: 1 };
+  const cardChips = cards.reduce((sum, c) => sum + c.cost, 0);
+  const totalScore = Math.floor((baseChips + cardChips) * mult);
+  return {
+    handType,
+    baseAttack: baseChips,
+    bonusAttack: cardChips,
+    multiplier: mult,
+    totalScore,
+  };
 }
 
 function createSocket(accessToken) {
@@ -505,5 +523,8 @@ export function useGameLogic(roomId = null) {
     attackEffect,
     connectionStatus,
     errorMessage: lastError,
+    // Refs exposed for rogue extension hook
+    socketRef,
+    chosenElement: player.chosenElement ?? null,
   };
 }

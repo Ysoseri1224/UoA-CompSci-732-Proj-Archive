@@ -51,7 +51,7 @@ export type BattleResult = 'ONGOING' | 'WIN' | 'LOSE';
 //  子状态
 // ══════════════════════════════════════════════════════════════════
 
-export interface ShieldState { active: boolean; onCooldown: boolean }
+export interface ShieldState { active: boolean; onCooldown: boolean; cooldownRounds: number }
 /** 技能充能池：3技能共享，使用任意技能消耗 1 点，跨回合不恢复，过层回满 */
 export interface RoundSkills { energy: number; shield: ShieldState }
 export interface ShuffleState { remaining: number; pendingDiscard: string[] }
@@ -88,7 +88,7 @@ export interface BattleState { boss: BossState; round: number; roundState: Round
 import type { HandType } from './card.js';
 
 export function createShieldState(): ShieldState {
-  return { active: false, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function createRoundSkills(): RoundSkills {

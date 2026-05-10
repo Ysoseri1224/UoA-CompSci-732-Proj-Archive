@@ -5,6 +5,7 @@ import type { RoundSkills } from '../types/state.js';
 interface ShieldState {
   active: boolean;
   onCooldown: boolean;
+  cooldownRounds: number;
 }
 
 interface SwapParams {
@@ -78,23 +79,34 @@ function swapCard({ state, cardId, filter, sortBy }: SwapParams): DeckState {
 //  技能 3: 护盾
 // ══════════════════════════════════════════════════════════════════
 
+const SHIELD_COOLDOWN_ROUNDS = 3;
+
 export function activateShield(shield: ShieldState): ShieldState {
   if (shield.active || shield.onCooldown) return { ...shield };
-  return { active: true, onCooldown: false };
+  return { active: true, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function shatterShield(shield: ShieldState): ShieldState {
   if (!shield.active) return { ...shield };
-  return { active: false, onCooldown: true };
+  return { active: false, onCooldown: true, cooldownRounds: SHIELD_COOLDOWN_ROUNDS };
 }
 
 export function voidShield(shield: ShieldState): ShieldState {
   if (!shield.active) return { ...shield };
-  return { active: false, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function resetShieldCooldown(shield: ShieldState): ShieldState {
-  return { ...shield, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
+}
+
+/** 每回合末递减冷却计数，归零时清除 onCooldown */
+export function tickShieldCooldown(shield: ShieldState): ShieldState {
+  if (!shield.onCooldown) return { ...shield };
+  const next = shield.cooldownRounds - 1;
+  return next <= 0
+    ? { active: false, onCooldown: false, cooldownRounds: 0 }
+    : { ...shield, cooldownRounds: next };
 }
 
 // ══════════════════════════════════════════════════════════════════

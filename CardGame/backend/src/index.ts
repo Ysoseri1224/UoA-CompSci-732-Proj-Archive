@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
 import achievementRoutes from './routes/achievements.js';
+import rogueRoutes from './routes/rogue.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/rogue', rogueRoutes);
 
 // Health check
 app.get('/', (_req: Request, res: Response) =>
