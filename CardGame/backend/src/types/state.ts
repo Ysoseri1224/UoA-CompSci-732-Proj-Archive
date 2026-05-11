@@ -51,8 +51,9 @@ export type BattleResult = 'ONGOING' | 'WIN' | 'LOSE';
 //  子状态
 // ══════════════════════════════════════════════════════════════════
 
-export interface ShieldState { active: boolean; onCooldown: boolean }
-export interface RoundSkills { changeColor: { used: boolean }; changeCost: { used: boolean }; shield: ShieldState }
+export interface ShieldState { active: boolean; onCooldown: boolean; cooldownRounds: number }
+/** 技能充能池：3技能共享，使用任意技能消耗 1 点，跨回合不恢复，过层回满 */
+export interface RoundSkills { energy: number; shield: ShieldState }
 export interface ShuffleState { remaining: number; pendingDiscard: string[] }
 export interface PlayState { selectedCards: string[]; handType: HandType | null; score: number | null }
 export interface BossRoundState { intent: BossIntent; isDefending: boolean; willReleaseCharge: boolean }
@@ -68,7 +69,7 @@ export interface BossState {
   behavior: { currentIntent: BossIntent; chargeStored: boolean }; weights: BossWeights;
 }
 
-export interface PlayerState { hp: number; maxHp: number; buffs: Buff[]; chosenElement: Element | null }
+export interface PlayerState { hp: number; maxHp: number; skillEnergyMax: number; buffs: Buff[]; chosenElement: Element | null }
 
 export interface SavePoint { layer: number; timestamp: number; gameState: Omit<GameState, 'savepoint'> }
 
@@ -87,11 +88,11 @@ export interface BattleState { boss: BossState; round: number; roundState: Round
 import type { HandType } from './card.js';
 
 export function createShieldState(): ShieldState {
-  return { active: false, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function createRoundSkills(): RoundSkills {
-  return { changeColor: { used: false }, changeCost: { used: false }, shield: createShieldState() };
+  return { energy: 3, shield: createShieldState() };
 }
 
 export function createShuffleState(): ShuffleState {
@@ -114,9 +115,9 @@ export function createRoundState(opts: { roundPhase?: RoundPhase } = {}): RoundS
 }
 
 export function createPlayerState(opts: {
-  hp?: number; maxHp?: number; buffs?: Buff[]; chosenElement?: Element | null
+  hp?: number; maxHp?: number; skillEnergyMax?: number; buffs?: Buff[]; chosenElement?: Element | null
 } = {}): PlayerState {
-  return { hp: opts.hp ?? 20, maxHp: opts.maxHp ?? 20, buffs: opts.buffs ?? [], chosenElement: opts.chosenElement ?? null };
+  return { hp: opts.hp ?? 20, maxHp: opts.maxHp ?? 20, skillEnergyMax: opts.skillEnergyMax ?? 3, buffs: opts.buffs ?? [], chosenElement: opts.chosenElement ?? null };
 }
 
 export function createBossState(opts: {

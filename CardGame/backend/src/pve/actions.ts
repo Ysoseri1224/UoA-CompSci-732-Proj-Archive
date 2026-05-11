@@ -1,7 +1,7 @@
 import { drawCards, playCards, shuffleHand } from '../lib/deck.js';
 import { calculateDamage } from '../lib/hand.js';
 import { skillChangeColor as skillChangeColorFn, skillChangeCost as skillChangeCostFn } from '../lib/skills.js';
-import { activateShield, shatterShield, voidShield } from '../lib/skills.js';
+import { activateShield, shatterShield, voidShield, tickShieldCooldown } from '../lib/skills.js';
 import { createBossRoundState, createRoundState, createShuffleState, createPlayState } from '../types/state.js';
 import { BOSS_WEIGHTS_BY_LAYER, ROUND_PHASE } from '../types/state.js';
 import type { DeckState } from '../lib/deck.js';
@@ -102,10 +102,7 @@ export function doSkillChangeColor(ctx: GameContext, cardId: string, newColor: E
     ...ds,
     roundState: {
       ...ctx.roundState,
-      skills: {
-        ...ctx.roundState.skills,
-        changeColor: { used: true },
-      },
+      skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
     },
   };
 }
@@ -121,10 +118,7 @@ export function doSkillChangeCost(ctx: GameContext, cardId: string, newCost: Ran
     ...ds,
     roundState: {
       ...ctx.roundState,
-      skills: {
-        ...ctx.roundState.skills,
-        changeCost: { used: true },
-      },
+      skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
     },
   };
 }
@@ -139,7 +133,7 @@ export function doSkillShield(ctx: GameContext): GameContext {
     roundState: {
       ...ctx.roundState,
       skills: {
-        ...ctx.roundState.skills,
+        energy: Math.max(0, ctx.roundState.skills.energy - 1),
         shield: activateShield(ctx.roundState.skills.shield),
       },
     },
@@ -345,8 +339,8 @@ export function doRoundEndConfirm(ctx: GameContext): GameContext {
     roundState: {
       ...createRoundState(),
       skills: {
-        ...createRoundState().skills,
-        shield: { ...ctx.roundState.skills.shield }, // shield persists
+        energy: ctx.roundState.skills.energy,                          // 充能跨回合保留
+        shield: tickShieldCooldown(ctx.roundState.skills.shield),     // shield 每回合递减冷却
       },
     },
   };

@@ -8,6 +8,8 @@ import {
   createAllChipsBonus,
   createHandMultBonus,
   createHandChipsBonus,
+  createTieredChipsBonus,
+  createTieredMultBonus,
 } from '../../src/types/buff.js';
 import {
   HAND_SCORES,
@@ -15,6 +17,7 @@ import {
   detectHandType,
   calculateDamage,
   getRankCounts,
+  getHandTier,
 } from '../../src/lib/hand.js';
 
 // ══════════════════════════════════════════════════════════════════
@@ -446,4 +449,116 @@ test('getRankCounts returns correct counts', () => {
   assert.equal(counts[7], 3);
   assert.equal(counts[3], 2);
   assert.equal(counts[1], undefined);
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  getHandTier
+// ══════════════════════════════════════════════════════════════════
+
+test('getHandTier: common hands', () => {
+  assert.equal(getHandTier('HIGH_CARD'), 'common');
+  assert.equal(getHandTier('PAIR'), 'common');
+  assert.equal(getHandTier('TWO_PAIR'), 'common');
+  assert.equal(getHandTier('THREE_OF_A_KIND'), 'common');
+});
+
+test('getHandTier: rare hands', () => {
+  assert.equal(getHandTier('STRAIGHT'), 'rare');
+  assert.equal(getHandTier('FLUSH'), 'rare');
+});
+
+test('getHandTier: epic hands', () => {
+  assert.equal(getHandTier('FULL_HOUSE'), 'epic');
+  assert.equal(getHandTier('FOUR_OF_A_KIND'), 'epic');
+  assert.equal(getHandTier('STRAIGHT_FLUSH'), 'epic');
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  calculateDamage — tiered buffs
+// ══════════════════════════════════════════════════════════════════
+
+test('calculateDamage: TIERED_CHIPS_BONUS (common)', () => {
+  const cards = makeCards([
+    ['WATER', 2], ['FIRE', 5],
+  ]);
+  // HIGH_CARD: baseChips=5, tiered common +10 → 15
+  const buff = createTieredChipsBonus(10, 20, 35);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'HIGH_CARD');
+  assert.equal(result.baseChips, 15);
+});
+
+test('calculateDamage: TIERED_CHIPS_BONUS (rare)', () => {
+  const cards = makeCards([
+    ['FIRE', 1], ['FIRE', 4], ['FIRE', 7], ['FIRE', 10], ['FIRE', 13],
+  ]);
+  // FLUSH: baseChips=35, tiered rare +20 → 55
+  const buff = createTieredChipsBonus(10, 20, 35);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'FLUSH');
+  assert.equal(result.baseChips, 55);
+});
+
+test('calculateDamage: TIERED_CHIPS_BONUS (epic)', () => {
+  const cards = makeCards([
+    ['WATER', 9], ['FIRE', 9], ['GRASS', 9],
+    ['WATER', 5], ['FIRE', 5],
+  ]);
+  // FULL_HOUSE: baseChips=40, tiered epic +35 → 75
+  const buff = createTieredChipsBonus(10, 20, 35);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'FULL_HOUSE');
+  assert.equal(result.baseChips, 75);
+});
+
+test('calculateDamage: TIERED_MULT_BONUS (common +0)', () => {
+  const cards = makeCards([
+    ['WATER', 2], ['FIRE', 5],
+  ]);
+  // HIGH_CARD: mult=1, tiered common +0 → unchanged
+  const buff = createTieredMultBonus(0, 2, 3);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'HIGH_CARD');
+  assert.equal(result.mult, 1);
+});
+
+test('calculateDamage: TIERED_MULT_BONUS (rare)', () => {
+  const cards = makeCards([
+    ['WATER', 5], ['FIRE', 6], ['GRASS', 7], ['WATER', 8], ['FIRE', 9],
+  ]);
+  // STRAIGHT: mult=4, tiered rare +2 → 6
+  const buff = createTieredMultBonus(0, 2, 3);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'STRAIGHT');
+  assert.equal(result.mult, 6);
+});
+
+test('calculateDamage: TIERED_MULT_BONUS (epic)', () => {
+  const cards = makeCards([
+    ['WATER', 9], ['FIRE', 9], ['GRASS', 9],
+    ['WATER', 5], ['FIRE', 5],
+  ]);
+  // FULL_HOUSE: mult=6, tiered epic +3 → 9
+  const buff = createTieredMultBonus(0, 2, 3);
+  const result = calculateDamage(cards, [buff]);
+  assert.equal(result.handType, 'FULL_HOUSE');
+  assert.equal(result.mult, 9);
+});
+
+test('calculateDamage: tiered chips and mult stack together', () => {
+  const cards = makeCards([
+    ['FIRE', 3], ['FIRE', 4], ['FIRE', 5], ['FIRE', 6], ['FIRE', 7],
+  ]);
+  // STRAIGHT_FLUSH: baseChips=100, mult=8
+  // tiered chips epic +35 → 135
+  // tiered mult epic +3 → 11
+  // cardChips = 3+4+5+6+7 = 25
+  // total = floor((135+25)*11) = 1760
+  const tieredChips = createTieredChipsBonus(10, 20, 35);
+  const tieredMult = createTieredMultBonus(0, 2, 3);
+  const result = calculateDamage(cards, [tieredChips, tieredMult]);
+  assert.equal(result.handType, 'STRAIGHT_FLUSH');
+  assert.equal(result.baseChips, 135);
+  assert.equal(result.mult, 11);
+  assert.equal(result.total, 1760);
 });

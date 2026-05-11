@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { getMatches } from '../api/matchApi.js';
 import { getUserStats } from '../api/userApi.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -10,12 +11,39 @@ const MOCK_STATS = {
   winRateDisplay: '—',
 };
 
-const MOCK_MATCH_ROWS = [
-  { result: 'Victory', opp: 'vs AI', ago: '2 hours ago', tone: 'text-emerald-400/95' },
-  { result: 'Defeat', opp: 'vs AI', ago: '5 hours ago', tone: 'text-rose-400/90' },
-  { result: 'Victory', opp: 'vs AI', ago: 'Yesterday', tone: 'text-emerald-400/95' },
-  { result: 'Defeat', opp: 'vs AI', ago: '2 days ago', tone: 'text-rose-400/90' },
-];
+/** @param {string|Date|null|undefined} endedAtInput */
+function formatMatchEndedRelative(endedAtInput) {
+  if (endedAtInput == null || endedAtInput === '') return '';
+  const d = new Date(endedAtInput);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return 'Just now';
+
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min === 1 ? '1 minute ago' : `${min} minutes ago`;
+
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr === 1 ? '1 hour ago' : `${hr} hours ago`;
+
+  const sod = (t) => new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  const calendarDays = Math.round((sod(now) - sod(d)) / 86400000);
+  if (calendarDays === 1) return 'Yesterday';
+  if (calendarDays > 1) return `${calendarDays} days ago`;
+  return `${Math.max(1, Math.floor(hr / 24))} days ago`;
+}
+
+function opponentLabelFromMatch(match) {
+  const t = match?.matchType;
+  if (t === 'PVE') {
+    const boss = match?.bossId != null ? String(match.bossId) : '';
+    return boss.toLowerCase().includes('boss') ? 'vs Boss' : 'vs AI';
+  }
+  if (t === 'PVP') return 'vs Player';
+  return 'vs Opponent';
+}
 
 /** Lobby card-back art (Profile card decorative background). */
 const LOBBY_SOLO_CARD_BG_URL = '/lobby/cardBack.png';
@@ -29,6 +57,22 @@ const LOBBY_LOSE_ICON_URL = '/lobby/lose-icon.PNG';
 const LOBBY_LOGO_ICON_URL = '/logo/logo-icon-transparent.png';
 /** Ambient lobby background clip (`public/lobby/`). */
 const LOBBY_BACKGROUND_VIDEO_URL = '/lobby/lobbyBackground.mp4';
+
+/** Season 1 countdown target (UTC midnight). */
+const SEASON_END_UTC_MS = new Date('2026-06-10T00:00:00Z').getTime();
+
+/**
+ * @param {number} remainingMs
+ * @returns {string | null} `Nd Nh Nm` while time left, or null when ended / non-positive
+ */
+function formatSeasonCountdown(remainingMs) {
+  if (remainingMs <= 0) return null;
+  const totalMinutes = Math.floor(remainingMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return `${days}d ${hours}h ${minutes}m`;
+}
 
 const navIconWrap = 'h-[1.125rem] w-[1.125rem] shrink-0';
 const headerToolbarActionIconClass =
@@ -196,7 +240,7 @@ function SidebarIconLogout({ iconClass }) {
 }
 
 /**
- * Authenticated lobby dashboard — references images under /lobby/*. Match list remains mock-only.
+ * Authenticated lobby dashboard — references images under /lobby/*.
  */
 export default function LobbyPage() {
   const { user, clearAuth } = useAuth();
@@ -208,6 +252,40 @@ export default function LobbyPage() {
     winRateDisplay: null,
     loaded: false,
   });
+
+  const [recentMatchRows, setRecentMatchRows] = useState([]);
+  const [recentMatchesLoading, setRecentMatchesLoading] = useState(false);
+  const [recentMatchesError, setRecentMatchesError] = useState(false);
+
+  const [seasonCountdownText, setSeasonCountdownText] = useState(() => {
+    const fmt = formatSeasonCountdown(SEASON_END_UTC_MS - Date.now());
+    return fmt ?? 'Season Ended';
+  });
+  const seasonHasEnded = seasonCountdownText === 'Season Ended';
+
+  useEffect(() => {
+    let intervalId = null;
+
+    function tick() {
+      const fmt = formatSeasonCountdown(SEASON_END_UTC_MS - Date.now());
+      if (fmt === null) {
+        setSeasonCountdownText('Season Ended');
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+      setSeasonCountdownText(fmt);
+    }
+
+    tick();
+    intervalId = window.setInterval(tick, 60_000);
+
+    return () => {
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, []);
 
   const displayName = user?.username?.trim() || 'Traveler';
   const profilePath = user?.id ? `/profile/${user.id}` : '/leaderboard';
@@ -266,6 +344,53 @@ export default function LobbyPage() {
     }
 
     loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecent() {
+      if (!user?.id) {
+        if (!cancelled) {
+          setRecentMatchRows([]);
+          setRecentMatchesLoading(false);
+          setRecentMatchesError(false);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setRecentMatchesLoading(true);
+        setRecentMatchesError(false);
+      }
+
+      try {
+        const data = await getMatches(user.id, 1, 5);
+        if (cancelled) return;
+        const matches = Array.isArray(data?.matches) ? data.matches : [];
+        const rows = matches.map((m) => ({
+          key: String(m?._id ?? ''),
+          resultLabel: m?.isWin === true ? 'Victory' : 'Defeat',
+          opp: opponentLabelFromMatch(m),
+          ago: formatMatchEndedRelative(m?.endedAt),
+          tone: m?.isWin === true ? 'text-emerald-400/95' : 'text-rose-400/90',
+          isWin: m?.isWin === true,
+        })).filter((r) => r.key);
+        setRecentMatchRows(rows);
+      } catch {
+        if (!cancelled) {
+          setRecentMatchRows([]);
+          setRecentMatchesError(true);
+        }
+      } finally {
+        if (!cancelled) setRecentMatchesLoading(false);
+      }
+    }
+
+    loadRecent();
     return () => {
       cancelled = true;
     };
@@ -364,14 +489,14 @@ export default function LobbyPage() {
         @media (max-width: 1600px) and (min-width: 1024px) {
           .lobby-dash-root .lobby-dash-grid {
             gap: clamp(1.75rem, 3vw, 3rem);
-            grid-template-columns: minmax(220px, min(272px, 17.9vw)) minmax(0, 1fr) minmax(236px, min(292px, 19.25vw));
+            grid-template-columns: minmax(200px, min(246px, 16.85vw)) minmax(0, 1fr) minmax(210px, min(264px, 17.95vw));
           }
         }
 
         @media (max-width: 1512px) and (min-width: 1024px) {
           .lobby-dash-root .lobby-dash-grid {
             gap: clamp(1.35rem, 2.65vw, 2.65rem);
-            grid-template-columns: minmax(200px, min(252px, 17vw)) minmax(0, 1fr) minmax(220px, min(276px, 18.85vw));
+            grid-template-columns: minmax(180px, min(226px, 15.95vw)) minmax(0, 1fr) minmax(196px, min(246px, 17vw));
           }
           .lobby-dash-root .lobby-dash-hero-title {
             font-size: clamp(1.5rem, 3.95vw, 2.72rem);
@@ -382,7 +507,7 @@ export default function LobbyPage() {
         @media (max-width: 1440px) and (min-width: 1024px) {
           .lobby-dash-root .lobby-dash-grid {
             gap: clamp(1.25rem, 2.35vw, 2.35rem);
-            grid-template-columns: minmax(192px, min(238px, 16.75vw)) minmax(0, 1fr) minmax(208px, min(264px, 18.65vw));
+            grid-template-columns: minmax(166px, min(210px, 15.55vw)) minmax(0, 1fr) minmax(184px, min(232px, 17.15vw));
           }
           .lobby-dash-root .lobby-dash-shell {
             padding-left: clamp(0.75rem, 1.65vw, 2.25rem);
@@ -392,13 +517,269 @@ export default function LobbyPage() {
 
         @media (max-width: 1280px) and (min-width: 1024px) {
           .lobby-dash-root .lobby-dash-grid {
-            gap: clamp(1.05rem, 2.05vw, 2.05rem);
-            grid-template-columns: minmax(180px, min(224px, 18vw)) minmax(0, 1fr) minmax(196px, min(248px, 21vw));
+            gap: clamp(0.55rem, 1.05vw, 0.95rem) !important;
+            grid-template-columns: minmax(132px, min(172px, 15.5vw)) minmax(0, 1fr) minmax(148px, min(194px, 16.95vw)) !important;
           }
           .lobby-dash-root .lobby-dash-hero-title {
             font-size: clamp(1.38rem, 3.85vw, 2.48rem);
           }
+          .lobby-dash-root .lobby-solo-cta {
+            width: min(100%, 22rem);
+          }
         }
+
+        /* ── 14″ / narrow laptop (1024–1536px): fit first screen, no clip, tighter gaps — ≥1537px unchanged ── */
+        @media (max-width: 1536px) and (min-width: 1024px) {
+          .lobby-dash-root .lobby-dash-shell {
+            padding-left: clamp(0.65rem, 1.35vw, 1.5rem);
+            padding-right: clamp(0.65rem, 1.35vw, 1.5rem);
+            padding-top: clamp(0.65rem, 1.35vw, 1rem);
+            padding-bottom: clamp(0.5rem, 1.1vw, 0.85rem);
+            overflow-y: hidden;
+          }
+          .lobby-dash-root .lobby-dash-header {
+            margin-bottom: clamp(0.65rem, 1.35vw, 1.1rem) !important;
+            padding: clamp(0.65rem, 1.4vw, 1rem) clamp(0.85rem, 1.6vw, 1.25rem) !important;
+            gap: 0.65rem !important;
+          }
+          .lobby-dash-root .lobby-dash-header .lobby-header-brand-word {
+            font-size: clamp(0.95rem, 2.35vw, 1.45rem) !important;
+          }
+          .lobby-dash-root .lobby-dash-header img[alt=''] {
+            height: 2.25rem !important;
+            width: 2.25rem !important;
+          }
+          .lobby-dash-root .lobby-dash-header .flex.shrink-0.items-center.gap-2 button,
+          .lobby-dash-root .lobby-dash-header .flex.shrink-0.items-center.gap-3 button {
+            height: 2.35rem !important;
+            width: 2.35rem !important;
+            border-radius: 0.65rem !important;
+          }
+          .lobby-dash-root .lobby-dash-header .flex.shrink-0.items-center.gap-2 svg,
+          .lobby-dash-root .lobby-dash-header .flex.shrink-0.items-center.gap-3 svg {
+            height: 1.1rem !important;
+            width: 1.1rem !important;
+          }
+          .lobby-dash-root .lobby-dash-grid {
+            gap: clamp(0.45rem, 1vw, 0.82rem) !important;
+            grid-template-columns: minmax(128px, min(188px, 15.05vw)) minmax(0, 1fr) minmax(
+                138px,
+                min(208px, 16.95vw)
+              ) !important;
+            padding-bottom: 0.15rem !important;
+            min-height: 0;
+          }
+          .lobby-dash-root .lobby-dash-grid > aside:first-child {
+            padding: clamp(0.48rem, 0.95vw, 0.62rem) clamp(0.45rem, 1vw, 0.68rem) !important;
+          }
+          .lobby-dash-root .lobby-sidebar-inner {
+            gap: 0.6rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-rail-top {
+            gap: 0.42rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-avatar {
+            height: 2.85rem !important;
+            width: 2.85rem !important;
+            font-size: 0.8rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-rail-top h2 {
+            font-size: 0.8rem !important;
+          }
+          .lobby-dash-root aside:first-child .lobby-sidebar-rail-top .lobby-sidebar-label {
+            font-size: 0.5rem !important;
+            letter-spacing: 0.18em !important;
+          }
+          .lobby-dash-root .lobby-sidebar-rail-top .lobby-sidebar-xp-row {
+            font-size: 0.54rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-rail-top .mt-3 {
+            margin-top: 0.5rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-stats {
+            padding: 0.28rem 0.32rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-stats .grid {
+            gap: 0.28rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-stats .text-lg {
+            font-size: 0.76rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-stats .lobby-sidebar-stat-caption {
+            font-size: 0.52rem !important;
+          }
+          .lobby-dash-root .lobby-dash-grid > aside:first-child nav.mt-7 {
+            margin-top: 0.65rem !important;
+            padding-top: 0.65rem !important;
+            gap: 0.2rem !important;
+          }
+          .lobby-dash-root .lobby-dash-grid > aside:first-child nav a,
+          .lobby-dash-root .lobby-dash-grid > aside:first-child nav button[class*='cursor-not-allowed'] {
+            padding: 0.28rem 0.36rem !important;
+            font-size: 0.62rem !important;
+            gap: 0.3rem !important;
+            border-radius: 0.45rem !important;
+          }
+          .lobby-dash-root .lobby-dash-grid > aside:first-child nav svg {
+            height: 0.72rem !important;
+            width: 0.72rem !important;
+          }
+          .lobby-dash-root aside:first-child nav span.ml-auto.rounded-md {
+            padding: 0.08rem 0.32rem !important;
+            font-size: 0.45rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-logout {
+            margin-top: 0.65rem !important;
+            padding-top: 0.65rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-logout button {
+            padding: 0.28rem !important;
+            font-size: 0.62rem !important;
+          }
+          .lobby-dash-root .lobby-sidebar-logout button svg {
+            height: 0.72rem !important;
+            width: 0.72rem !important;
+          }
+
+          .lobby-dash-root main.lobby-dash-main {
+            gap: clamp(0.6rem, 1.25vw, 1rem) !important;
+            min-height: 0;
+          }
+          .lobby-dash-root .lobby-welcome-hero {
+            min-height: 0 !important;
+            padding: clamp(0.65rem, 1.35vw, 0.95rem) clamp(0.85rem, 1.55vw, 1.25rem) !important;
+            max-width: min(52%, 20rem);
+          }
+          .lobby-dash-root .lobby-welcome-hero .lobby-dash-hero-title {
+            font-size: clamp(1.15rem, 2.75vw, 1.95rem) !important;
+            letter-spacing: 0.03em !important;
+          }
+          .lobby-dash-root .lobby-welcome-hero p[class*='italic'] {
+            margin-top: 0.35rem !important;
+            font-size: 0.78rem !important;
+          }
+          .lobby-dash-root .lobby-welcome-hero p.text-sm {
+            margin-top: 0.35rem !important;
+            font-size: 0.72rem !important;
+            line-height: 1.35 !important;
+          }
+          .lobby-dash-root .lobby-welcome-hero .mb-2 {
+            margin-bottom: 0.25rem !important;
+          }
+
+          .lobby-dash-root .lobby-solo-cta {
+            flex: 1 1 0% !important;
+            min-height: 9.5rem !important;
+            min-width: 0 !important;
+            gap: 0.55rem !important;
+            padding: clamp(0.65rem, 1.35vw, 0.95rem) !important;
+            width: min(100%, 24rem);
+            max-width: 100%;
+          }
+          .lobby-dash-root .lobby-solo-cta video {
+            object-position: 50% 45%;
+          }
+          .lobby-dash-root .lobby-solo-cta .lobby-solo-cta-intro h3 {
+            font-size: 0.92rem !important;
+            margin-top: 0.35rem !important;
+            line-height: 1.2 !important;
+          }
+          .lobby-dash-root .lobby-solo-cta .lobby-solo-cta-intro p.lobby-solo-lead {
+            font-size: 0.7rem !important;
+            margin-top: 0.25rem !important;
+          }
+          .lobby-dash-root .lobby-solo-cta .lobby-solo-cta-intro .lobby-solo-label {
+            font-size: 0.5625rem !important;
+          }
+          .lobby-dash-root .lobby-solo-cta .lobby-solo-cta-btn {
+            padding-top: 0.55rem !important;
+            padding-bottom: 0.55rem !important;
+            padding-left: 0.85rem !important;
+            padding-right: 0.65rem !important;
+            font-size: 0.78rem !important;
+            border-radius: 9999px !important;
+          }
+
+          .lobby-dash-root .lobby-bottom-row {
+            gap: clamp(0.5rem, 1vw, 0.75rem) !important;
+          }
+          .lobby-dash-root .lobby-bottom-row button {
+            min-height: 5.25rem !important;
+            padding: clamp(0.55rem, 1vw, 0.75rem) !important;
+          }
+          .lobby-dash-root .lobby-bottom-row .lobby-display-serif {
+            font-size: 0.82rem !important;
+          }
+          .lobby-dash-root .lobby-bottom-row .lobby-bottom-desc {
+            margin-top: 0.25rem !important;
+            font-size: 0.72rem !important;
+          }
+
+          .lobby-dash-root aside.lobby-dash-aside {
+            gap: clamp(0.45rem, 0.95vw, 0.68rem) !important;
+            min-height: 0;
+          }
+          .lobby-dash-root .lobby-season-panel {
+            padding: clamp(0.35rem, 0.82vw, 0.52rem) clamp(0.4rem, 0.88vw, 0.55rem)
+              clamp(0.35rem, 0.78vw, 0.5rem) !important;
+          }
+          .lobby-dash-root .lobby-season-panel header p:first-child {
+            font-size: 0.48rem !important;
+            letter-spacing: 0.2em !important;
+          }
+          .lobby-dash-root .lobby-season-panel header .lobby-display-serif {
+            font-size: clamp(0.72rem, 1.92vw, 1.02rem) !important;
+          }
+          .lobby-dash-root .lobby-season-panel .lobby-season-emblem {
+            margin-top: 0.25rem !important;
+            min-height: 4.1rem !important;
+          }
+          .lobby-dash-root .lobby-season-panel .lobby-season-emblem img {
+            width: min(64%, 5.25rem) !important;
+            max-width: 5.25rem !important;
+          }
+          .lobby-dash-root .lobby-season-panel footer {
+            margin-top: 0.5rem !important;
+            gap: 0.2rem !important;
+          }
+          .lobby-dash-root .lobby-season-panel footer p:last-child {
+            font-size: 0.72rem !important;
+          }
+
+          .lobby-dash-root .lobby-recent-panel {
+            padding: clamp(0.35rem, 0.82vw, 0.52rem) clamp(0.4rem, 0.88vw, 0.55rem) !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+          }
+          .lobby-dash-root .lobby-recent-panel h3 {
+            font-size: 0.52rem !important;
+          }
+          .lobby-dash-root .lobby-recent-panel .lobby-recent-list {
+            margin-top: 0.45rem !important;
+            gap: 0.28rem !important;
+            font-size: 0.66rem !important;
+          }
+          .lobby-dash-root .lobby-recent-panel li {
+            padding-bottom: 0.35rem !important;
+            gap: 0.45rem !important;
+          }
+          .lobby-dash-root .lobby-recent-panel button[class*='cursor-not-allowed'] {
+            font-size: 0.56rem !important;
+          }
+          .lobby-dash-root .lobby-recent-panel li img {
+            height: 1.28rem !important;
+            width: 1.28rem !important;
+          }
+
+          .lobby-dash-root .lobby-dash-footer {
+            padding-top: 0.45rem !important;
+            padding-bottom: 0.45rem !important;
+            margin-top: 0.35rem !important;
+            gap: 0.65rem !important;
+            font-size: 0.58rem !important;
+          }
+        }
+
       `}</style>
 
         <video
@@ -464,11 +845,13 @@ export default function LobbyPage() {
           {/* —— Three columns (reference proportions) —— */}
           <div className="lobby-dash-grid grid min-h-0 min-w-0 max-w-full flex-1 grid-cols-1 gap-8 pb-3 lg:grid-cols-[minmax(248px,280px)_minmax(0,1fr)_minmax(268px,300px)] lg:items-stretch lg:gap-12 xl:gap-16">
             {/* LEFT — profile / XP / stats / nav */}
-            <aside className={`${panelSurface} ${padStd} flex min-h-0 min-w-0 flex-col overflow-y-auto`}>
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-start lg:gap-5 lg:text-left">
+            <aside
+                className={`lobby-sidebar-left ${panelSurface} ${padStd} flex min-h-0 min-w-0 flex-col overflow-y-auto`}
+            >
+              <div className="lobby-sidebar-inner flex flex-col gap-6">
+                <div className="lobby-sidebar-rail-top flex flex-col items-center gap-5 text-center lg:flex-row lg:items-start lg:gap-5 lg:text-left">
                   <div
-                      className="flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-full text-[1.35rem] font-black tabular-nums tracking-tight text-white ring-2 ring-violet-400/45 ring-offset-[3px] ring-offset-[rgba(8,6,18,0.85)]"
+                      className="lobby-sidebar-avatar flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-full text-[1.35rem] font-black tabular-nums tracking-tight text-white ring-2 ring-violet-400/45 ring-offset-[3px] ring-offset-[rgba(8,6,18,0.85)]"
                       style={{
                         background: 'linear-gradient(152deg, rgba(156, 117, 246, 0.58) 0%, rgba(99, 91, 246, 0.32) 45%, rgba(59, 130, 246, 0.28) 100%)',
                         boxShadow: '0 0 32px rgba(139, 92, 246, 0.42), inset 0 1px 0 rgba(255,255,255,0.22)',
@@ -486,7 +869,7 @@ export default function LobbyPage() {
                     </div>
                     <p className="lobby-sidebar-label text-violet-400/72">Ranked adventurer</p>
                     <div className="mt-3 w-full lg:mt-4">
-                      <div className="mb-1.5 flex justify-between gap-3 font-sans text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      <div className="lobby-sidebar-xp-row mb-1.5 flex justify-between gap-3 font-sans text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
                         <span>XP</span>
                         <span className="tabular-nums tracking-normal text-violet-100/90">3,240 / 5,000</span>
                       </div>
@@ -500,19 +883,19 @@ export default function LobbyPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="lobby-sidebar-stats rounded-xl border border-white/[0.06] bg-black/25 px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <div className="grid grid-cols-3 gap-3 text-center font-sans">
                     <div className="flex flex-col gap-1">
                       <div className="text-lg font-bold tabular-nums leading-none text-white">{winsLabel}</div>
-                      <div className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Wins</div>
+                      <div className="lobby-sidebar-stat-caption text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Wins</div>
                     </div>
                     <div className="flex flex-col gap-1 border-x border-white/[0.06]">
                       <div className="text-lg font-bold tabular-nums leading-none text-white">{gamesLabel}</div>
-                      <div className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Games</div>
+                      <div className="lobby-sidebar-stat-caption text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Games</div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <div className="text-lg font-bold tabular-nums leading-none text-violet-100">{rateLabel}</div>
-                      <div className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Win %</div>
+                      <div className="lobby-sidebar-stat-caption text-[0.65rem] font-medium uppercase tracking-[0.14em] text-slate-500">Win %</div>
                     </div>
                   </div>
                 </div>
@@ -565,7 +948,7 @@ export default function LobbyPage() {
                 </button>
               </nav>
 
-              <div className="mt-8 border-t border-white/10 pt-6">
+              <div className="lobby-sidebar-logout mt-8 border-t border-white/10 pt-6">
                 <button
                     type="button"
                     onClick={handleLogout}
@@ -582,7 +965,7 @@ export default function LobbyPage() {
             {/* CENTER — hero + solo fills middle; leaderboard/profile at bottom */}
             <main className="lobby-dash-main flex h-full min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
               <section
-                  className="relative w-full shrink-0 self-start overflow-hidden rounded-2xl border border-violet-400/22 bg-black/35 shadow-[0_0_48px_rgba(88,28,135,0.18)] backdrop-blur-md min-h-[11rem] sm:min-h-[13rem] md:w-1/2 md:max-w-[50%] lg:min-h-[15rem]"
+                  className="lobby-welcome-hero relative w-full shrink-0 self-start overflow-hidden rounded-2xl border border-violet-400/22 bg-black/35 shadow-[0_0_48px_rgba(88,28,135,0.18)] backdrop-blur-md min-h-[11rem] sm:min-h-[13rem] md:w-1/2 md:max-w-[50%] lg:min-h-[15rem]"
                   style={{
                     backgroundImage: [
                       'linear-gradient(105deg, rgba(8,6,20,0.94) 0%, rgba(8,6,20,0.55) 45%, rgba(25,12,40,0.35) 100%)',
@@ -619,7 +1002,7 @@ export default function LobbyPage() {
                     const roomId = `solo-${Date.now()}`;
                     navigate(`/room/${roomId}/game`);
                   }}
-                  className={`${actionCardBase} ${soloCardGlow} flex w-full flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem] md:w-1/2 md:max-w-[50%]`}
+                  className={`lobby-solo-cta ${actionCardBase} ${soloCardGlow} flex w-full flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem] md:w-1/2 md:max-w-[50%]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
                   <video
@@ -639,12 +1022,12 @@ export default function LobbyPage() {
                     aria-hidden
                 />
                 <div className="pointer-events-none absolute -right-6 top-4 z-[1] h-24 w-24 rounded-full bg-violet-500/15 blur-2xl" aria-hidden />
-                <div className="relative z-[2] min-w-0 sm:max-w-[58%]">
-                  <p className={labelUi}>SOLO</p>
+                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 sm:max-w-[58%]">
+                  <p className={`lobby-solo-label ${labelUi}`}>SOLO</p>
                   <h3 className="mt-2 text-lg font-black uppercase tracking-wide text-white md:text-xl">START SOLO PVE</h3>
-                  <p className="mt-2 text-sm text-slate-400">Challenge the AI and test your skills.</p>
+                  <p className="lobby-solo-lead mt-2 text-sm text-slate-400">Challenge the AI and test your skills.</p>
                 </div>
-                <span className="relative z-[2] grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-full bg-gradient-to-b from-violet-500 via-violet-600 to-violet-800 py-[0.95rem] pl-10 pr-5 text-[0.95rem] font-semibold tracking-[0.02em] text-white shadow-[0_10px_32px_rgba(76,29,149,0.5),0_2px_0_rgba(255,255,255,0.08)_inset] ring-1 ring-white/12 transition group-hover:brightness-[1.06] sm:py-4 sm:pl-12 sm:pr-6 sm:text-base">
+                <span className="lobby-solo-cta-btn relative z-[2] grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-full bg-gradient-to-b from-violet-500 via-violet-600 to-violet-800 py-[0.95rem] pl-10 pr-5 text-[0.95rem] font-semibold tracking-[0.02em] text-white shadow-[0_10px_32px_rgba(76,29,149,0.5),0_2px_0_rgba(255,255,255,0.08)_inset] ring-1 ring-white/12 transition group-hover:brightness-[1.06] sm:py-4 sm:pl-12 sm:pr-6 sm:text-base">
                 <span className="pointer-events-none select-none" aria-hidden />
                 <span className="text-center">Start Solo PvE</span>
                 <span className="justify-self-end pr-0.5 text-[1.35rem] font-medium leading-none text-white/95" aria-hidden>
@@ -653,8 +1036,8 @@ export default function LobbyPage() {
               </span>
               </button>
 
-              <div className="w-full shrink-0">
-                <div className="grid min-h-0 shrink-0 grid-cols-1 items-start gap-6 sm:grid-cols-2 sm:gap-7 xl:gap-8">
+              <div className="lobby-bottom-cards-wrap w-full shrink-0">
+                <div className="lobby-bottom-row grid min-h-0 shrink-0 grid-cols-1 items-start gap-6 sm:grid-cols-2 sm:gap-7 xl:gap-8">
                   <button
                       type="button"
                       onClick={() => navigate('/leaderboard')}
@@ -681,7 +1064,7 @@ export default function LobbyPage() {
                         <h3 className="lobby-display-serif mt-1.5 text-base font-bold uppercase leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.5)] md:text-lg">
                           LEADERBOARD
                         </h3>
-                        <p className="mt-2 text-[0.85rem] font-medium leading-snug text-slate-400/95">
+                        <p className="lobby-bottom-desc mt-2 text-[0.85rem] font-medium leading-snug text-slate-400/95">
                           See how you rank
                           <br />
                           against players
@@ -719,7 +1102,7 @@ export default function LobbyPage() {
                         <h3 className="lobby-display-serif mt-1.5 text-base font-bold uppercase leading-tight tracking-[0.11em] text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.5)] md:text-lg">
                           PROFILE
                         </h3>
-                        <p className="mt-2 text-[0.85rem] font-medium leading-snug text-slate-400/95">
+                        <p className="lobby-bottom-desc mt-2 text-[0.85rem] font-medium leading-snug text-slate-400/95">
                           View your stats
                           <br />
                           and progress
@@ -734,9 +1117,11 @@ export default function LobbyPage() {
               </div>
             </main>
 
-            {/* RIGHT — season + recent matches (mock) */}
+            {/* RIGHT — season + recent matches */}
             <aside className="lobby-dash-aside flex min-h-0 min-w-0 flex-col gap-8 lg:gap-10">
-              <div className={`${panelSurface} flex flex-col items-center px-5 pb-6 pt-6 text-center md:px-6 md:pb-7 md:pt-7`}>
+              <div
+                  className={`lobby-season-panel ${panelSurface} flex flex-col items-center px-5 pb-6 pt-6 text-center md:px-6 md:pb-7 md:pt-7`}
+              >
                 <header className="flex w-full flex-col items-center gap-2">
                   <p className="font-sans text-[0.625rem] font-semibold uppercase tracking-[0.32em] text-white/90">
                     SEASON 1
@@ -746,7 +1131,10 @@ export default function LobbyPage() {
                   </p>
                 </header>
 
-                <div className="relative mx-auto mt-10 flex min-h-[11.5rem] w-full items-center justify-center sm:mt-11 sm:min-h-[13rem]" aria-hidden>
+                <div
+                    className="lobby-season-emblem relative mx-auto mt-10 flex min-h-[11.5rem] w-full items-center justify-center sm:mt-11 sm:min-h-[13rem]"
+                    aria-hidden
+                >
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,16rem)] w-[min(100%,16rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(167,139,250,0.42)_0%,rgba(88,28,135,0.18)_42%,transparent_72%)]" />
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/30 blur-[44px]" />
                   <img
@@ -757,57 +1145,81 @@ export default function LobbyPage() {
                 </div>
 
                 <footer className="mt-12 flex w-full flex-col items-center gap-3 sm:mt-14">
-                  <p className="font-sans text-[0.7rem] font-medium tracking-wide text-slate-500">Season ends in:</p>
-                  <p className="font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl">
-                    24d 18h 32m
-                  </p>
+                  {!seasonHasEnded ? (
+                    <>
+                      <p className="font-sans text-[0.7rem] font-medium tracking-wide text-slate-500">Season ends in:</p>
+                      <p
+                        className="max-w-full text-center font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl tabular-nums whitespace-nowrap"
+                      >
+                        {seasonCountdownText}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="max-w-full whitespace-nowrap text-center font-sans text-xl font-black tracking-[0.08em] text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.12)] sm:text-2xl">
+                      Season Ended
+                    </p>
+                  )}
                 </footer>
               </div>
 
-              <div className={`${panelSurface} ${padStd} flex min-h-0 flex-1 flex-col`}>
+              <div className={`lobby-recent-panel ${panelSurface} ${padStd} flex min-h-0 flex-1 flex-col`}>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.24em] text-violet-50 sm:text-[0.74rem]">RECENT MATCHES</h3>
                   <button
                       type="button"
                       disabled
-                      title="Match API not ready"
+                      title="Coming soon"
                       className="cursor-not-allowed text-[0.75rem] font-semibold uppercase tracking-wide text-cyan-200/95 underline-offset-2 sm:text-[0.8125rem]"
                   >
                     View All
                   </button>
                 </div>
-                <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
-                  Mock-only — no match API.
-                </p>
-                <ul className="mt-4 flex flex-col gap-3 overflow-y-auto text-[0.9rem] sm:text-[0.95rem]">
-                  {MOCK_MATCH_ROWS.map((row, i) => (
-                      <li
-                          key={`${row.result}-${i}`}
-                          className="flex items-center gap-3 border-b border-white/[0.06] pb-3 last:border-0 last:pb-0"
-                      >
-                        <img
-                            src={row.result === 'Victory' ? LOBBY_VICTORY_ICON_URL : LOBBY_LOSE_ICON_URL}
-                            alt=""
-                            className="h-10 w-10 shrink-0 object-contain mix-blend-screen brightness-105 contrast-105 drop-shadow-[0_0_12px_rgba(139,92,246,0.35)] sm:h-11 sm:w-11"
-                        />
-                        <div className="min-w-0 flex-1 leading-snug">
-                          <div>
-                            <span className={`font-semibold ${row.tone}`}>{row.result}</span>
-                            <span className="text-violet-100/92"> · {row.opp}</span>
+                {recentMatchesLoading ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    Loading recent matches...
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && recentMatchesError ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    Unable to load recent matches
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && !recentMatchesError && recentMatchRows.length === 0 ? (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-violet-200/95 sm:text-sm">
+                    No recent matches yet
+                  </p>
+                ) : null}
+                {!recentMatchesLoading && !recentMatchesError && recentMatchRows.length > 0 ? (
+                  <ul className="lobby-recent-list mt-4 flex flex-col gap-3 overflow-y-auto text-[0.9rem] sm:text-[0.95rem]">
+                    {recentMatchRows.map((row) => (
+                        <li
+                            key={row.key}
+                            className="flex items-center gap-3 border-b border-white/[0.06] pb-3 last:border-0 last:pb-0"
+                        >
+                          <img
+                              src={row.isWin ? LOBBY_VICTORY_ICON_URL : LOBBY_LOSE_ICON_URL}
+                              alt=""
+                              className="h-10 w-10 shrink-0 object-contain mix-blend-screen brightness-105 contrast-105 drop-shadow-[0_0_12px_rgba(139,92,246,0.35)] sm:h-11 sm:w-11"
+                          />
+                          <div className="min-w-0 flex-1 leading-snug">
+                            <div>
+                              <span className={`font-semibold ${row.tone}`}>{row.resultLabel}</span>
+                              <span className="text-violet-100/92"> · {row.opp}</span>
+                            </div>
+                            <div className="mt-1 text-[0.8rem] font-medium tracking-wide text-violet-50/92 sm:text-[0.875rem]">
+                              {row.ago}
+                            </div>
                           </div>
-                          <div className="mt-1 text-[0.8rem] font-medium tracking-wide text-violet-50/92 sm:text-[0.875rem]">
-                            {row.ago}
-                          </div>
-                        </div>
-                      </li>
-                  ))}
-                </ul>
+                        </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             </aside>
           </div>
 
           {/* Footer */}
-          <footer className="mt-auto flex shrink-0 flex-wrap items-center justify-center gap-8 border-t border-white/8 px-4 py-5 font-sans text-[0.7rem] text-slate-500 sm:gap-10">
+          <footer className="lobby-dash-footer mt-auto flex shrink-0 flex-wrap items-center justify-center gap-8 border-t border-white/8 px-4 py-5 font-sans text-[0.7rem] text-slate-500 sm:gap-10">
             <div className="flex gap-6">
             <span className="cursor-not-allowed opacity-50" title="Coming soon">
               Discord

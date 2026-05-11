@@ -1,5 +1,11 @@
 // src/components/game/Battlefield.jsx
 import { useState, useEffect, useRef } from 'react';
+import BossVideoDisplay from './BossVideoDisplay';
+import BattlefieldVideoBackground from './BattlefieldVideoBackground';
+
+/** Feather boss video into abyss ring — masks hard rectangle edges while keeping torso readable. */
+const BOSS_FEATHER_MASK =
+  'radial-gradient(ellipse 104% 124% at 50% 58%, #000 0%, #000 54%, rgba(0,0,0,0.38) 80%, transparent 98%)';
 
 function DamageFloat({ value }) {
   return (
@@ -180,8 +186,16 @@ export default function Battlefield({
   bossHp, bossMaxHp,
   floor, lastScore,
   battlePhase,
+  phase,
   attackEffect,
+  gameOver,
+  onBossAttackStart,
+  onBossAttackEnded,
+  onBossDefeatedAnimationEnd,
 }) {
+  const playerWon = gameOver === 'win';
+  const playerLost = gameOver === 'lose';
+
   const [floats,  setFloats]  = useState([]);
   const prevScore             = useRef(null);
   const [bossHit, setBossHit] = useState(false);
@@ -715,6 +729,150 @@ export default function Battlefield({
           height: 6px;
           border-radius: 100% 0 100% 0;
         }
+
+        /* Host scales entire attack VFX on small viewports without fighting attackEffectIn keyframes’ transform. */
+        .battlefield-attack-effects-host {
+          position: absolute;
+          inset: 0;
+          z-index: 18;
+          pointer-events: none;
+        }
+
+        /* Laptop / short window: ~26% smaller (within 20–35% target). */
+        @media (max-width: 1440px), (max-height: 850px) {
+          .battlefield-attack-effects-host {
+            transform: scale(0.74);
+            transform-origin: 50% 36%;
+          }
+        }
+
+        /* 13–14" / tighter height: ~34% smaller vs default. */
+        @media (max-width: 1280px), (max-height: 760px) {
+          .battlefield-attack-effects-host {
+            transform: scale(0.66);
+            transform-origin: 50% 33%;
+          }
+        }
+
+        /* ── Boss portal column: breakpoints only touch ≤1512 / ≤1440 / ≤1280 ── */
+        @media (max-width: 1512px) {
+          .battlefield-boss-area {
+            gap: 8px !important;
+            padding-top: clamp(12px, 2.2vmin, 26px) !important;
+          }
+          .battlefield-boss-glow {
+            top: 27% !important;
+            width: clamp(104px, 18.5vmin, 240px) !important;
+            height: clamp(86px, 15vmin, 200px) !important;
+          }
+          .battlefield-boss-stack {
+            gap: 6px !important;
+            width: clamp(112px, 16.5vmin, 200px) !important;
+            max-width: min(200px, 31vw) !important;
+            transform: translateY(clamp(6px, 1.6vmin, 22px)) !important;
+          }
+          .battlefield-boss-video-frame {
+            max-height: clamp(168px, 24vmin, 252px) !important;
+            border-radius: 12px !important;
+          }
+          .battlefield-boss-video-frame > div {
+            transform: scale(0.94);
+            transform-origin: center 54%;
+          }
+          .battlefield-boss-info-row {
+            flex-wrap: nowrap !important;
+            justify-content: space-between !important;
+            gap: 4px !important;
+            max-width: min(252px, 92vw) !important;
+          }
+          .battlefield-boss-info-row > div:nth-child(2) {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+          }
+          .battlefield-boss-info-row > div:first-child,
+          .battlefield-boss-info-row > div:last-child {
+            width: clamp(28px, 4.9vmin, 38px) !important;
+            height: clamp(28px, 4.9vmin, 38px) !important;
+            border-width: 1.5px !important;
+            font-size: clamp(11px, 2vmin, 14px) !important;
+          }
+          .battlefield-boss-info-row > div:last-child {
+            font-size: clamp(10px, 1.95vmin, 13px) !important;
+          }
+          .battlefield-boss-info-row .battlefield-boss-name-inline {
+            font-size: clamp(9px, 1.85vmin, 11px) !important;
+            letter-spacing: 1px !important;
+          }
+        }
+        @media (max-width: 1440px) {
+          .battlefield-boss-glow {
+            width: clamp(98px, 17vmin, 220px) !important;
+            height: clamp(80px, 14vmin, 190px) !important;
+          }
+          .battlefield-boss-stack {
+            width: clamp(104px, 15vmin, 188px) !important;
+            max-width: min(188px, 29vw) !important;
+          }
+          .battlefield-boss-video-frame {
+            max-height: clamp(156px, 22vmin, 235px) !important;
+          }
+          .battlefield-boss-video-frame > div {
+            transform: scale(0.9);
+          }
+          .battlefield-boss-info-row {
+            gap: 3px !important;
+            max-width: min(236px, 94vw) !important;
+          }
+          .battlefield-boss-info-row > div:first-child,
+          .battlefield-boss-info-row > div:last-child {
+            width: clamp(26px, 4.5vmin, 36px) !important;
+            height: clamp(26px, 4.5vmin, 36px) !important;
+            font-size: clamp(10px, 1.85vmin, 13px) !important;
+          }
+        }
+        @media (max-width: 1280px) {
+          .battlefield-boss-area {
+            gap: 6px !important;
+            padding-top: clamp(10px, 2vmin, 22px) !important;
+          }
+          .battlefield-boss-glow {
+            top: 28% !important;
+            width: clamp(92px, 15.5vmin, 200px) !important;
+            height: clamp(74px, 12.8vmin, 176px) !important;
+          }
+          .battlefield-boss-stack {
+            width: clamp(96px, 14vmin, 172px) !important;
+            max-width: min(172px, 28vw) !important;
+            transform: translateY(4px) !important;
+          }
+          .battlefield-boss-video-frame {
+            max-height: clamp(142px, 20vmin, 218px) !important;
+            border-radius: 11px !important;
+          }
+          .battlefield-boss-video-frame > div {
+            transform: scale(0.86);
+          }
+          .battlefield-boss-info-row {
+            gap: 2px !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            max-width: min(220px, 96vw) !important;
+          }
+          .battlefield-boss-info-row > div:first-child,
+          .battlefield-boss-info-row > div:last-child {
+            width: 24px !important;
+            height: 24px !important;
+            font-size: 10px !important;
+          }
+          .battlefield-boss-info-row .battlefield-boss-name-inline {
+            font-size: clamp(8px, 1.65vmin, 10px) !important;
+          }
+          .battlefield-boss-info-row > div:last-child {
+            font-size: 9px !important;
+          }
+        }
       `}</style>
 
       <div style={{
@@ -723,22 +881,11 @@ export default function Battlefield({
         overflow: 'hidden',
         borderLeft:  '1px solid rgba(200,160,70,0.2)',
         borderRight: '1px solid rgba(200,160,70,0.2)',
-        background: `
-          repeating-linear-gradient(
-            0deg,
-            transparent, transparent 59px,
-            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            transparent, transparent 59px,
-            rgba(200,160,70,0.08) 59px, rgba(200,160,70,0.08) 60px
-          ),
-          url('/images/battlefield.png') center/cover no-repeat
-        `,
-        // Boss 攻击时整体红闪
+        background: '#050302',
         animation: battlePhase === 'boss' ? 'bossAttackFlash 1s ease-in-out' : 'none',
       }}>
+
+        <BattlefieldVideoBackground battlePhase={battlePhase} />
 
         {/* 层数标签 */}
         <div style={{
@@ -749,7 +896,7 @@ export default function Battlefield({
           border: '1px solid rgba(200,160,70,0.25)',
           borderRadius: 20, padding: '3px 14px',
           backdropFilter: 'blur(6px)',
-          zIndex: 5,
+          zIndex: 50,
         }}>
           <span style={{ color: '#c8a040', fontSize: 11, fontFamily: 'monospace', letterSpacing: 3 }}>
             第 {floor} 层
@@ -766,7 +913,7 @@ export default function Battlefield({
           <div style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 20, pointerEvents: 'none',
+            zIndex: 60, pointerEvents: 'none',
             animation: 'fadeInOut 0.4s ease',
           }}>
             <div style={{
@@ -795,172 +942,161 @@ export default function Battlefield({
           </div>
         )}
 
-        {/* ── BOSS 区域 ── */}
-        <div style={{
+        {/* ── BOSS 区域 — 前景层；手牌栏通过 GamePage sibling z-index 压在其上 ── */}
+        <div className="battlefield-boss-area" style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          gap: 12, paddingTop: 40,
+          gap: 12, paddingTop: 32,
           position: 'relative',
+          zIndex: 45,
         }}>
 
-          {attackEffect && <AttackEffect key={attackEffect.id} mode={attackEffect.mode} />}
+          <div className="battlefield-attack-effects-host" aria-hidden>
+            {attackEffect ? <AttackEffect key={attackEffect.id} mode={attackEffect.mode} /> : null}
+          </div>
 
           {/* 伤害飘字 */}
           {floats.map(f => <DamageFloat key={f.id} value={f.value} />)}
 
-          {/* Boss 氛围光 */}
-          <div style={{
-            position: 'absolute', top: '20%', left: '50%',
-            transform: 'translateX(-50%)',
-            width: 200, height: 200,
+          {/* Boss 氛围光 — 下移与立柱对齐 */}
+          <div className="battlefield-boss-glow" style={{
+            position: 'absolute', top: '26%', left: '50%',
+            transform: 'translate(-50%, 0)',
+            width: 'clamp(120px, 24vmin, 280px)',
+            height: 'clamp(100px, 20vmin, 240px)',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(180,20,20,0.25) 0%, transparent 70%)',
-            filter: 'blur(24px)',
+            background: 'radial-gradient(circle, rgba(120,40,140,0.2) 0%, rgba(80,15,120,0.1) 45%, transparent 78%)',
+            filter: 'blur(22px)',
             pointerEvents: 'none',
+            zIndex: 8,
           }} />
 
-          {/* Boss 炉石风格卡牌 */}
-          <div style={{
+          {/* Boss 立柱：整体下移对齐圆环几何中心 */}
+          <div className="battlefield-boss-stack" style={{
             position: 'relative',
-            width: 140, height: 190,
-            animation: bossHit ? 'bossShake 0.4s ease' : 'none',
-            filter: bossHit ? 'brightness(1.6) saturate(1.3)' : 'brightness(1)',
-            transition: 'filter 0.15s',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10,
+            width: 'clamp(132px, 20vmin, 228px)',
+            maxWidth: 'min(228px, 36vw)',
+            transform: 'translateY(clamp(16px, 3.2vmin, 32px))',
           }}>
-            <div style={{
-              position: 'absolute', inset: -12,
-              borderRadius: '50%',
-              background: bossHit
-                ? 'radial-gradient(ellipse, rgba(255,50,50,0.5) 0%, transparent 65%)'
-                : 'radial-gradient(ellipse, rgba(180,120,0,0.35) 0%, transparent 65%)',
-              filter: 'blur(12px)',
-              pointerEvents: 'none',
-              transition: 'background 0.2s',
-            }}/>
-
-            <svg
-              viewBox="0 0 140 190"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3, pointerEvents: 'none' }}
-            >
-              <path
-                d="M10,50 Q10,10 70,8 Q130,10 130,50 L130,155 Q130,182 70,182 Q10,182 10,155 Z"
-                fill="none"
-                stroke={bossHit ? '#ff6666' : '#c8922a'}
-                strokeWidth="3"
-                filter="url(#glow)"
-              />
-              <path
-                d="M16,52 Q16,18 70,16 Q124,18 124,52 L124,152 Q124,174 70,174 Q16,174 16,152 Z"
-                fill="none"
-                stroke={bossHit ? '#ff9999' : '#e8c060'}
-                strokeWidth="1.5" opacity="0.6"
-              />
-              <path
-                d="M30,48 Q30,24 70,22 Q110,24 110,48"
-                fill="none" stroke="#f0d070" strokeWidth="1" opacity="0.4"
-              />
-              <circle cx="16"  cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
-              <circle cx="124" cy="80"  r="3" fill="#c8922a" opacity="0.7"/>
-              <circle cx="16"  cy="130" r="3" fill="#c8922a" opacity="0.7"/>
-              <circle cx="124" cy="130" r="3" fill="#c8922a" opacity="0.7"/>
-              <defs>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="2" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-              </defs>
-            </svg>
-
-            <div style={{
-              position: 'absolute', inset: 0,
+            <div className="battlefield-boss-video-frame" style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '3 / 5',
+              maxHeight: 'clamp(200px, 30vmin, 300px)',
               borderRadius: 14,
-              background: 'linear-gradient(160deg, #2a1804 0%, #0e0802 100%)',
-              clipPath: 'ellipse(90% 95% at 50% 50%)',
-              zIndex: 0,
-            }}/>
-
-            <div style={{
-              position: 'absolute',
-              top: 18, left: '50%',
-              transform: 'translateX(-50%)',
-              width: 100, height: 110,
-              borderRadius: '50% 50% 45% 45%',
               overflow: 'hidden',
-              zIndex: 1,
-              border: `2px solid ${bossHit ? '#ff8888' : '#a07028'}`,
+              background: `
+                radial-gradient(ellipse 90% 88% at 50% 70%, rgba(24,14,42,0.55) 0%, rgba(4,6,14,1) 75%),
+                linear-gradient(180deg, rgba(10,10,24,1) 0%, rgba(2,4,12,1) 100%)
+              `,
+              WebkitMaskImage: BOSS_FEATHER_MASK,
+              maskImage: BOSS_FEATHER_MASK,
+              WebkitMaskSize: '100% 100%',
+              maskSize: '100% 100%',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
               boxShadow: bossHit
-                ? '0 0 20px rgba(255,80,80,0.7)'
-                : '0 0 16px rgba(160,100,0,0.5), inset 0 2px 0 rgba(255,220,100,0.2)',
-              background: 'radial-gradient(ellipse at 50% 30%, #2a1404, #0a0502)',
-              padding: 0,
+                ? '0 0 26px rgba(255,60,70,0.32), inset 0 1px 0 rgba(255,255,255,0.06)'
+                : '0 16px 36px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)',
+              animation: bossHit ? 'bossShake 0.4s ease' : 'none',
+              filter: bossHit ? 'brightness(1.12) saturate(1.22)' : 'brightness(1.02)',
+              transition: 'filter 0.15s ease, box-shadow 0.2s ease',
             }}>
-              <img
-                src="/images/boss.png"
-                alt="boss"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+              <BossVideoDisplay
+                bossHp={bossHp}
+                phase={phase}
+                battlePhase={battlePhase}
+                playerWon={playerWon}
+                playerLost={playerLost}
+                onAttackStart={onBossAttackStart}
+                onAttackEnded={onBossAttackEnded ?? (() => {})}
+                onDefeatedAnimationEnd={onBossDefeatedAnimationEnd ?? (() => {})}
               />
+
+              {/* 内缘柔化与深渊融合的暗角 */}
               <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0,
-                height: '35%',
-                background: 'linear-gradient(180deg, rgba(255,220,100,0.1) 0%, transparent 100%)',
-                borderRadius: '50% 50% 0 0',
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 'inherit',
                 pointerEvents: 'none',
-              }}/>
+                zIndex: 9,
+                boxShadow:
+                  'inset 0 0 52px rgba(0,0,0,0.62), inset 0 18px 40px rgba(8,6,26,0.45), inset 0 -36px 64px rgba(4,4,14,0.75)',
+              }} />
+
+              {/* 底部轻压暗 — 仅占底缘 */}
+              <div style={{
+                position: 'absolute',
+                left: 0, right: 0, bottom: 0,
+                height: '24%',
+                background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.5) 100%)',
+                pointerEvents: 'none',
+                zIndex: 11,
+              }} />
             </div>
 
-            <div style={{
-              position: 'absolute', bottom: 28, left: '50%',
-              transform: 'translateX(-50%)',
-              whiteSpace: 'nowrap', zIndex: 4,
-              background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.8) 80%, transparent)',
-              padding: '3px 14px',
+            {/* 名称 / 攻防 — 窄于或过宽时用 maxWidth 对齐立柱 */}
+            <div className="battlefield-boss-info-row" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'clamp(6px, 1.8vmin, 12px)',
+              flexWrap: 'wrap',
+              padding: '0 2px',
+              maxWidth: 'min(260px, 42vw)',
             }}>
-              <span style={{
-                color: '#f0d070', fontSize: 12, fontWeight: 700,
-                letterSpacing: 2, fontFamily: 'serif',
-                textShadow: '0 0 10px rgba(240,200,80,0.6), 0 1px 3px rgba(0,0,0,0.9)',
-              }}>
-                暗影领主
-              </span>
-            </div>
-
-            {/* 左下角：攻击力 */}
-            <div style={{ position: 'absolute', bottom: -6, left: -8, width: 44, height: 44, zIndex: 5 }}>
               <div style={{
-                position: 'absolute', inset: -2, borderRadius: '50%',
-                background: 'conic-gradient(#ffd700 0%, #8b6000 50%, #ffd700 100%)',
-                filter: 'blur(3px)', opacity: 0.8,
-              }}/>
-              <div style={{
-                position: 'relative', width: '100%', height: '100%',
+                width: 'clamp(36px, 6vmin, 44px)',
+                height: 'clamp(36px, 6vmin, 44px)',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)',
-                border: '2px solid #ffd700',
+                border: '2px solid rgba(255,215,96,0.85)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, fontSize: 18, color: '#fff',
-                boxShadow: '0 0 14px rgba(220,170,0,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                fontWeight: 900, fontSize: 'clamp(13px, 2.6vmin, 16px)', color: '#fff',
+                boxShadow: '0 0 12px rgba(220,170,0,0.4), 0 3px 8px rgba(0,0,0,0.7)',
                 fontFamily: '"Cinzel", monospace',
                 textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-              }}>5</div>
-            </div>
-
-            {/* 右下角：HP */}
-            <div style={{ position: 'absolute', bottom: -6, right: -8, width: 44, height: 44, zIndex: 5 }}>
+              }}>
+                5
+              </div>
               <div style={{
-                position: 'absolute', inset: -2, borderRadius: '50%',
-                background: 'conic-gradient(#ff4444 0%, #660000 50%, #ff4444 100%)',
-                filter: 'blur(3px)', opacity: 0.8,
-              }}/>
+                minWidth: 0,
+                textAlign: 'center',
+                padding: '4px clamp(10px, 3vmin, 16px)',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.72), rgba(0,0,0,0.2))',
+                border: '1px solid rgba(200,160,90,0.22)',
+              }}>
+                <span className="battlefield-boss-name-inline" style={{
+                  color: '#e8cfa0',
+                  fontSize: 'clamp(10px, 2.2vmin, 12px)',
+                  fontWeight: 800,
+                  letterSpacing: 2,
+                  fontFamily: 'serif',
+                  textShadow: '0 0 10px rgba(200,170,110,0.32), 0 1px 3px rgba(0,0,0,1)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  暗影领主
+                </span>
+              </div>
               <div style={{
-                position: 'relative', width: '100%', height: '100%',
+                width: 'clamp(36px, 6vmin, 44px)',
+                height: 'clamp(36px, 6vmin, 44px)',
+                flexShrink: 0,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle at 35% 28%, #cc2222, #550000)',
-                border: '2px solid #ff6666',
+                background: 'radial-gradient(circle at 35% 28%, #cc2222, #440808)',
+                border: '2px solid rgba(255,110,110,0.85)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontWeight: 900,
-                fontSize: bossHp > 999 ? 10 : 16,
+                fontSize: bossHp > 999 ? 9 : 'clamp(12px, 2.6vmin, 15px)',
                 color: '#fff',
-                boxShadow: '0 0 14px rgba(200,30,30,0.8), 0 3px 8px rgba(0,0,0,0.8)',
+                boxShadow: '0 0 12px rgba(200,30,40,0.45), 0 3px 8px rgba(0,0,0,0.7)',
                 fontFamily: '"Cinzel", monospace',
                 textShadow: '0 1px 4px rgba(0,0,0,0.9)',
               }}>
@@ -972,7 +1108,6 @@ export default function Battlefield({
                 }
               </div>
             </div>
-
           </div>
         </div>
 

@@ -102,14 +102,26 @@ export interface ScoreResult {
   total: number;
 }
 
+const COMMON_HANDS: HandType[]   = ['HIGH_CARD', 'PAIR', 'TWO_PAIR', 'THREE_OF_A_KIND'];
+const RARE_HANDS: HandType[]     = ['STRAIGHT', 'FLUSH'];
+const EPIC_HANDS: HandType[]     = ['FULL_HOUSE', 'FOUR_OF_A_KIND', 'STRAIGHT_FLUSH'];
+
+export function getHandTier(handType: HandType): 'common' | 'rare' | 'epic' {
+  if (COMMON_HANDS.includes(handType)) return 'common';
+  if (RARE_HANDS.includes(handType))   return 'rare';
+  return 'epic';
+}
+
 /**
- * 6 步顺序应用 buff：
+ * 8 步顺序应用 buff：
  *   1. 查表取 base chips + base mult
- *   2. HAND_CHIPS_BONUS → base chips += bonusChips
- *   3. HAND_MULT_BONUS → mult += bonusMult
- *   4. 每张牌 chip：ELEMENT_CHIP_MULT → ELEMENT_CHIPS_BONUS → ALL_CHIPS_BONUS
- *   5. total = floor((baseChips + cardChips) × mult)
- *   6. isDefending → total = floor(total × 0.5)
+ *   2. HAND_CHIPS_BONUS → base chips += bonusChips（单牌型，保留兼容）
+ *   3. HAND_MULT_BONUS → mult += bonusMult（单牌型，保留兼容）
+ *   4. TIERED_CHIPS_BONUS → 根据牌型稀有度加底分
+ *   5. TIERED_MULT_BONUS → 根据牌型稀有度加倍率
+ *   6. 每张牌 chip：ELEMENT_CHIP_MULT → ELEMENT_CHIPS_BONUS → ALL_CHIPS_BONUS
+ *   7. total = floor((baseChips + cardChips) × mult)
+ *   8. isDefending → total = floor(total × 0.5)
  */
 export function calculateDamage(cards: Card[], buffs: Buff[] = [], isDefending: boolean = false): ScoreResult {
   const hand = identifyHand(cards);
@@ -123,6 +135,16 @@ export function calculateDamage(cards: Card[], buffs: Buff[] = [], isDefending: 
     }
     if (buff.type === 'HAND_MULT_BONUS' && buff.handType === hand.type) {
       mult += buff.bonusMult;
+    }
+  }
+
+  const tier = getHandTier(hand.type);
+  for (const buff of buffs) {
+    if (buff.type === 'TIERED_CHIPS_BONUS') {
+      baseChips += tier === 'common' ? buff.commonBonus : tier === 'rare' ? buff.rareBonus : buff.epicBonus;
+    }
+    if (buff.type === 'TIERED_MULT_BONUS') {
+      mult += tier === 'common' ? buff.commonMult : tier === 'rare' ? buff.rareMult : buff.epicMult;
     }
   }
 

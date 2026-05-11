@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { login } from '../api/authApi.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { audioManager } from '../utils/audioManager.js';
 
 // Basic email format check — full validation happens server-side.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -191,6 +192,7 @@ function LoginPage() {
     try {
       const { accessToken, user } = await login(email.trim(), password);
       setAuth(user, accessToken);
+      audioManager.playBGM();
       navigate('/lobby');
     } catch (err) {
       // err.message is normalised by the axios response interceptor in client.js

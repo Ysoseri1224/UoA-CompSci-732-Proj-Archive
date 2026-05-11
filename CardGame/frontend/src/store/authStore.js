@@ -7,6 +7,7 @@ import {
   setRefreshToken,
   clearRefreshToken,
 } from '../utils/tokenUtils.js';
+import { audioManager } from '../utils/audioManager.js';
 
 // ---------------------------------------------------------------------------
 // JWT helpers — decode payload and check expiry without an external library.
@@ -78,6 +79,7 @@ const useAuthStore = create((set) => ({
   clearAuth: () => {
     clearToken();
     clearRefreshToken();
+    audioManager.stopBGM();
     set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
   },
 
@@ -88,6 +90,7 @@ const useAuthStore = create((set) => ({
       // Stale or missing token — clean up and stay logged out
       clearToken();
       clearRefreshToken();
+      audioManager.stopBGM();
       set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       return;
     }

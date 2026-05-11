@@ -5,6 +5,7 @@ import type { RoundSkills } from '../types/state.js';
 interface ShieldState {
   active: boolean;
   onCooldown: boolean;
+  cooldownRounds: number;
 }
 
 interface SwapParams {
@@ -78,39 +79,50 @@ function swapCard({ state, cardId, filter, sortBy }: SwapParams): DeckState {
 //  技能 3: 护盾
 // ══════════════════════════════════════════════════════════════════
 
+const SHIELD_COOLDOWN_ROUNDS = 3;
+
 export function activateShield(shield: ShieldState): ShieldState {
   if (shield.active || shield.onCooldown) return { ...shield };
-  return { active: true, onCooldown: false };
+  return { active: true, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function shatterShield(shield: ShieldState): ShieldState {
   if (!shield.active) return { ...shield };
-  return { active: false, onCooldown: true };
+  return { active: false, onCooldown: true, cooldownRounds: SHIELD_COOLDOWN_ROUNDS };
 }
 
 export function voidShield(shield: ShieldState): ShieldState {
   if (!shield.active) return { ...shield };
-  return { active: false, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
 }
 
 export function resetShieldCooldown(shield: ShieldState): ShieldState {
-  return { ...shield, onCooldown: false };
+  return { active: false, onCooldown: false, cooldownRounds: 0 };
+}
+
+/** 每回合末递减冷却计数，归零时清除 onCooldown */
+export function tickShieldCooldown(shield: ShieldState): ShieldState {
+  if (!shield.onCooldown) return { ...shield };
+  const next = shield.cooldownRounds - 1;
+  return next <= 0
+    ? { active: false, onCooldown: false, cooldownRounds: 0 }
+    : { ...shield, cooldownRounds: next };
 }
 
 // ══════════════════════════════════════════════════════════════════
 //  守卫条件
 // ══════════════════════════════════════════════════════════════════
 
-export function canUseChangeColor(skills: { changeColor: { used: boolean } }, phase: string): boolean {
-  return !skills.changeColor.used && phase === 'SKILL';
+export function canUseChangeColor(energy: number, phase: string): boolean {
+  return energy > 0 && phase === 'SKILL';
 }
 
-export function canUseChangeCost(skills: { changeCost: { used: boolean } }, phase: string): boolean {
-  return !skills.changeCost.used && phase === 'SKILL';
+export function canUseChangeCost(energy: number, phase: string): boolean {
+  return energy > 0 && phase === 'SKILL';
 }
 
-export function canUseShield(shield: ShieldState, phase: string): boolean {
-  return !shield.active && !shield.onCooldown && phase === 'SKILL';
+export function canUseShield(energy: number, shield: ShieldState, phase: string): boolean {
+  return energy > 0 && !shield.active && !shield.onCooldown && phase === 'SKILL';
 }
 
 export function canShuffle(shuffle: { remaining: number }, phase: string): boolean {
@@ -130,9 +142,8 @@ export function resetRoundSkills(
 ): { skills: RoundSkills; shuffle: { remaining: number } } {
   return {
     skills: {
-      changeColor: { used: false },
-      changeCost:  { used: false },
-      shield:      { ...skills.shield },
+      energy: skills.energy,  // 充能跨回合保留
+      shield: { ...skills.shield },
     },
     shuffle: { remaining: 2 },
   };

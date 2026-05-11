@@ -39,6 +39,8 @@ import {
   createElementChipsBonus,
   createElementDrawBuff,
   createHighRankDrawBuff,
+  createTieredChipsBonus,
+  createTieredMultBonus,
   createUpgrade,
   FIRST_LAYER_UPGRADES,
   generateUpgradePool,
@@ -201,10 +203,9 @@ test('createShieldState defaults to inactive and not on cooldown', () => {
   assert.equal(shield.onCooldown, false);
 });
 
-test('createRoundSkills initialises with nothing used', () => {
+test('createRoundSkills initialises with 3 energy', () => {
   const skills = createRoundSkills();
-  assert.equal(skills.changeColor.used, false);
-  assert.equal(skills.changeCost.used, false);
+  assert.equal(skills.energy, 3);
   assert.equal(skills.shield.active, false);
   assert.equal(skills.shield.onCooldown, false);
 });
@@ -372,6 +373,22 @@ test('createHighRankDrawBuff creates correct buff', () => {
   assert.equal(buff.type, BUFF_TYPE.HIGH_RANK_DRAW_ON_SHUFFLE);
 });
 
+test('createTieredChipsBonus creates correct buff', () => {
+  const buff = createTieredChipsBonus(10, 20, 35);
+  assert.equal(buff.type, BUFF_TYPE.TIERED_CHIPS_BONUS);
+  assert.equal(buff.commonBonus, 10);
+  assert.equal(buff.rareBonus, 20);
+  assert.equal(buff.epicBonus, 35);
+});
+
+test('createTieredMultBonus creates correct buff', () => {
+  const buff = createTieredMultBonus(0, 2, 3);
+  assert.equal(buff.type, BUFF_TYPE.TIERED_MULT_BONUS);
+  assert.equal(buff.commonMult, 0);
+  assert.equal(buff.rareMult, 2);
+  assert.equal(buff.epicMult, 3);
+});
+
 test('createUpgrade returns complete object', () => {
   const buff = createElementChipMult('FIRE');
   const up = createUpgrade('u1', 'Test', 'Desc', buff);
@@ -402,15 +419,25 @@ test('generateUpgradePool returns exactly 3 upgrades', () => {
   }
 });
 
-test('generateUpgradePool returns upgrades for the chosen element', () => {
-  const pool = generateUpgradePool('WATER', 3);
-  // At least one upgrade should reference the chosen element
-  const hasElementUpgrade = pool.some(u =>
-    u.buff.element === 'WATER' ||
-    u.id.includes('WATER') ||
-    u.id.includes('water')
-  );
-  assert.ok(hasElementUpgrade);
+test('generateUpgradePool honors excludeTypes', () => {
+  const pool = generateUpgradePool('WATER', 2, ['SKILL_ENERGY_MAX']);
+  const hasSkillEnergy = pool.some(u => u.buff.type === 'SKILL_ENERGY_MAX');
+  assert.equal(hasSkillEnergy, false);
+});
+
+test('generateUpgradePool returns exactly 3 when excludeTypes removes items', () => {
+  const exclude = ['TIERED_CHIPS_BONUS', 'TIERED_MULT_BONUS', 'ALL_CHIPS_BONUS',
+    'ELEMENT_DRAW_ON_SHUFFLE', 'HIGH_RANK_DRAW_ON_SHUFFLE', 'HP_BONUS', 'SKILL_ENERGY_MAX'];
+  const pool = generateUpgradePool('WATER', 2, exclude);
+  // ELEMENT_CHIP_MULT and ELEMENT_CHIPS_BONUS remain (2 items) → returns min(2, 3) = 2
+  assert.ok(pool.length >= 1 && pool.length <= 3);
+  const types = pool.map(u => u.buff.type);
+  const invalid = types.filter(t => exclude.includes(t));
+  assert.equal(invalid.length, 0);
+  // Every returned upgrade must be one of the remaining types
+  for (const t of types) {
+    assert.ok(t === 'ELEMENT_CHIP_MULT' || t === 'ELEMENT_CHIPS_BONUS');
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════

@@ -4,6 +4,7 @@ import usePveSocketStore from '../store/pveSocketStore.js';
 import { adaptPveGameState } from '../socket/pveSocketAdapter.js';
 import { useAuth } from './useAuth.js';
 import { HAND_TYPES } from '../data/handTypes.js';
+import { audioManager } from '../utils/audioManager.js';
 
 const MAX_SELECT = 5;
 const EMPTY_EVALUATION = {
@@ -19,6 +20,34 @@ const COLOR_TO_ELEMENT = {
   blue: 'WATER',
   green: 'GRASS',
 };
+
+/** Player attack VFX duration (Battlefield AttackEffect ~1.05s). */
+const ATTACK_EFFECT_CLEAR_MS = 1050;
+
+/**
+ * Infer AttackEffect mode: only pure mono-element hands get fire/water/nature; mixed or unknown → normal.
+ * @param {Array<{ color?: string }>|null|undefined} cards
+ * @returns {'normal'|'fire'|'water'|'nature'}
+ */
+function inferAttackEffectModeFromCards(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) return 'normal';
+
+  function contribution(card) {
+    if (!card) return null;
+    if (card.color === 'red') return 'fire';
+    if (card.color === 'blue') return 'water';
+    if (card.color === 'green') return 'nature';
+    return null;
+  }
+
+  const modes = cards.map(contribution);
+  if (modes.some((m) => m == null)) return 'normal';
+
+  const unique = new Set(modes);
+  if (unique.size !== 1) return 'normal';
+
+  return modes[0];
+}
 
 function getHandType(cards) {
   if (cards.length === 0) return HAND_TYPES.find((h) => h.id === 'high_card');
@@ -62,13 +91,31 @@ function getHandType(cards) {
   return HAND_TYPES.find((h) => h.id === 'high_card');
 }
 
+const HAND_SCORES_FRONTEND = {
+  royal_flush:      { chips: 100, mult: 8 },
+  straight_flush:   { chips: 100, mult: 8 },
+  four_of_a_kind:   { chips: 60,  mult: 7 },
+  full_house:       { chips: 40,  mult: 6 },
+  flush:            { chips: 35,  mult: 4 },
+  straight:         { chips: 30,  mult: 4 },
+  three_of_a_kind:  { chips: 30,  mult: 3 },
+  two_pair:         { chips: 20,  mult: 2 },
+  one_pair:         { chips: 10,  mult: 2 },
+  high_card:        { chips: 5,   mult: 1 },
+};
+
 export function evaluateHand(cards) {
   const handType = getHandType(cards);
-  const baseAttack = cards.reduce((sum, c) => sum + c.cost, 0);
-  const bonusAttack = handType.baseBonus;
-  const multiplier = handType.multiplier;
-  const totalScore = Math.round((baseAttack + bonusAttack) * multiplier);
-  return { handType, baseAttack, bonusAttack, multiplier, totalScore };
+  const { chips: baseChips, mult } = HAND_SCORES_FRONTEND[handType.id] ?? { chips: 5, mult: 1 };
+  const cardChips = cards.reduce((sum, c) => sum + c.cost, 0);
+  const totalScore = Math.floor((baseChips + cardChips) * mult);
+  return {
+    handType,
+    baseAttack: baseChips,
+    bonusAttack: cardChips,
+    multiplier: mult,
+    totalScore,
+  };
 }
 
 function createSocket(accessToken) {
@@ -109,8 +156,13 @@ export function useGameLogic(roomId = null) {
   const socketRef = useRef(null);
   const resolvedScoreKeyRef = useRef(null);
   const pendingEvaluationRef = useRef(null);
+  /** Snapshot of cards sent with last `confirmPlay` (for attack VFX element). */
+  const pendingPlayedCardsRef = useRef(null);
   const pendingPlayConfirmRef = useRef(false);
+  const attackEffectClearTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
   const battlePhaseTimerRef = useRef(null);
+  /** Isolated BOSS_ATTACK → resolveAnimationComplete schedule (must not share beginBattlePhase's clearTimeout). */
+  const bossAttackResolveScheduleRef = useRef({ id: 0, timer: /** @type {ReturnType<typeof setTimeout> | null} */ (null) });
   const prevPhaseRef = useRef(phase);
   const prevShieldActiveRef = useRef(shieldActive);
   const prevPlayerHpRef = useRef(player.hp);
@@ -121,6 +173,18 @@ export function useGameLogic(roomId = null) {
   const [battlePhase, setBattlePhase] = useState(null);
   const [resolvedEvaluation, setResolvedEvaluation] = useState(EMPTY_EVALUATION);
   const [restartNonce, setRestartNonce] = useState(0);
+  const [attackEffect, setAttackEffect] = useState(null);
+
+  const scheduleAttackEffectClear = useCallback(() => {
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    attackEffectClearTimerRef.current = setTimeout(() => {
+      attackEffectClearTimerRef.current = null;
+      setAttackEffect(null);
+    }, ATTACK_EFFECT_CLEAR_MS);
+  }, []);
 
   const selectedCards = useMemo(
     () => selected.map((id) => hand.find((c) => c.id === id)).filter(Boolean),
@@ -149,6 +213,22 @@ export function useGameLogic(roomId = null) {
     }, battlePhaseDurationMs);
   }, [battlePhaseDurationMs]);
 
+  const scheduleResolveAnimationCompleteForBossAttack = useCallback(() => {
+    const s = bossAttackResolveScheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    const dispatchId = ++s.id;
+    s.timer = setTimeout(() => {
+      s.timer = null;
+      if (bossAttackResolveScheduleRef.current.id !== dispatchId) return;
+      const socket = socketRef.current;
+      if (!socket?.connected) return;
+      socket.emit('resolveAnimationComplete');
+    }, battlePhaseDurationMs);
+  }, [battlePhaseDurationMs]);
+
   useEffect(() => {
     reset();
     setSelected([]);
@@ -157,7 +237,13 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayedCardsRef.current = null;
     pendingPlayConfirmRef.current = false;
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    setAttackEffect(null);
     setRoomId(roomId);
 
     const socket = createSocket(accessToken);
@@ -192,7 +278,19 @@ export function useGameLogic(roomId = null) {
       if (battlePhaseTimerRef.current) {
         clearTimeout(battlePhaseTimerRef.current);
       }
+      const s = bossAttackResolveScheduleRef.current;
+      if (s.timer) {
+        clearTimeout(s.timer);
+        s.timer = null;
+      }
+      s.id += 1;
       pendingPlayConfirmRef.current = false;
+      pendingPlayedCardsRef.current = null;
+      if (attackEffectClearTimerRef.current != null) {
+        clearTimeout(attackEffectClearTimerRef.current);
+        attackEffectClearTimerRef.current = null;
+      }
+      setAttackEffect(null);
       socket.disconnect();
       socketRef.current = null;
       reset();
@@ -221,7 +319,15 @@ export function useGameLogic(roomId = null) {
       totalScore: score,
     });
     pendingEvaluationRef.current = null;
-  }, [play, round]);
+
+    const playedSnapshot = pendingPlayedCardsRef.current;
+    pendingPlayedCardsRef.current = null;
+    if (score > 0) {
+      const mode = inferAttackEffectModeFromCards(playedSnapshot);
+      setAttackEffect({ id: Date.now(), mode });
+      scheduleAttackEffectClear();
+    }
+  }, [play, round, scheduleAttackEffectClear]);
 
   useEffect(() => {
     if (!pendingPlayConfirmRef.current || phase !== 'PLAY' || selected.length === 0 || gameOver) return;
@@ -230,10 +336,11 @@ export function useGameLogic(roomId = null) {
     if (!socket) return;
 
     pendingEvaluationRef.current = previewEvaluation;
+    pendingPlayedCardsRef.current = selectedCards.slice();
     pendingPlayConfirmRef.current = false;
     socket.emit('confirmPlay');
     setSelected([]);
-  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected, selectedCards]);
 
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -241,13 +348,11 @@ export function useGameLogic(roomId = null) {
     const prevPlayerHp = prevPlayerHpRef.current;
     const playerTookDamage = player.hp < prevPlayerHp;
 
-    // for Player attack animation played DON'T CHANGE
+    // Player resolve → Boss attack banner: presentation timer may be overwritten by shield_break / boss
+    // without clearing the Boss resolve emit (see bossAttackResolveScheduleRef).
     if (prevPhase === 'RESOLVE' && phase === 'BOSS_ATTACK') {
-      beginBattlePhase('player', () => {
-        const socket = ensureSocket();
-        if (!socket) return;
-        socket.emit('resolveAnimationComplete');
-      });
+      beginBattlePhase('player');
+      scheduleResolveAnimationCompleteForBossAttack();
     } else if (prevShieldActive && !shieldActive && prevPhase === 'BOSS_ATTACK' && phase === 'ROUND_END') {
       beginBattlePhase('shield_break');
     } else if (prevPhase === 'BOSS_ATTACK' && playerTookDamage) {
@@ -257,9 +362,16 @@ export function useGameLogic(roomId = null) {
     prevPhaseRef.current = phase;
     prevShieldActiveRef.current = shieldActive;
     prevPlayerHpRef.current = player.hp;
-  }, [beginBattlePhase, ensureSocket, phase, player.hp, shieldActive]);
+  }, [
+    beginBattlePhase,
+    phase,
+    player.hp,
+    scheduleResolveAnimationCompleteForBossAttack,
+    shieldActive,
+  ]);
 
   const toggleSelect = useCallback((cardId) => {
+    audioManager.playSFX('select');
     const socket = ensureSocket();
     if (!socket || connectionStatus !== 'connected' || gameOver) return;
 
@@ -289,6 +401,7 @@ export function useGameLogic(roomId = null) {
   const discardSelected = useCallback(() => {
     const socket = ensureSocket();
     if (!socket || selected.length === 0) return;
+    audioManager.playSFX('discard');
     socket.emit('shuffleCards', { cardIds: selected });
     setSelected([]);
   }, [ensureSocket, selected]);
@@ -296,6 +409,7 @@ export function useGameLogic(roomId = null) {
   const playHand = useCallback(() => {
     const socket = ensureSocket();
     if (!socket || selected.length === 0 || gameOver) return;
+    audioManager.playSFX('play');
     if (phase !== 'PLAY') {
       pendingPlayConfirmRef.current = true;
       socket.emit('enterPlay');
@@ -305,13 +419,15 @@ export function useGameLogic(roomId = null) {
       return;
     }
     pendingEvaluationRef.current = previewEvaluation;
+    pendingPlayedCardsRef.current = selectedCards.slice();
     socket.emit('confirmPlay');
     setSelected([]);
-  }, [ensureSocket, gameOver, phase, previewEvaluation, selected]);
+  }, [ensureSocket, gameOver, phase, previewEvaluation, selected, selectedCards]);
 
   const skillChangeColor = useCallback((cardId, newColor) => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_change');
     socket.emit('useSkill', {
       skill: 'changeColor',
       cardId,
@@ -322,6 +438,7 @@ export function useGameLogic(roomId = null) {
   const skillChangeCost = useCallback((cardId, newCost) => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_change');
     socket.emit('useSkill', {
       skill: 'changeCost',
       cardId,
@@ -332,10 +449,18 @@ export function useGameLogic(roomId = null) {
   const skillActivateShield = useCallback(() => {
     const socket = ensureSocket();
     if (!socket) return;
+    audioManager.playSFX('skill_shield');
     socket.emit('useSkill', { skill: 'shield' });
   }, [ensureSocket]);
 
   const restartGame = useCallback(() => {
+    const s = bossAttackResolveScheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    s.id += 1;
+
     reset();
     setSelected([]);
     setTotalScore(0);
@@ -343,7 +468,13 @@ export function useGameLogic(roomId = null) {
     setResolvedEvaluation(EMPTY_EVALUATION);
     resolvedScoreKeyRef.current = null;
     pendingEvaluationRef.current = null;
+    pendingPlayedCardsRef.current = null;
     pendingPlayConfirmRef.current = false;
+    if (attackEffectClearTimerRef.current != null) {
+      clearTimeout(attackEffectClearTimerRef.current);
+      attackEffectClearTimerRef.current = null;
+    }
+    setAttackEffect(null);
     setBattlePhase(null);
     setRestartNonce((value) => value + 1);
   }, [reset]);
@@ -351,19 +482,8 @@ export function useGameLogic(roomId = null) {
   const isActionPhase = phase === 'SKILL' || phase === 'SHUFFLE' || phase === 'PLAY';
   const shieldUnavailable = skills.shield.active || skills.shield.onCooldown;
 
-  /** Matches SkillBar pip count: one slot per skill still available this round */
-  const skillCharges = useMemo(() => {
-    let n = 0;
-    if (!skills.changeColor.used) n += 1;
-    if (!skills.changeCost.used) n += 1;
-    if (!skills.shield.active && !skills.shield.onCooldown) n += 1;
-    return n;
-  }, [
-    skills.changeColor.used,
-    skills.changeCost.used,
-    skills.shield.active,
-    skills.shield.onCooldown,
-  ]);
+  /** Energy pool: remaining skill charges (cross-round, refilled per floor) */
+  const skillCharges = useMemo(() => skills.energy, [skills.energy]);
 
   return {
     hand,
@@ -390,9 +510,8 @@ export function useGameLogic(roomId = null) {
     gameOver,
     restartGame,
     skillCharges,
+    maxCharges: player.skillEnergyMax ?? 3,
     skillCooldowns: {
-      changeColor: skills.changeColor.used,
-      changeCost: skills.changeCost.used,
       shield: shieldUnavailable,
     },
     shieldActive,
@@ -400,7 +519,12 @@ export function useGameLogic(roomId = null) {
     skillChangeCost,
     skillActivateShield,
     battlePhase,
+    phase,
+    attackEffect,
     connectionStatus,
     errorMessage: lastError,
+    // Refs exposed for rogue extension hook
+    socketRef,
+    chosenElement: player.chosenElement ?? null,
   };
 }
