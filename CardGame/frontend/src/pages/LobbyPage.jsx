@@ -996,13 +996,14 @@ export default function LobbyPage() {
                 </div>
               </section>
 
+              <div className="flex w-full gap-4 md:gap-6">
               <button
                   type="button"
                   onClick={() => {
                     const roomId = `solo-${Date.now()}`;
                     navigate(`/room/${roomId}/game`);
                   }}
-                  className={`lobby-solo-cta ${actionCardBase} ${soloCardGlow} flex w-full flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem] md:w-1/2 md:max-w-[50%]`}
+                  className={`lobby-solo-cta ${actionCardBase} ${soloCardGlow} flex flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
                   <video
@@ -1035,6 +1036,33 @@ export default function LobbyPage() {
                 </span>
               </span>
               </button>
+
+              {/* Rogue Mode CTA */}
+              <button
+                  type="button"
+                  onClick={() => navigate('/rogue')}
+                  className={`lobby-solo-cta ${actionCardBase} border-amber-500/45 shadow-[0_0_36px_rgba(251,191,36,0.22),0_10px_36px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/35 flex flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
+              >
+                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#07060f]/88 via-[#07060f]/45 to-transparent" />
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(7,6,15,0.82)_0%,rgba(7,6,15,0.52)_42%,rgba(7,6,15,0.15)_72%,transparent_98%)]" />
+                </div>
+                <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-br from-amber-600/14 via-transparent to-orange-500/08" aria-hidden />
+                <div className="pointer-events-none absolute -right-6 top-4 z-[1] h-24 w-24 rounded-full bg-amber-500/15 blur-2xl" aria-hidden />
+                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 sm:max-w-[58%]">
+                  <p className={`lobby-solo-label ${labelUi} !text-amber-400/95`}>ROGUE</p>
+                  <h3 className="mt-2 text-lg font-black uppercase tracking-wide text-white md:text-xl">ROGUE MODE</h3>
+                  <p className="lobby-solo-lead mt-2 text-sm text-slate-400">Challenge 10 floors. Grow stronger with each victory.</p>
+                </div>
+                <span className="lobby-solo-cta-btn relative z-[2] grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-full bg-gradient-to-b from-amber-500 via-amber-600 to-amber-800 py-[0.95rem] pl-10 pr-5 text-[0.95rem] font-semibold tracking-[0.02em] text-white shadow-[0_10px_32px_rgba(180,83,9,0.5),0_2px_0_rgba(255,255,255,0.08)_inset] ring-1 ring-white/12 transition group-hover:brightness-[1.06] sm:py-4 sm:pl-12 sm:pr-6 sm:text-base">
+                  <span className="pointer-events-none select-none" aria-hidden />
+                  <span className="text-center">Start Rogue</span>
+                  <span className="justify-self-end pr-0.5 text-[1.35rem] font-medium leading-none text-white/95" aria-hidden>
+                    ›
+                  </span>
+                </span>
+              </button>
+              </div>
 
               <div className="lobby-bottom-cards-wrap w-full shrink-0">
                 <div className="lobby-bottom-row grid min-h-0 shrink-0 grid-cols-1 items-start gap-6 sm:grid-cols-2 sm:gap-7 xl:gap-8">
