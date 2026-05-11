@@ -1,6 +1,8 @@
 import { initDeckState } from '../lib/deck.js';
 import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
 import { createPlayerState, createRoundState } from '../types/state.js';
+import { applyPlayerBuffs } from '../types/buff.js';
+import type { Buff } from '../types/buff.js';
 import { transition } from './roundMachine.js';
 import { Match } from '../models/Match.js';
 import { MatchReplay } from '../models/MatchReplay.js';
@@ -60,8 +62,9 @@ export function createRoom(opts: {
   socketId: string;
   userId?: string;
   layer?: number;
+  buffs?: Buff[];
 }): GameContext {
-  const { roomId, socketId, userId = null, layer = 1 } = opts;
+  const { roomId, socketId, userId = null, layer = 1, buffs = [] } = opts;
 
   if (rooms.has(roomId)) {
     throw new Error(`Room ${roomId} already exists`);
@@ -70,7 +73,10 @@ export function createRoom(opts: {
   logger.info({ roomId, layer, userIdPresent: Boolean(userId) }, 'pve room created');
 
   const deckState = initDeckState();
-  const player = createPlayerState({ hp: playerHpForLayer(layer), maxHp: playerHpForLayer(layer) });
+  const baseMaxHp = playerHpForLayer(layer);
+  const baseEnergyMax = 3;
+  const { maxHp, skillEnergyMax } = applyPlayerBuffs(buffs, baseMaxHp, baseEnergyMax);
+  const player = createPlayerState({ hp: maxHp, maxHp, skillEnergyMax, buffs });
   const roundState = createRoundState();
   roundState.skills.energy = player.skillEnergyMax; // 每层开始回满充能
 
