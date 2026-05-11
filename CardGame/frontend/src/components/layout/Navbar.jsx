@@ -2,20 +2,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../../api/authApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
-/** Two-letter initials for profile chip (JWT username). */
-function getInitials(username) {
-  if (!username || typeof username !== 'string') return '?';
-  const t = username.trim();
-  if (!t) return '?';
-  const parts = t.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return t.length === 1 ? t.toUpperCase() : t.slice(0, 2).toUpperCase();
-}
-
 function Navbar() {
-  const { user, isAuthenticated, clearAuth } = useAuth();
+  const { isAuthenticated, clearAuth } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -125,10 +113,10 @@ function Navbar() {
 
           {isAuthenticated && (
             <>
-              {user && (
+              {/* {user && (
                 <Link
                   to={`/profile/${user.id}`}
-                  className="flex max-w-[14rem] items-center gap-2 rounded-full border border-transparent py-1 pl-1 pr-2 transition-colors duration-200 hover:border-white/[0.14] hover:bg-white/[0.05] sm:gap-3 sm:pr-3 min-[1512px]:gap-3"
+                  className="flex max-w-[14rem] items-center gap-2 rounded-full border border-transparent px-3 py-1 pl-1 pr-2 transition-colors duration-200 hover:border-white/[0.14] hover:bg-white/[0.05] sm:gap-3 sm:pr-3 min-[1512px]:gap-3"
                 >
                   <span className="hidden max-w-[9rem] truncate text-right text-sm font-medium text-slate-100 sm:inline min-[1512px]:max-w-[12rem] min-[1512px]:text-base">
                     {user.username}
@@ -141,11 +129,11 @@ function Navbar() {
                   </div>
                   <span className="sr-only">Open profile</span>
                 </Link>
-              )}
+              )} */}
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-full border border-white/25 px-3 py-2 text-xs font-semibold text-slate-200 transition-all duration-200 hover:border-white/45 hover:bg-violet-500/[0.08] hover:text-white sm:px-4 sm:text-sm min-[1512px]:px-6 min-[1512px]:py-3 min-[1512px]:text-lg"
+                className="rounded-full border border-white/25 px-3 py-3 text-xs font-semibold text-slate-200 transition-all duration-200 hover:border-white/45 hover:bg-violet-500/[0.08] hover:text-white sm:px-4 sm:text-sm min-[1512px]:px-6 min-[1512px]:py-2 min-[1512px]:text-lg"
               >
                 Sign out
               </button>
