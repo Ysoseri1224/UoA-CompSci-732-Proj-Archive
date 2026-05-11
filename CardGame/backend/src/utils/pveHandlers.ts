@@ -18,7 +18,6 @@ import {
   skillShield,
   shuffleSelect,
   shuffleConfirm,
-  shuffleCancel,
   startBattle,
   playSelect,
   playConfirm,
@@ -28,6 +27,8 @@ import {
 } from '../types/events.js';
 import type { GameContext } from '../pve/roundMachine.js';
 import { ROUND_PHASE } from '../types/state.js';
+import type { Buff, ElementChipMult, ElementChipsBonus, ElementDrawBuff } from '../types/buff.js';
+import type { Element, Rank } from '../types/card.js';
 
 function freshRoundState(energy: number, shuffleCount: number) {
   return {
@@ -40,6 +41,11 @@ function freshRoundState(energy: number, shuffleCount: number) {
     play:      { selectedCards: [], handType: null, score: null },
     bossRound: { intent: 'ATTACK' as const, isDefending: false, willReleaseCharge: false },
   };
+}
+
+function buffKey(b: Buff): string {
+  const el = 'element' in b ? (b as ElementChipMult | ElementChipsBonus | ElementDrawBuff).element : '';
+  return `${b.type}:${el}`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -154,10 +160,10 @@ export function registerPveHandlers(socket: Socket): void {
     let result;
     switch (payload.skill) {
       case 'changeColor':
-        result = sendRoomEvent(roomId, skillChangeColor(payload.cardId!, payload.target as any));
+        result = sendRoomEvent(roomId, skillChangeColor(payload.cardId!, payload.target! as Element));
         break;
       case 'changeCost':
-        result = sendRoomEvent(roomId, skillChangeCost(payload.cardId!, payload.targetRank as any));
+        result = sendRoomEvent(roomId, skillChangeCost(payload.cardId!, payload.targetRank as Rank));
         break;
       case 'shield':
         result = sendRoomEvent(roomId, skillShield());
@@ -267,7 +273,7 @@ export function registerPveHandlers(socket: Socket): void {
   });
 
   // ── 推进到下一层（前端在 battleWin 动画后发送）────────────
-  socket.on('advanceLayer', (payload?: { shuffleCount?: number; buffs?: any[] }) => {
+  socket.on('advanceLayer', (payload?: { shuffleCount?: number; buffs?: Buff[] }) => {
     const roomId = getRoomId(socket.id);
     if (!roomId) return;
     const ctx = getRoom(roomId);
@@ -281,7 +287,8 @@ export function registerPveHandlers(socket: Socket): void {
     const incoming  = Array.isArray(payload?.buffs) ? payload.buffs : [];
     const merged    = [...existing];
     for (const b of incoming) {
-      const idx = merged.findIndex(e => e.type === b.type && e.element === b.element);
+      const key = buffKey(b);
+      const idx = merged.findIndex(e => buffKey(e) === key);
       if (idx >= 0) merged[idx] = b;
       else merged.push(b);
     }
