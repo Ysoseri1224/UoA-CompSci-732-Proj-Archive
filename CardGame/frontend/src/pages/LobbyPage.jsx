@@ -50,6 +50,8 @@ function opponentLabelFromMatch(match) {
 const LOBBY_SOLO_CARD_BG_URL = '/lobby/cardBack.png';
 /** Solo PvE CTA background clip (`public/lobby/`). */
 const LOBBY_SOLO_CARD_VIDEO_URL = '/lobby/lobby-card.mp4';
+/** Rogue Mode CTA background clip (`public/lobby/`). */
+const LOBBY_ROGUE_CARD_VIDEO_URL = '/lobby/lobbyBackground-1.mp4';
 /** Filenames match `public/lobby` (case-sensitive on Linux). */
 const LOBBY_SEASON_ICON_URL = '/lobby/season-icon.PNG';
 const LOBBY_VICTORY_ICON_URL = '/lobby/victory-icon.PNG';
@@ -1326,6 +1328,15 @@ export default function LobbyPage() {
                   className={`lobby-solo-cta ${actionCardBase} border-amber-500/45 shadow-[0_0_36px_rgba(251,191,36,0.22),0_10px_36px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/35 flex h-full flex-1 flex-col justify-between gap-4 text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+                  <video
+                      className="absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full max-w-none -translate-x-1/2 -translate-y-1/2 object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      src={LOBBY_ROGUE_CARD_VIDEO_URL}
+                  />
                   <div className="absolute inset-0 bg-gradient-to-br from-[#07060f]/88 via-[#07060f]/45 to-transparent" />
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(7,6,15,0.82)_0%,rgba(7,6,15,0.52)_42%,rgba(7,6,15,0.15)_72%,transparent_98%)]" />
                 </div>
