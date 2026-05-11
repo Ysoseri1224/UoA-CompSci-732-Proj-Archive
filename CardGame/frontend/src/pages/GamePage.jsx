@@ -43,6 +43,7 @@ export default function GamePage() {
     playerMaxHp,
     bossHp,
     bossMaxHp,
+    bossName,
     floor,
     gameOver,
     restartGame,
@@ -267,6 +268,7 @@ export default function GamePage() {
         <Battlefield
           bossHp={bossHp}
           bossMaxHp={bossMaxHp}
+          bossName={bossName}
           floor={floor}
           lastScore={lastScore}
           battlePhase={battlePhase}
