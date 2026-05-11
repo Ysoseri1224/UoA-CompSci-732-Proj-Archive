@@ -112,11 +112,25 @@ router.post('/floor-won', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
     if (typeof playerHp !== 'number' || playerHp < 0)
       return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
-    const nextLayer  = (layer ?? 1) + 1;
+    const nextLayer  = layer + 1;
+    const save = await loadGame(userId);
+
+    // Layer 10 is the final floor — no next boss needed, just save checkpoint
+    if (layer >= 10) {
+      const snapshot = {
+        ...(save?.snapshot ?? {}),
+        layer:           10,
+        enhancements:    enhancements ?? save?.snapshot?.enhancements ?? [],
+        checkpointLayer: 10,
+        checkpointHp:    playerHp,
+        status:          'active',
+      };
+      await saveGame(userId, 'rogue', snapshot, 10);
+      return res.status(200).json({ success: true, message: 'Final floor cleared', data: null });
+    }
+
     const nextBoss   = createBossForLayer(nextLayer);
     const nextHp     = playerHpForLayer(nextLayer);
-
-    const save = await loadGame(userId);
     const snapshot = {
       ...(save?.snapshot ?? {}),
       layer:           nextLayer,
@@ -124,8 +138,8 @@ router.post('/floor-won', async (req, res, next) => {
       playerMaxHp:     nextHp,
       bossHp:          nextBoss.hp,
       enhancements:    enhancements ?? save?.snapshot?.enhancements ?? [],
-      checkpointLayer: layer,
-      checkpointHp:    playerHp,
+      checkpointLayer: nextLayer,
+      checkpointHp:    nextHp,
       status:          'active',
     };
 
@@ -151,7 +165,7 @@ router.post('/floor-lost', async (req, res, next) => {
       const hp   = playerHpForLayer(snap.checkpointLayer);
       const checkpoint = {
         floor:       snap.checkpointLayer,
-        playerHp:    snap.checkpointHp ?? hp,
+        playerHp:    hp,  // restore to full HP for the layer
         playerMaxHp: hp,
         bossHp:      boss.hp,
         enhancements: snap.enhancements ?? [],

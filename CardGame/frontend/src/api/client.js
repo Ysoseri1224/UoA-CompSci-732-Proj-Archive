@@ -5,10 +5,9 @@ import { getToken } from '../utils/tokenUtils.js';
 // All backend requests go through this client so that auth headers,
 // base URL, and error handling are configured in one place.
 const client = axios.create({
-  // Falls back to the Vite proxy target if the env variable is not set.
-  // During development the Vite proxy (/api -> localhost:3000) makes this
-  // value effectively unused, but it is required for production builds.
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  // Use relative path so all requests go through the Vite proxy (/api -> backend).
+  // VITE_API_BASE_URL is only needed for production builds without a proxy.
+  baseURL: import.meta.env.PROD ? (import.meta.env.VITE_API_BASE_URL || '') : '',
   headers: {
     'Content-Type': 'application/json',
   },
