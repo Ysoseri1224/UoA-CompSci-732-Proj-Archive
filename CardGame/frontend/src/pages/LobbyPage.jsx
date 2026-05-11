@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { getMatches } from '../api/matchApi.js';
 import { getUserStats } from '../api/userApi.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { computeLobbyXpProgress, formatXpWithCommas, lobbyXpFallback } from '../utils/xpSystem.js';
 
 // Shown when profile/stats API fails or userId is missing (local dev, offline, etc.)
 const MOCK_STATS = {
@@ -289,6 +290,8 @@ export default function LobbyPage() {
     totalWins: null,
     totalGames: null,
     winRateDisplay: null,
+    winRate: null,
+    maxDamage: null,
     loaded: false,
   });
 
@@ -339,6 +342,18 @@ export default function LobbyPage() {
     return u.slice(0, 2).toUpperCase();
   }, [user?.username]);
 
+  const lobbyXp = useMemo(() => {
+    if (!stats.loaded || stats.totalGames === null || stats.totalWins === null) {
+      return lobbyXpFallback();
+    }
+    return computeLobbyXpProgress({
+      totalGames: stats.totalGames,
+      totalWins: stats.totalWins,
+      winRate: stats.winRate ?? 0,
+      maxDamage: stats.maxDamage ?? 0,
+    });
+  }, [stats.loaded, stats.totalGames, stats.totalWins, stats.winRate, stats.maxDamage]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -349,6 +364,8 @@ export default function LobbyPage() {
             totalWins: MOCK_STATS.totalWins,
             totalGames: MOCK_STATS.totalGames,
             winRateDisplay: MOCK_STATS.winRateDisplay,
+            winRate: 0,
+            maxDamage: 0,
             loaded: true,
           });
         }
@@ -360,14 +377,26 @@ export default function LobbyPage() {
         if (cancelled) return;
         const games = data?.totalGames ?? 0;
         const wins = data?.totalWins ?? 0;
-        const wr =
+        const winRateNum =
+            typeof data?.winRate === 'number' && !Number.isNaN(data.winRate)
+                ? data.winRate
+                : games > 0
+                  ? wins / games
+                  : 0;
+        const wrDisplay =
             games > 0 && typeof data?.winRate === 'number'
                 ? `${(data.winRate * 100).toFixed(1)}%`
-                : '—';
+                : games > 0
+                  ? `${(winRateNum * 100).toFixed(1)}%`
+                  : '—';
+        const maxDamage =
+            typeof data?.maxDamage === 'number' && !Number.isNaN(data.maxDamage) ? data.maxDamage : 0;
         setStats({
           totalWins: wins,
           totalGames: games,
-          winRateDisplay: wr,
+          winRateDisplay: wrDisplay,
+          winRate: winRateNum,
+          maxDamage,
           loaded: true,
         });
       } catch {
@@ -376,6 +405,8 @@ export default function LobbyPage() {
             totalWins: MOCK_STATS.totalWins,
             totalGames: MOCK_STATS.totalGames,
             winRateDisplay: MOCK_STATS.winRateDisplay,
+            winRate: 0,
+            maxDamage: 0,
             loaded: true,
           });
         }
@@ -831,6 +862,10 @@ export default function LobbyPage() {
           .lobby-dash-root .lobby-sidebar-rail-top h2 {
             font-size: 0.8rem !important;
           }
+          .lobby-dash-root .lobby-sidebar-rail-top .lobby-sidebar-level-row {
+            font-size: 0.58rem !important;
+            letter-spacing: 0.08em !important;
+          }
           .lobby-dash-root aside:first-child .lobby-sidebar-rail-top .lobby-sidebar-label {
             font-size: 0.5rem !important;
             letter-spacing: 0.18em !important;
@@ -1112,16 +1147,24 @@ export default function LobbyPage() {
                       ✎
                     </span>
                     </div>
-                    <p className="lobby-sidebar-label text-violet-400/72">Ranked adventurer</p>
-                    <div className="mt-3 w-full lg:mt-4">
-                      <div className="lobby-sidebar-xp-row mb-1.5 flex justify-between gap-3 font-sans text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        <span>XP</span>
-                        <span className="tabular-nums tracking-normal text-violet-100/90">3,240 / 5,000</span>
+                    <p className="lobby-sidebar-level-row whitespace-nowrap font-sans text-[0.72rem] font-bold tabular-nums tracking-[0.12em] text-cyan-200/95 sm:text-sm">
+                      LV.{lobbyXp.currentLevel}
+                    </p>
+                    <p className="lobby-sidebar-label max-w-full truncate text-violet-400/72">
+                      {lobbyXp.rankTitle.toUpperCase()}
+                    </p>
+                    <div className="mt-3 w-full min-w-0 lg:mt-4">
+                      <div className="lobby-sidebar-xp-row mb-1.5 flex min-w-0 justify-between gap-2 font-sans text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        <span className="shrink-0">XP</span>
+                        <span className="min-w-0 truncate text-right tabular-nums tracking-normal text-violet-100/90">
+                          {formatXpWithCommas(lobbyXp.currentLevelXp)} / {formatXpWithCommas(lobbyXp.nextLevelXp)}{' '}
+                          XP
+                        </span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-black/55 shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.07]">
                         <div
-                            className="h-full rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.45)]"
-                            style={{ width: '64.8%' }}
+                            className="h-full min-w-0 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.45)] transition-[width] duration-300 ease-out"
+                            style={{ width: `${lobbyXp.progressPercent}%` }}
                         />
                       </div>
                     </div>
