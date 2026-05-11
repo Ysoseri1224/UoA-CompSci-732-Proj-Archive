@@ -104,10 +104,74 @@ const HAND_SCORES_FRONTEND = {
   high_card:        { chips: 5,   mult: 1 },
 };
 
-export function evaluateHand(cards) {
+const COMMON_HANDS = ['one_pair', 'two_pair', 'three_of_a_kind', 'high_card'];
+const RARE_HANDS   = ['straight', 'flush'];
+
+function getHandTier(handTypeId) {
+  if (COMMON_HANDS.includes(handTypeId)) return 'common';
+  if (RARE_HANDS.includes(handTypeId))   return 'rare';
+  return 'epic';
+}
+
+export function evaluateHand(cards, buffs = []) {
   const handType = getHandType(cards);
-  const { chips: baseChips, mult } = HAND_SCORES_FRONTEND[handType.id] ?? { chips: 5, mult: 1 };
-  const cardChips = cards.reduce((sum, c) => sum + c.cost, 0);
+  const { chips: baseChipsInit, mult: multInit } =
+    HAND_SCORES_FRONTEND[handType.id] ?? { chips: 5, mult: 1 };
+
+  let baseChips = baseChipsInit;
+  let mult      = multInit;
+
+  // HAND_CHIPS_BONUS / HAND_MULT_BONUS (per hand type)
+  const backendHandType = handType.id
+    .replace('one_pair', 'PAIR')
+    .replace('two_pair', 'TWO_PAIR')
+    .replace('three_of_a_kind', 'THREE_OF_A_KIND')
+    .replace('straight_flush', 'STRAIGHT_FLUSH')
+    .replace('four_of_a_kind', 'FOUR_OF_A_KIND')
+    .replace('full_house', 'FULL_HOUSE')
+    .replace('flush', 'FLUSH')
+    .replace('straight', 'STRAIGHT')
+    .replace('high_card', 'HIGH_CARD')
+    .replace('royal_flush', 'STRAIGHT_FLUSH')
+    .toUpperCase();
+
+  for (const buff of buffs) {
+    if (buff.type === 'HAND_CHIPS_BONUS' && buff.handType === backendHandType)
+      baseChips += buff.bonusChips;
+    if (buff.type === 'HAND_MULT_BONUS' && buff.handType === backendHandType)
+      mult += buff.bonusMult;
+  }
+
+  // TIERED_CHIPS_BONUS / TIERED_MULT_BONUS
+  const tier = getHandTier(handType.id);
+  for (const buff of buffs) {
+    if (buff.type === 'TIERED_CHIPS_BONUS')
+      baseChips += tier === 'common' ? buff.commonBonus : tier === 'rare' ? buff.rareBonus : buff.epicBonus;
+    if (buff.type === 'TIERED_MULT_BONUS')
+      mult += tier === 'common' ? buff.commonMult : tier === 'rare' ? buff.rareMult : buff.epicMult;
+  }
+
+  // Per-card chip calculation
+  const COLOR_TO_ELEMENT_MAP = { red: 'FIRE', blue: 'WATER', green: 'GRASS' };
+  let cardChips = 0;
+  for (const card of cards) {
+    let chip = card.cost;
+    const cardElement = COLOR_TO_ELEMENT_MAP[card.color];
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIP_MULT' && buff.element === cardElement)
+        chip *= buff.mult;
+    }
+    for (const buff of buffs) {
+      if (buff.type === 'ELEMENT_CHIPS_BONUS' && buff.element === cardElement)
+        chip += buff.bonusChips;
+    }
+    for (const buff of buffs) {
+      if (buff.type === 'ALL_CHIPS_BONUS')
+        chip += buff.bonusChips;
+    }
+    cardChips += chip;
+  }
+
   const totalScore = Math.floor((baseChips + cardChips) * mult);
   return {
     handType,
@@ -192,8 +256,8 @@ export function useGameLogic(roomId = null) {
   );
 
   const previewEvaluation = useMemo(
-    () => (selectedCards.length ? evaluateHand(selectedCards) : EMPTY_EVALUATION),
-    [selectedCards],
+    () => (selectedCards.length ? evaluateHand(selectedCards, player.buffs ?? []) : EMPTY_EVALUATION),
+    [selectedCards, player.buffs],
   );
 
   const evaluation = selectedCards.length ? previewEvaluation : resolvedEvaluation;

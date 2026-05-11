@@ -60,7 +60,7 @@ export function useRogueLogic(onBattleWin = null) {
       socket.off('battleWin',  onBattleWinEvt);
       socket.off('battleLose', onBattleLoseEvt);
     };
-  }, [socketRef]); // stable ref only — no stale closure risk
+  }, [socketRef, gameLogic.connectionStatus]);
 
   // Win detection (layer 10)
   useEffect(() => {
@@ -89,7 +89,11 @@ export function useRogueLogic(onBattleWin = null) {
     const layer = pendingLayerRef.current;
     if (layer == null) return;
     pendingLayerRef.current = null;
-    if (layer >= 10) return;
+    if (layer >= 10) {
+      // Full run complete — trigger win overlay
+      setRunComplete(true);
+      return;
+    }
     getUpgradeOptions(layer, chosenElementRef.current)
       .then(options => setPendingEnhancements(options))
       .catch(console.error);
