@@ -202,30 +202,57 @@ export default function RogueGamePage() {
       className="fixed inset-0 flex flex-col overflow-hidden"
       style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 30%, #1a1608, #080604)', top: 0, zIndex: 50 }}
     >
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-5 flex-shrink-0 border-b border-yellow-900/40 bg-gradient-to-b from-stone-950 to-transparent"
-           style={{ height: 48 }}>
-        <div className="font-mono text-yellow-600 text-xs tracking-widest">ROGUE MODE</div>
-        <div className="flex items-center gap-4">
-          <span className="text-stone-500 text-[11px] font-mono tracking-widest">
-            {connectionStatus.toUpperCase()}
-          </span>
-          <span className="text-yellow-900 text-xs font-mono tracking-widest">ROUND {round}</span>
-          <span className="text-yellow-900 text-xs font-mono tracking-widest">FLOOR {floor}</span>
-          <span className="text-yellow-700 text-xs font-mono tracking-widest">
-            SCORE {totalScore.toLocaleString()}
-          </span>
+      {/* Top bar — match PvE layout: stats centered; Exit + Settings + buff chips on the right */}
+      <header
+          className="flex min-h-12 flex-shrink-0 items-stretch border-b border-yellow-900/40 bg-gradient-to-b from-stone-950 to-transparent px-2 py-1.5 sm:px-4 md:px-5"
+      >
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <div className="shrink-0 font-mono text-[10px] tracking-widest text-yellow-600 sm:text-xs">
+            ROGUE MODE
+          </div>
+          <div
+              className="flex min-w-0 flex-1 basis-[45%] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 sm:gap-x-4 md:basis-auto"
+          >
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-stone-500 sm:text-[11px]">
+              {connectionStatus.toUpperCase()}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
+              ROUND {round}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
+              FLOOR {floor}
+            </span>
+            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-700 sm:text-xs">
+              SCORE {totalScore.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
+            <button
+                type="button"
+                aria-label="Exit to lobby"
+                title="Return to lobby"
+                onClick={() => navigate('/lobby')}
+                className="whitespace-nowrap rounded border border-amber-900/55 bg-stone-950/60 px-2 py-1 text-[10px] font-medium text-amber-100/95 transition-colors hover:border-amber-700/70 hover:bg-amber-950/35 sm:px-3 sm:text-xs"
+            >
+              Exit
+            </button>
+            <button
+                type="button"
+                className="whitespace-nowrap rounded border border-stone-800 px-2 py-1 text-[10px] text-stone-600 transition-colors hover:text-stone-400 sm:px-3 sm:text-xs"
+            >
+              ⚙&nbsp;Settings
+            </button>
+            {enhancements.map((e, i) => (
+                <div
+                    key={`${e.id}-${i}`}
+                    className="rounded border border-stone-700 bg-stone-900/60 px-2 py-1 text-[10px] text-stone-400"
+                >
+                  {e.label ?? e.id}
+                </div>
+            ))}
+          </div>
         </div>
-        {/* Active enhancements */}
-        <div className="flex gap-2">
-          {enhancements.map((e, i) => (
-            <div key={`${e.id}-${i}`}
-                 className="px-2 py-1 rounded text-[10px] text-stone-400 border border-stone-700 bg-stone-900/60">
-              {e.label ?? e.id}
-            </div>
-          ))}
-        </div>
-      </div>
+      </header>
 
       {/* Main */}
       <div className="relative z-0 flex flex-1 overflow-hidden">
