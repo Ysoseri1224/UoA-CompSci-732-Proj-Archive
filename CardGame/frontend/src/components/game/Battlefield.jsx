@@ -190,6 +190,8 @@ export default function Battlefield({
   phase,
   attackEffect,
   gameOver,
+  bossIntent,
+  bossAttack,
   onBossAttackStart,
   onBossAttackEnded,
   onBossDefeatedAnimationEnd,
@@ -401,15 +403,45 @@ export default function Battlefield({
                 height: 'clamp(36px, 6vmin, 44px)',
                 flexShrink: 0,
                 borderRadius: '50%',
-                background: 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)',
-                border: '2px solid rgba(255,215,96,0.85)',
+                background: bossIntent === 'DEFEND'
+                  ? 'radial-gradient(circle at 35% 28%, #4488ff, #001855)'
+                  : bossIntent === 'CHARGE'
+                    ? 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)'
+                    : 'radial-gradient(circle at 35% 28%, #ff4422, #660a00)',
+                border: bossIntent === 'DEFEND'
+                  ? '2px solid rgba(110,170,255,0.85)'
+                  : bossIntent === 'CHARGE'
+                    ? '2px solid rgba(255,215,96,0.85)'
+                    : '2px solid rgba(255,130,110,0.85)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, fontSize: 'clamp(13px, 2.6vmin, 16px)', color: '#fff',
-                boxShadow: '0 0 12px rgba(220,170,0,0.4), 0 3px 8px rgba(0,0,0,0.7)',
-                fontFamily: '"Cinzel", monospace',
+                fontWeight: 900,
+                fontSize: bossIntent === 'ATTACK' && bossAttack > 99
+                  ? 'clamp(8px, 1.8vmin, 10px)'
+                  : 'clamp(11px, 2.2vmin, 14px)',
+                color: '#fff',
+                boxShadow: bossIntent === 'DEFEND'
+                  ? '0 0 12px rgba(60,120,255,0.5), 0 3px 8px rgba(0,0,0,0.7)'
+                  : bossIntent === 'CHARGE'
+                    ? '0 0 12px rgba(220,170,0,0.4), 0 3px 8px rgba(0,0,0,0.7)'
+                    : '0 0 12px rgba(255,60,30,0.5), 0 3px 8px rgba(0,0,0,0.7)',
+                fontFamily: 'monospace',
                 textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+                flexDirection: 'column',
+                lineHeight: 1.1,
+                textAlign: 'center',
+                padding: '2px',
+                gap: 0,
               }}>
-                5
+                {bossIntent === 'DEFEND' && <span style={{ fontSize: 'clamp(14px, 2.8vmin, 18px)' }}>🛡</span>}
+                {bossIntent === 'CHARGE' && <span style={{ fontSize: 'clamp(14px, 2.8vmin, 18px)' }}>⚡</span>}
+                {(!bossIntent || bossIntent === 'ATTACK') && (
+                  <>
+                    <span style={{ fontSize: 'clamp(9px, 1.6vmin, 11px)', opacity: 0.85 }}>🗡</span>
+                    <span style={{ fontSize: bossAttack > 99 ? 'clamp(7px, 1.5vmin, 9px)' : 'clamp(9px, 1.8vmin, 12px)' }}>
+                      {bossAttack ?? '?'}
+                    </span>
+                  </>
+                )}
               </div>
               <div style={{
                 minWidth: 0,
