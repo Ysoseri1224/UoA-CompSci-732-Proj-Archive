@@ -50,6 +50,8 @@ function opponentLabelFromMatch(match) {
 const LOBBY_SOLO_CARD_BG_URL = '/lobby/cardBack.png';
 /** Solo PvE CTA background clip (`public/lobby/`). */
 const LOBBY_SOLO_CARD_VIDEO_URL = '/lobby/lobby-card.mp4';
+/** Rogue Mode CTA background clip (`public/lobby/`). */
+const LOBBY_ROGUE_CARD_VIDEO_URL = '/lobby/lobbyBackground-1.mp4';
 /** Filenames match `public/lobby` (case-sensitive on Linux). */
 const LOBBY_VICTORY_ICON_URL = '/lobby/victory-icon.PNG';
 const LOBBY_LOSE_ICON_URL = '/lobby/lose-icon.PNG';
@@ -67,6 +69,8 @@ export default function LobbyPage() {
     totalWins: null,
     totalGames: null,
     winRateDisplay: null,
+    winRate: null,
+    maxDamage: null,
     loaded: false,
   });
 
@@ -92,6 +96,18 @@ export default function LobbyPage() {
     return u.slice(0, 2).toUpperCase();
   }, [user?.username]);
 
+  const lobbyXp = useMemo(() => {
+    if (!stats.loaded || stats.totalGames === null || stats.totalWins === null) {
+      return lobbyXpFallback();
+    }
+    return computeLobbyXpProgress({
+      totalGames: stats.totalGames,
+      totalWins: stats.totalWins,
+      winRate: stats.winRate ?? 0,
+      maxDamage: stats.maxDamage ?? 0,
+    });
+  }, [stats.loaded, stats.totalGames, stats.totalWins, stats.winRate, stats.maxDamage]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -102,6 +118,8 @@ export default function LobbyPage() {
             totalWins: MOCK_STATS.totalWins,
             totalGames: MOCK_STATS.totalGames,
             winRateDisplay: MOCK_STATS.winRateDisplay,
+            winRate: 0,
+            maxDamage: 0,
             loaded: true,
           });
         }
@@ -120,7 +138,9 @@ export default function LobbyPage() {
         setStats({
           totalWins: wins,
           totalGames: games,
-          winRateDisplay: wr,
+          winRateDisplay: wrDisplay,
+          winRate: winRateNum,
+          maxDamage,
           loaded: true,
         });
       } catch {
@@ -129,6 +149,8 @@ export default function LobbyPage() {
             totalWins: MOCK_STATS.totalWins,
             totalGames: MOCK_STATS.totalGames,
             winRateDisplay: MOCK_STATS.winRateDisplay,
+            winRate: 0,
+            maxDamage: 0,
             loaded: true,
           });
         }
