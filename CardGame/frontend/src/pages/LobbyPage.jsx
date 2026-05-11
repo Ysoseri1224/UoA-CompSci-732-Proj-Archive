@@ -239,6 +239,45 @@ function SidebarIconLogout({ iconClass }) {
   );
 }
 
+/** Premium CTA bar (Login-style chrome); Solo = violet stack, Rogue = amber stack. */
+function LobbyPremiumCtaBar({ label, variant = 'solo' }) {
+  const isRogue = variant === 'rogue';
+  return (
+      <span
+          className={`lobby-solo-cta-btn lobby-premium-cta ${isRogue ? 'lobby-premium-cta--amber' : 'lobby-premium-cta--violet'} relative z-[2] flex w-full min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-2xl py-[0.95rem] pl-3 pr-2.5 sm:gap-2 sm:py-4 sm:pl-6 sm:pr-4 md:pl-8 md:pr-5`}
+      >
+        <span className="lobby-premium-cta__bloom" aria-hidden="true" />
+        <span
+            className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-px bg-gradient-to-r from-transparent to-transparent ${isRogue ? 'via-amber-200/38' : 'via-sky-200/35'}`}
+        />
+        <span className="relative z-[2] flex shrink-0 items-center gap-1.5 sm:gap-2" aria-hidden="true">
+          <span
+              className={`hidden h-px w-6 bg-gradient-to-l to-transparent sm:block sm:w-9 md:w-11 min-[1512px]:w-14 ${isRogue ? 'from-amber-200/70' : 'from-violet-200/65'}`}
+          />
+          <span
+              className={`h-1.5 w-1.5 shrink-0 rotate-45 border sm:h-2 sm:w-2 ${isRogue ? 'border-amber-100/85 bg-amber-400/25 shadow-[0_0_10px_rgba(251,191,36,0.45)]' : 'border-violet-100/80 bg-violet-400/20 shadow-[0_0_8px_rgba(196,181,254,0.55)]'}`}
+          />
+        </span>
+        <span className="relative z-[2] min-w-0 flex-1 select-none text-center font-serif text-[0.58rem] font-semibold uppercase leading-snug tracking-[0.1em] text-white sm:text-[0.65rem] sm:tracking-[0.14em] md:text-xs md:tracking-[0.18em] lg:text-[0.7rem] xl:text-sm xl:tracking-[0.22em] min-[1512px]:text-[0.95rem] min-[1512px]:tracking-[0.26em]">
+          {label}
+        </span>
+        <span className="relative z-[2] flex shrink-0 items-center gap-1.5 sm:gap-2" aria-hidden="true">
+          <span
+              className={`h-1.5 w-1.5 shrink-0 rotate-45 border sm:h-2 sm:w-2 ${isRogue ? 'border-amber-100/85 bg-amber-400/25 shadow-[0_0_10px_rgba(251,191,36,0.45)]' : 'border-violet-100/80 bg-violet-400/20 shadow-[0_0_8px_rgba(196,181,254,0.55)]'}`}
+          />
+          <span
+              className={`hidden h-px w-6 bg-gradient-to-r to-transparent sm:block sm:w-9 md:w-11 min-[1512px]:w-14 ${isRogue ? 'from-amber-200/70' : 'from-violet-200/65'}`}
+          />
+          <span
+              className={`pl-0.5 text-[1.05rem] font-medium leading-none text-white/92 sm:pl-1 sm:text-[1.2rem] ${isRogue ? 'drop-shadow-[0_0_10px_rgba(251,191,36,0.55)]' : 'drop-shadow-[0_0_10px_rgba(196,181,254,0.5)]'}`}
+          >
+            ›
+          </span>
+        </span>
+      </span>
+  );
+}
+
 /**
  * Authenticated lobby dashboard — references images under /lobby/*.
  */
@@ -431,6 +470,212 @@ export default function LobbyPage() {
         @keyframes lobby-pulse {
           0%, 100% { opacity: 0.36; }
           50% { opacity: 0.68; }
+        }
+        @keyframes lobbyPremiumCtaBreatheViolet {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow:
+              0 0 0 1px rgba(196, 181, 254, 0.34),
+              0 10px 32px rgba(76, 29, 149, 0.52),
+              0 4px 14px rgba(88, 28, 135, 0.35),
+              0 2px 0 rgba(255, 255, 255, 0.1) inset,
+              0 0 18px rgba(139, 92, 246, 0.32);
+            filter: brightness(1);
+          }
+          45%, 55% {
+            transform: scale(1.015);
+            box-shadow:
+              0 0 0 1px rgba(214, 201, 255, 0.48),
+              0 14px 44px rgba(76, 29, 149, 0.68),
+              0 6px 22px rgba(109, 40, 217, 0.45),
+              0 2px 0 rgba(255, 255, 255, 0.14) inset,
+              0 0 32px rgba(167, 139, 250, 0.52);
+            filter: brightness(1.06);
+          }
+        }
+        @keyframes lobbyPremiumCtaBreatheAmber {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow:
+              0 0 0 1px rgba(253, 230, 138, 0.4),
+              0 10px 32px rgba(180, 83, 9, 0.52),
+              0 4px 14px rgba(146, 64, 14, 0.38),
+              0 2px 0 rgba(255, 255, 255, 0.1) inset,
+              0 0 18px rgba(251, 191, 36, 0.28);
+            filter: brightness(1);
+          }
+          45%, 55% {
+            transform: scale(1.015);
+            box-shadow:
+              0 0 0 1px rgba(254, 243, 199, 0.52),
+              0 14px 44px rgba(180, 83, 9, 0.66),
+              0 6px 22px rgba(217, 119, 6, 0.48),
+              0 2px 0 rgba(255, 255, 255, 0.14) inset,
+              0 0 34px rgba(251, 191, 36, 0.45);
+            filter: brightness(1.06);
+          }
+        }
+        @keyframes lobbyPremiumCtaBloomViolet {
+          0%, 100% {
+            opacity: 0.22;
+            transform: translate(-50%, 0) scale(0.98, 0.9);
+          }
+          50% {
+            opacity: 0.5;
+            transform: translate(-50%, 0) scale(1.03, 1.05);
+          }
+        }
+        @keyframes lobbyPremiumCtaBloomAmber {
+          0%, 100% {
+            opacity: 0.2;
+            transform: translate(-50%, 0) scale(0.98, 0.9);
+          }
+          50% {
+            opacity: 0.48;
+            transform: translate(-50%, 0) scale(1.03, 1.05);
+          }
+        }
+        @keyframes lobbyPremiumCtaShimmer {
+          0% {
+            transform: translateX(-120%) skewX(-10deg);
+            opacity: 0;
+          }
+          35% {
+            opacity: 0.15;
+          }
+          65% {
+            opacity: 0.08;
+          }
+          100% {
+            transform: translateX(120%) skewX(-10deg);
+            opacity: 0;
+          }
+        }
+        .lobby-dash-root .lobby-premium-cta {
+          position: relative;
+          isolation: isolate;
+          transform-origin: center center;
+        }
+        .lobby-dash-root .lobby-premium-cta--violet {
+          background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 50%, #5b21b6 100%);
+          animation: lobbyPremiumCtaBreatheViolet 4.8s ease-in-out infinite;
+        }
+        .lobby-dash-root .lobby-premium-cta--amber {
+          background: linear-gradient(180deg, #f59e0b 0%, #d97706 50%, #92400e 100%);
+          animation: lobbyPremiumCtaBreatheAmber 4.8s ease-in-out infinite;
+        }
+        .lobby-dash-root .lobby-premium-cta::before {
+          content: '';
+          position: absolute;
+          top: -15%;
+          left: 0;
+          width: 55%;
+          height: 130%;
+          border-radius: inherit;
+          z-index: 1;
+          pointer-events: none;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.04) 36%,
+            rgba(224, 231, 255, 0.12) 50%,
+            rgba(255, 255, 255, 0.04) 64%,
+            transparent 100%
+          );
+          filter: blur(4px);
+          mix-blend-mode: soft-light;
+          animation: lobbyPremiumCtaShimmer 6.75s ease-in-out infinite;
+          animation-delay: -1.4s;
+        }
+        .lobby-dash-root .lobby-solo-cta:hover .lobby-premium-cta {
+          filter: brightness(1.18);
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-solo-cta:hover .lobby-premium-cta .lobby-premium-cta__bloom {
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-solo-cta:hover .lobby-premium-cta::before {
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-solo-cta:active .lobby-premium-cta {
+          transform: scale(0.985);
+          filter: brightness(1.02);
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-solo-cta:active .lobby-premium-cta .lobby-premium-cta__bloom {
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-solo-cta:active .lobby-premium-cta::before {
+          animation-play-state: paused;
+        }
+        .lobby-dash-root .lobby-premium-cta__bloom {
+          position: absolute;
+          left: 50%;
+          bottom: -35%;
+          width: 130%;
+          height: 85%;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 0;
+          transform-origin: center bottom;
+          mix-blend-mode: screen;
+          filter: blur(0.5px);
+        }
+        .lobby-dash-root .lobby-premium-cta--violet .lobby-premium-cta__bloom {
+          background: radial-gradient(
+            closest-side at 50% 100%,
+            rgba(210, 195, 255, 0.62) 0%,
+            rgba(124, 58, 237, 0.4) 38%,
+            transparent 72%
+          );
+          animation: lobbyPremiumCtaBloomViolet 4.8s ease-in-out infinite;
+        }
+        .lobby-dash-root .lobby-premium-cta--amber .lobby-premium-cta__bloom {
+          background: radial-gradient(
+            closest-side at 50% 100%,
+            rgba(254, 243, 199, 0.55) 0%,
+            rgba(217, 119, 6, 0.42) 38%,
+            transparent 72%
+          );
+          animation: lobbyPremiumCtaBloomAmber 4.8s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lobby-dash-root .lobby-premium-cta--violet {
+            animation: none !important;
+            transform: none !important;
+            filter: none;
+            box-shadow:
+              0 0 0 1px rgba(196, 181, 254, 0.4),
+              0 10px 28px rgba(76, 29, 149, 0.48),
+              0 2px 0 rgba(255, 255, 255, 0.1) inset,
+              0 0 20px rgba(139, 92, 246, 0.3);
+          }
+          .lobby-dash-root .lobby-premium-cta--amber {
+            animation: none !important;
+            transform: none !important;
+            filter: none;
+            box-shadow:
+              0 0 0 1px rgba(253, 230, 138, 0.42),
+              0 10px 28px rgba(180, 83, 9, 0.48),
+              0 2px 0 rgba(255, 255, 255, 0.1) inset,
+              0 0 20px rgba(251, 191, 36, 0.28);
+          }
+          .lobby-dash-root .lobby-premium-cta::before {
+            animation: none !important;
+            opacity: 0;
+          }
+          .lobby-dash-root .lobby-premium-cta__bloom {
+            animation: none !important;
+            transform: translate(-50%, 0) scale(1) !important;
+            opacity: 0.38;
+            filter: none;
+          }
+          .lobby-dash-root .lobby-solo-cta:hover .lobby-premium-cta {
+            filter: brightness(1.08);
+          }
+          .lobby-dash-root .lobby-solo-cta:active .lobby-premium-cta {
+            transform: none !important;
+          }
         }
         .lobby-glow-orb { animation: lobby-pulse 11s ease-in-out infinite; }
         .lobby-display-serif {
@@ -996,14 +1241,14 @@ export default function LobbyPage() {
                 </div>
               </section>
 
-              <div className="flex w-full gap-4 md:gap-6">
+              <div className="flex w-full flex-1 min-h-0 items-stretch gap-4 md:gap-6">
               <button
                   type="button"
                   onClick={() => {
                     const roomId = `solo-${Date.now()}`;
                     navigate(`/room/${roomId}/game`);
                   }}
-                  className={`lobby-solo-cta ${actionCardBase} ${soloCardGlow} flex flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
+                  className={`lobby-solo-cta ${actionCardBase} ${soloCardGlow} flex h-full flex-1 flex-col justify-between gap-4 text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
                   <video
@@ -1023,25 +1268,19 @@ export default function LobbyPage() {
                     aria-hidden
                 />
                 <div className="pointer-events-none absolute -right-6 top-4 z-[1] h-24 w-24 rounded-full bg-violet-500/15 blur-2xl" aria-hidden />
-                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 sm:max-w-[58%]">
+                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 pt-6 sm:pt-8 sm:max-w-[58%]">
                   <p className={`lobby-solo-label ${labelUi}`}>SOLO</p>
                   <h3 className="mt-2 text-lg font-black uppercase tracking-wide text-white md:text-xl">START SOLO PVE</h3>
                   <p className="lobby-solo-lead mt-2 text-sm text-slate-400">Challenge the AI and test your skills.</p>
                 </div>
-                <span className="lobby-solo-cta-btn relative z-[2] grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-full bg-gradient-to-b from-violet-500 via-violet-600 to-violet-800 py-[0.95rem] pl-10 pr-5 text-[0.95rem] font-semibold tracking-[0.02em] text-white shadow-[0_10px_32px_rgba(76,29,149,0.5),0_2px_0_rgba(255,255,255,0.08)_inset] ring-1 ring-white/12 transition group-hover:brightness-[1.06] sm:py-4 sm:pl-12 sm:pr-6 sm:text-base">
-                <span className="pointer-events-none select-none" aria-hidden />
-                <span className="text-center">Start Solo PvE</span>
-                <span className="justify-self-end pr-0.5 text-[1.35rem] font-medium leading-none text-white/95" aria-hidden>
-                  ›
-                </span>
-              </span>
+                <LobbyPremiumCtaBar label="START SOLO PVE" />
               </button>
 
               {/* Rogue Mode CTA */}
               <button
                   type="button"
                   onClick={() => navigate('/rogue')}
-                  className={`lobby-solo-cta ${actionCardBase} border-amber-500/45 shadow-[0_0_36px_rgba(251,191,36,0.22),0_10px_36px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/35 flex flex-1 flex-col justify-between gap-4 self-start text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
+                  className={`lobby-solo-cta ${actionCardBase} border-amber-500/45 shadow-[0_0_36px_rgba(251,191,36,0.22),0_10px_36px_rgba(0,0,0,0.45)] ring-1 ring-amber-500/35 flex h-full flex-1 flex-col justify-between gap-4 text-left font-sans min-h-[11.5rem] sm:min-h-[12.5rem]`}
               >
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
                   <div className="absolute inset-0 bg-gradient-to-br from-[#07060f]/88 via-[#07060f]/45 to-transparent" />
@@ -1049,22 +1288,16 @@ export default function LobbyPage() {
                 </div>
                 <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-br from-amber-600/14 via-transparent to-orange-500/08" aria-hidden />
                 <div className="pointer-events-none absolute -right-6 top-4 z-[1] h-24 w-24 rounded-full bg-amber-500/15 blur-2xl" aria-hidden />
-                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 sm:max-w-[58%]">
+                <div className="lobby-solo-cta-intro relative z-[2] min-w-0 pt-6 sm:pt-8 sm:max-w-[58%]">
                   <p className={`lobby-solo-label ${labelUi} !text-amber-400/95`}>ROGUE</p>
                   <h3 className="mt-2 text-lg font-black uppercase tracking-wide text-white md:text-xl">ROGUE MODE</h3>
                   <p className="lobby-solo-lead mt-2 text-sm text-slate-400">Challenge 10 floors. Grow stronger with each victory.</p>
                 </div>
-                <span className="lobby-solo-cta-btn relative z-[2] grid w-full grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-full bg-gradient-to-b from-amber-500 via-amber-600 to-amber-800 py-[0.95rem] pl-10 pr-5 text-[0.95rem] font-semibold tracking-[0.02em] text-white shadow-[0_10px_32px_rgba(180,83,9,0.5),0_2px_0_rgba(255,255,255,0.08)_inset] ring-1 ring-white/12 transition group-hover:brightness-[1.06] sm:py-4 sm:pl-12 sm:pr-6 sm:text-base">
-                  <span className="pointer-events-none select-none" aria-hidden />
-                  <span className="text-center">Start Rogue</span>
-                  <span className="justify-self-end pr-0.5 text-[1.35rem] font-medium leading-none text-white/95" aria-hidden>
-                    ›
-                  </span>
-                </span>
+                <LobbyPremiumCtaBar label="START ROGUE" variant="rogue" />
               </button>
               </div>
 
-              <div className="lobby-bottom-cards-wrap w-full shrink-0">
+              <div className="lobby-bottom-cards-wrap mt-auto w-full shrink-0">
                 <div className="lobby-bottom-row grid min-h-0 shrink-0 grid-cols-1 items-start gap-6 sm:grid-cols-2 sm:gap-7 xl:gap-8">
                   <button
                       type="button"
@@ -1099,8 +1332,8 @@ export default function LobbyPage() {
                         </p>
                       </div>
                       <span className="self-start text-[0.8rem] font-bold uppercase tracking-[0.22em] text-cyan-300/95 drop-shadow-[0_0_12px_rgba(34,211,238,0.22)] group-hover:text-cyan-200 sm:text-sm">
-                    VIEW RANKINGS →
-                  </span>
+                        VIEW RANKINGS →
+                      </span>
                     </div>
                   </button>
 
@@ -1137,8 +1370,8 @@ export default function LobbyPage() {
                         </p>
                       </div>
                       <span className="self-start text-[0.8rem] font-bold uppercase tracking-[0.18em] text-violet-50/95 drop-shadow-[0_0_14px_rgba(196,181,253,0.28)] group-hover:text-white sm:text-sm">
-                    OPEN PROFILE →
-                  </span>
+                        OPEN PROFILE →
+                      </span>
                     </div>
                   </button>
                 </div>
