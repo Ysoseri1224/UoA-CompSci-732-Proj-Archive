@@ -43,7 +43,8 @@ export default function RogueGamePage() {
     gameOver, restartGame, battlePhase, phase,
     skillCharges, maxCharges, skillCooldowns, shieldActive,
     skillChangeColor, skillChangeCost, skillActivateShield,
-    connectionStatus, errorMessage,
+    connectionStatus, errorMessage, attackEffect,
+    bossRound, boss,
     // Rogue-specific
     enhancements, pendingEnhancements, confirmEnhancement, showEnhancementAfterAnimation,
     canRetryFloor, retryFloor, showLose, runComplete,
@@ -274,6 +275,9 @@ export default function RogueGamePage() {
           lastScore={lastScore}
           battlePhase={battlePhase}
           phase={phase}
+          attackEffect={attackEffect}
+          bossIntent={bossRound?.intent ?? 'ATTACK'}
+          bossAttack={bossRound?.willReleaseCharge ? boss?.chargeAttack : boss?.attackPerRound}
           gameOver={gameOver}
           onBossAttackEnded={flushBossAttackPresentation}
           onBossDefeatedAnimationEnd={() => {

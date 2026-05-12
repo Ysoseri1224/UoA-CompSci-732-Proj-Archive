@@ -88,8 +88,9 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
     HP_BONUS:                    '/images/icon-HP+5.png',
     SKILL_ENERGY_MAX:            '/images/icon-skill+1.png',
     HIGH_RANK_DRAW_ON_SHUFFLE:   '/images/icon-kcard.png',
-    TIERED_MULT_BONUS:           '/images/icon-mulbonus.png',
+    TIERED_MULT_BONUS:           '/images/icon-multbonus.png',
     TIERED_CHIPS_BONUS:          '/images/icon-chipsbonus.png',
+    ALL_CHIPS_BONUS:             '/images/icon-chip+2.png',
   };
 
   return (

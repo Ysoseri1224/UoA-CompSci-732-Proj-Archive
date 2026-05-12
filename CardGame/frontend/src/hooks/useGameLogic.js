@@ -588,6 +588,9 @@ export function useGameLogic(roomId = null) {
     attackEffect,
     connectionStatus,
     errorMessage: lastError,
+    // Boss data for rogue intent display
+    bossRound,
+    boss,
     // Refs exposed for rogue extension hook
     socketRef,
     chosenElement: player.chosenElement ?? null,
