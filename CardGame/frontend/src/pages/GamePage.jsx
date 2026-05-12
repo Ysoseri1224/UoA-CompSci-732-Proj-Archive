@@ -49,6 +49,7 @@ export default function GamePage() {
     restartGame,
     battlePhase,
     phase,
+    bossRound,
     attackEffect,
     skillCharges,
     maxCharges,
@@ -57,6 +58,7 @@ export default function GamePage() {
     skillChangeColor,
     skillChangeCost,
     skillActivateShield,
+    isActionPhase,
     connectionStatus,
     errorMessage,
   } = useGameLogic(roomId);
@@ -263,6 +265,7 @@ export default function GamePage() {
 	          skillChangeColor={skillChangeColor}
 	          skillChangeCost={skillChangeCost}
 	          skillActivateShield={skillActivateShield}
+	          disabled={!isActionPhase}
         />
 
         <Battlefield
@@ -273,6 +276,7 @@ export default function GamePage() {
           lastScore={lastScore}
           battlePhase={battlePhase}
           phase={phase}
+          bossRound={bossRound}
           attackEffect={attackEffect}
           gameOver={gameOver}
           onBossAttackEnded={flushBossAttackPresentation}
@@ -324,7 +328,7 @@ export default function GamePage() {
             <>
               <div className="text-6xl">🏆</div>
               <div className="text-yellow-300 text-3xl font-black tracking-widest">
-                通关！
+                VICTORY!
               </div>
             </>
             <button
@@ -336,7 +340,7 @@ export default function GamePage() {
                          active:scale-95 transition-all
                          shadow-lg shadow-yellow-900/50"
             >
-              再来一局
+              Play Again
             </button>
           </div>
         </div>
@@ -351,11 +355,11 @@ export default function GamePage() {
             <>
               <div className="text-6xl">💀</div>
               <div className="text-red-400 text-3xl font-black tracking-widest">
-                游戏结束
+                GAME OVER
               </div>
               <div className="text-stone-400 text-sm text-center leading-relaxed">
-                到达第 <span className="text-yellow-400 font-bold">{floor}</span> 层<br />
-                累计得分 <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
+                Reached Floor <span className="text-yellow-400 font-bold">{floor}</span><br />
+                Total Score <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
               </div>
             </>
             <button

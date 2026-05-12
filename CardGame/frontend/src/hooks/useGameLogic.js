@@ -517,13 +517,12 @@ export function useGameLogic(roomId = null, { startEvent = 'startPveGame' } = {}
     skillActivateShield,
     battlePhase,
     phase,
+    bossRound,
     isActionPhase,
     attackEffect,
     connectionStatus,
     errorMessage: lastError,
     skillWarning,
-    // Boss data for rogue intent display
-    bossRound,
     boss,
     // Refs exposed for rogue extension hook
     socketRef,

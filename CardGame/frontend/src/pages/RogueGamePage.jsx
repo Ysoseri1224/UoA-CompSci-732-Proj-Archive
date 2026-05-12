@@ -10,6 +10,7 @@ import Enhancement from '../components/game/Enhancement.jsx';
 
 import { useRogueLogic } from '../hooks/useRogueLikeLogic.js';
 import { startRogueRun, notifyRogueWon } from '../api/rogueapi.js';
+import { audioManager } from '../utils/audioManager.js';
 
 const BOSS_ATTACK_UX_FALLBACK_MS = 12_500;
 
@@ -25,6 +26,7 @@ export default function RogueGamePage() {
   const navigate       = useNavigate();
   const wonNotifiedRef = useRef(false);
   const winLayerRef    = useRef(0);
+  const [buffDetailOpen, setBuffDetailOpen] = useState(false);
 
   // Start a new run on mount
   useEffect(() => {
@@ -32,6 +34,9 @@ export default function RogueGamePage() {
     startRogueRun().catch(err => {
       if (!cancelled) console.error(err);
     });
+    // Defensive BGM trigger: RootLayout already plays BGM on auth, but if the
+    // user navigates here after a tab-switch / autoplay-block, restart it.
+    audioManager.playBGM();
     return () => { cancelled = true; };
   }, []);
 
@@ -39,12 +44,11 @@ export default function RogueGamePage() {
     hand, deckCount, selected, toggleSelect,
     evaluation, discardSelected, discards, maxDiscards, canDiscard, canPlay,
     playHand, round, totalScore, lastScore,
-    playerHp, playerMaxHp, bossHp, bossMaxHp, bossName, floor,
+    playerHp, playerMaxHp, bossHp, bossMaxHp, floor,
     gameOver, restartGame, battlePhase, phase,
     skillCharges, maxCharges, skillCooldowns, shieldActive,
     skillChangeColor, skillChangeCost, skillActivateShield,
-    connectionStatus, errorMessage, attackEffect,
-    bossRound, boss,
+    isActionPhase, connectionStatus, errorMessage, attackEffect, bossRound, boss,
     // Rogue-specific
     enhancements, pendingEnhancements, confirmEnhancement, showEnhancementAfterAnimation,
     canRetryFloor, retryFloor, showLose, runComplete,
@@ -203,57 +207,21 @@ export default function RogueGamePage() {
       className="fixed inset-0 flex flex-col overflow-hidden"
       style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 30%, #1a1608, #080604)', top: 0, zIndex: 50 }}
     >
-      {/* Top bar — match PvE layout: stats centered; Exit + Settings + buff chips on the right */}
-      <header
-          className="flex min-h-12 flex-shrink-0 items-stretch border-b border-yellow-900/40 bg-gradient-to-b from-stone-950 to-transparent px-2 py-1.5 sm:px-4 md:px-5"
-      >
-        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-          <div className="shrink-0 font-mono text-[10px] tracking-widest text-yellow-600 sm:text-xs">
-            ROGUE MODE
-          </div>
-          <div
-              className="flex min-w-0 flex-1 basis-[45%] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 sm:gap-x-4 md:basis-auto"
-          >
-            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-stone-500 sm:text-[11px]">
-              {connectionStatus.toUpperCase()}
-            </span>
-            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
-              ROUND {round}
-            </span>
-            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-900 sm:text-xs">
-              FLOOR {floor}
-            </span>
-            <span className="whitespace-nowrap font-mono text-[10px] tracking-widest text-yellow-700 sm:text-xs">
-              SCORE {totalScore.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
-            <button
-                type="button"
-                aria-label="Exit to lobby"
-                title="Return to lobby"
-                onClick={() => navigate('/lobby')}
-                className="whitespace-nowrap rounded border border-amber-900/55 bg-stone-950/60 px-2 py-1 text-[10px] font-medium text-amber-100/95 transition-colors hover:border-amber-700/70 hover:bg-amber-950/35 sm:px-3 sm:text-xs"
-            >
-              Exit
-            </button>
-            <button
-                type="button"
-                className="whitespace-nowrap rounded border border-stone-800 px-2 py-1 text-[10px] text-stone-600 transition-colors hover:text-stone-400 sm:px-3 sm:text-xs"
-            >
-              ⚙&nbsp;Settings
-            </button>
-            {enhancements.map((e, i) => (
-                <div
-                    key={`${e.id}-${i}`}
-                    className="rounded border border-stone-700 bg-stone-900/60 px-2 py-1 text-[10px] text-stone-400"
-                >
-                  {e.label ?? e.id}
-                </div>
-            ))}
-          </div>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 flex-shrink-0 border-b border-yellow-900/40 bg-gradient-to-b from-stone-950 to-transparent"
+           style={{ height: 48 }}>
+        <div className="font-mono text-yellow-600 text-xs tracking-widest">ROGUE MODE</div>
+        <div className="flex items-center gap-4">
+          <span className="text-stone-500 text-[11px] font-mono tracking-widest">
+            {connectionStatus.toUpperCase()}
+          </span>
+          <span className="text-yellow-900 text-xs font-mono tracking-widest">ROUND {round}</span>
+          <span className="text-yellow-900 text-xs font-mono tracking-widest">FLOOR {floor}</span>
+          <span className="text-yellow-700 text-xs font-mono tracking-widest">
+            SCORE {totalScore.toLocaleString()}
+          </span>
         </div>
-      </header>
+      </div>
 
       {/* Main */}
       <div className="relative z-0 flex flex-1 overflow-hidden">
@@ -266,15 +234,16 @@ export default function RogueGamePage() {
           skillChangeColor={skillChangeColor}
           skillChangeCost={skillChangeCost}
           skillActivateShield={skillActivateShield}
+          disabled={!isActionPhase}
         />
         <Battlefield
           bossHp={bossHp}
           bossMaxHp={bossMaxHp}
-          bossName={bossName}
           floor={floor}
           lastScore={lastScore}
           battlePhase={battlePhase}
           phase={phase}
+          bossRound={bossRound}
           attackEffect={attackEffect}
           bossIntent={bossRound?.intent ?? 'ATTACK'}
           bossAttack={bossRound?.willReleaseCharge ? boss?.chargeAttack : boss?.attackPerRound}
@@ -310,6 +279,9 @@ export default function RogueGamePage() {
         shieldActive={shieldActive}
         playerDamageFlash={playerDamageFlash}
         playerHudShakeNonce={playerHudShakeNonce}
+        buffs={enhancements}
+        onBuffClick={() => setBuffDetailOpen(v => !v)}
+        buffDetailOpen={buffDetailOpen}
       />
 
       {errorMessage && (
@@ -332,15 +304,15 @@ export default function RogueGamePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 bg-stone-900 border border-yellow-800/50 rounded-2xl px-12 py-10 shadow-2xl shadow-black">
             <div className="text-6xl">🏆</div>
-            <div className="text-yellow-300 text-3xl font-black tracking-widest">全通关！</div>
-            <div className="text-stone-400 text-sm">通关所有 10 层！</div>
+            <div className="text-yellow-300 text-3xl font-black tracking-widest">RUN COMPLETE!</div>
+            <div className="text-stone-400 text-sm">All 10 floors cleared!</div>
             <button onClick={handlePlayAgain}
                     className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-yellow-600 to-yellow-800 text-yellow-100 hover:from-yellow-500 hover:to-yellow-700 active:scale-95 transition-all shadow-lg shadow-yellow-900/50">
-              再来一局
+              Play Again
             </button>
             <button onClick={() => navigate('/')}
                     className="text-stone-500 text-sm hover:text-stone-300 transition-colors">
-              返回主页
+              Back to Home
             </button>
           </div>
         </div>
@@ -351,19 +323,19 @@ export default function RogueGamePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 bg-stone-900 border border-yellow-800/50 rounded-2xl px-12 py-10 shadow-2xl shadow-black">
             <div className="text-6xl">💀</div>
-            <div className="text-red-400 text-3xl font-black tracking-widest">游戏结束</div>
+            <div className="text-red-400 text-3xl font-black tracking-widest">GAME OVER</div>
             <div className="text-stone-400 text-sm text-center leading-relaxed">
-              到达第 <span className="text-yellow-400 font-bold">{floor}</span> 层<br />
-              累计得分 <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
+              Reached Floor <span className="text-yellow-400 font-bold">{floor}</span><br />
+              Total Score <span className="text-yellow-400 font-bold">{totalScore.toLocaleString()}</span>
             </div>
             <button
               onClick={canRetryFloor ? handleRetryFloor : handlePlayAgain}
               className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-red-700 to-red-900 text-white hover:from-red-600 hover:to-red-800 active:scale-95 transition-all shadow-lg">
-              {canRetryFloor ? '重试本层' : '再来一局'}
+              {canRetryFloor ? 'Retry Floor' : 'Play Again'}
             </button>
             <button onClick={() => navigate('/')}
                     className="text-stone-500 text-sm hover:text-stone-300 transition-colors">
-              返回主页
+              Back to Home
             </button>
           </div>
         </div>

@@ -81,16 +81,13 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
     image: null,
   };
 
-  // buff type → icon 映射
-  const buffTypeIconMap = {
-    HAND_CHIPS_BONUS:            '/images/icon-chipsbonus.png',
-    HAND_MULT_BONUS:             '/images/icon-multbonus.png',
-    HP_BONUS:                    '/images/icon-HP+5.png',
-    SKILL_ENERGY_MAX:            '/images/icon-skill+1.png',
-    HIGH_RANK_DRAW_ON_SHUFFLE:   '/images/icon-kcard.png',
-    TIERED_MULT_BONUS:           '/images/icon-multbonus.png',
-    TIERED_CHIPS_BONUS:          '/images/icon-chipsbonus.png',
-    ALL_CHIPS_BONUS:             '/images/icon-chip+2.png',
+  const BONUS_ICON_MAP = {
+    HP_BONUS:                  '/images/icon-HP+5.png',
+    SKILL_ENERGY_MAX:          '/images/icon-skill+1.png',
+    HIGH_RANK_DRAW_ON_SHUFFLE: '/images/icon-kcard.png',
+    TIERED_MULT_BONUS:         '/images/icon-multbonus.png',
+    TIERED_CHIPS_BONUS:        '/images/icon-chipsbonus.png',
+    ALL_CHIPS_BONUS:           '/images/icon-chip+2.png',
   };
 
   return (
@@ -150,15 +147,13 @@ export default function EnhancementModal({ options, floor, onConfirm }) {
       >
         {options.map((opt) => {
           const buffElement = opt.buff?.element;
-          const buffType = opt.buff?.type;
+          const isHighRankDraw = opt.buff?.type === 'HIGH_RANK_DRAW_ON_SHUFFLE';
           const rune = (opt.color && runeConfig[opt.color])
             || (buffElement && runeConfig[buffElement])
             || (opt.element && runeConfig[opt.element])
             || defaultRuneConfig;
 
-          const iconSrc = (buffType && buffTypeIconMap[buffType])
-            ?? opt.icon
-            ?? rune.image;
+          const iconSrc = BONUS_ICON_MAP[opt.buff?.type] ?? opt.icon ?? rune.image;
 
           return (
             <div
