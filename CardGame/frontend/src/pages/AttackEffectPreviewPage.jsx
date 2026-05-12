@@ -4,26 +4,26 @@ import Battlefield from '../components/game/Battlefield';
 const EFFECTS = [
   {
     mode: 'normal',
-    title: '普通 C · 乱刃终击',
-    subtitle: '多段交叉刀光与白金冲击',
+    title: 'Normal C · Multi-Slash',
+    subtitle: 'Multi-slash blades & white-gold blast',
     accent: '#f8d36a',
   },
   {
     mode: 'fire',
-    title: '火系 A · 熔岩爆燃',
-    subtitle: '地裂、熔岩柱、火星喷发',
+    title: 'Fire A · Lava Eruption',
+    subtitle: 'Ground crack, lava pillar, ember burst',
     accent: '#ff5a12',
   },
   {
     mode: 'water',
-    title: '水系 B · 深海漩涡',
-    subtitle: '漩涡绞杀、水环与泡沫飞溅',
+    title: 'Water B · Abyssal Vortex',
+    subtitle: 'Vortex, tidal ring & foam spray',
     accent: '#4ed3ff',
   },
   {
     mode: 'nature',
-    title: '草系 B · 森根突刺',
-    subtitle: '树根破土突刺与藤蔓爆生',
+    title: 'Grass B · Root Impale',
+    subtitle: 'Root slam & vine strike',
     accent: '#74e05e',
   },
 ];
@@ -76,7 +76,7 @@ export default function AttackEffectPreviewPage() {
               ATTACK EFFECT PREVIEW
             </div>
             <h1 className="mt-1 text-xl font-black tracking-widest text-yellow-200">
-              出牌攻击特效预览
+              Attack Effect Preview
             </h1>
           </div>
 
@@ -90,14 +90,14 @@ export default function AttackEffectPreviewPage() {
                   : 'border-stone-700 bg-stone-950/70 text-stone-400 hover:border-yellow-700 hover:text-yellow-300'
                 }`}
             >
-              {autoPlay ? '停止轮播' : '自动轮播'}
+              {autoPlay ? 'Stop' : 'Auto Play'}
             </button>
             <button
               type="button"
               onClick={() => playEffect(activeMode)}
               className="rounded-md border border-yellow-600 bg-yellow-600/20 px-4 py-2 text-xs font-black tracking-widest text-yellow-100 shadow-[0_0_18px_rgba(234,179,8,0.22)] transition hover:bg-yellow-500/30"
             >
-              重播当前
+              Replay
             </button>
           </div>
         </div>
@@ -173,7 +173,7 @@ export default function AttackEffectPreviewPage() {
             </div>
 
             <div className="mt-auto border-t border-yellow-900/30 pt-4 text-xs leading-6 text-stone-500">
-              点选不同模式即可播放预览。这里复用正式战斗里的同一套特效，选定后可以直接按同样效果进游戏。
+              Click a mode to preview attack effects from real combat.
             </div>
           </aside>
         </div>

@@ -158,6 +158,7 @@ export function useRogueLogic(onBattleWin = null) {
     ...gameLogic,
     restartGame,
     enhancements,
+    setEnhancements,
     pendingEnhancements,
     confirmEnhancement,
     showEnhancementAfterAnimation,

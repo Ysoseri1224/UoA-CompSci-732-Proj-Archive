@@ -31,7 +31,7 @@ export default function ScorePanel({
       {/* 累计积分 */}
       <div className="px-4 py-3 border-b border-yellow-900/30">
         <div className="text-yellow-900 text-xs tracking-widest font-mono mb-1">
-          总积分
+          TOTAL SCORE
         </div>
         <div className="text-yellow-300 text-xl font-black font-mono">
           {totalScore.toLocaleString()}
@@ -41,7 +41,7 @@ export default function ScorePanel({
       {/* 当前牌型评估 */}
       <div className="px-4 py-3 border-b border-yellow-900/30 flex flex-col gap-2">
         <div className="text-yellow-900 text-xs tracking-widest font-mono">
-          已选 {selectedCount} / 5
+          Selected {selectedCount} / 5
         </div>
         <HandTypeDisplay evaluation={evaluation} />
       </div>
@@ -49,7 +49,7 @@ export default function ScorePanel({
       {/* 操作按钮 */}
       <div className="px-4 py-4 flex flex-col gap-3 mt-auto">
 
-        {/* 出牌攻击 */}
+        {/* Play & Attack */}
         <button
           onClick={onPlay}
           disabled={!canPlay}
@@ -62,10 +62,10 @@ export default function ScorePanel({
             }
           `}
         >
-          出牌攻击
+          Play & Attack
         </button>
 
-        {/* 弃牌补充 */}
+        {/* Discard & Draw */}
         <button
           onClick={onDiscard}
           disabled={!canDiscard}
@@ -79,7 +79,7 @@ export default function ScorePanel({
             }
           `}
         >
-          弃牌补充
+          Discard & Draw
           <span className={`
             text-xs font-mono px-1.5 py-0.5 rounded
             ${canDiscard ? 'bg-yellow-900/50 text-yellow-500' : 'bg-stone-800 text-stone-600'}

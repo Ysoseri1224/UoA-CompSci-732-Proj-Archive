@@ -2,6 +2,11 @@ import type { Card, Element, Rank } from '../types/card.js';
 import type { DeckState } from './deck.js';
 import type { RoundSkills } from '../types/state.js';
 
+export interface SwapResult {
+  state: DeckState;
+  replaced: boolean;
+}
+
 interface ShieldState {
   active: boolean;
   onCooldown: boolean;
@@ -19,14 +24,9 @@ interface SwapParams {
 //  技能 1: 变色
 // ══════════════════════════════════════════════════════════════════
 
-/**
- * 将一张手牌替换为目标颜色的同 rank 牌。
- * 查找顺序：① 同 rank + 目标颜色；② 目标颜色中 rank 最接近的牌。
- * 替换牌不得已在当前手牌中。
- */
-export function skillChangeColor(state: DeckState, cardId: string, newElement: Element): DeckState {
+export function skillChangeColor(state: DeckState, cardId: string, newElement: Element): SwapResult {
   const target = state.hand.find(c => c.id === cardId);
-  if (!target) return { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] };
+  if (!target) return { state: { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] }, replaced: false };
 
   return swapCard({
     state, cardId,
@@ -39,9 +39,9 @@ export function skillChangeColor(state: DeckState, cardId: string, newElement: E
 //  技能 2: 变费
 // ══════════════════════════════════════════════════════════════════
 
-export function skillChangeCost(state: DeckState, cardId: string, newRank: Rank): DeckState {
+export function skillChangeCost(state: DeckState, cardId: string, newRank: Rank): SwapResult {
   const target = state.hand.find(c => c.id === cardId);
-  if (!target) return { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] };
+  if (!target) return { state: { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] }, replaced: false };
 
   return swapCard({
     state, cardId,
@@ -54,9 +54,10 @@ export function skillChangeCost(state: DeckState, cardId: string, newRank: Rank)
 //  通用替换逻辑
 // ══════════════════════════════════════════════════════════════════
 
-function swapCard({ state, cardId, filter, sortBy }: SwapParams): DeckState {
+function swapCard({ state, cardId, filter, sortBy }: SwapParams): SwapResult {
+  const unchanged = { state: { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] }, replaced: false };
   const target = state.hand.find(c => c.id === cardId);
-  if (!target) return { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] };
+  if (!target) return unchanged;
 
   const handIds = new Set(state.hand.map(c => c.id));
   const pool = [...state.deck, ...state.discardPile];
@@ -65,14 +66,14 @@ function swapCard({ state, cardId, filter, sortBy }: SwapParams): DeckState {
   if (sortBy) candidates.sort(sortBy);
 
   const replacement = candidates[0];
-  if (!replacement) return { deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] };
+  if (!replacement) return unchanged;
 
   const newDeck = state.deck.filter(c => c.id !== replacement.id);
   let newDiscard = state.discardPile.filter(c => c.id !== replacement.id);
   newDiscard = [...newDiscard, target];
   const newHand = state.hand.map(c => c.id === cardId ? replacement : c);
 
-  return { deck: newDeck, discardPile: newDiscard, hand: newHand };
+  return { state: { deck: newDeck, discardPile: newDiscard, hand: newHand }, replaced: true };
 }
 
 // ══════════════════════════════════════════════════════════════════

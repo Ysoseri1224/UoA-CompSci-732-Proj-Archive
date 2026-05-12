@@ -25,7 +25,7 @@ class AudioManager {
 
   // 播放背景音乐（在登录页 / LoginPage 的 try...catch 成功时调用）
   playBGM() {
-    this.bgm.play().catch(e => console.warn("BGM 播放可能被拦截，等待用户交互:", e));
+    this.bgm.play().catch(e => console.warn("BGM blocked, waiting for user interaction:", e));
   }
 
   // 停止背景音乐（在退出登录 / 被踢出时调用）
@@ -44,7 +44,7 @@ class AudioManager {
     const sfx = this.sfxCache[name];
     sfx.volume = this.sfxVolume;
     sfx.currentTime = 0; // 重置进度，支持玩家快速连击出牌
-    sfx.play().catch(e => console.warn(`音效 ${name} 播放失败:`, e));
+    sfx.play().catch(e => console.warn(`SFX .* play failed:`, e));
   }
 }
 

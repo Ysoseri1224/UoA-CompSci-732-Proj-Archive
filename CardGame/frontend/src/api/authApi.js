@@ -36,6 +36,7 @@ export async function login(email, password) {
   const res = await client.post('/api/auth/login', { email, password });
   return {
     accessToken: res.data.data.accessToken,
+    refreshToken: res.data.data.refreshToken,
     user: res.data.data.user,
   };
 }

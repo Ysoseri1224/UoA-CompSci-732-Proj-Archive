@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCallback, useLayoutEffect } from 'react';
 
 import Battlefield from '../components/game/Battlefield';
 import HandArea from '../components/game/HandArea';
@@ -9,7 +8,7 @@ import SkillBar from '../components/game/SkillBar';
 import Enhancement from '../components/game/Enhancement.jsx';
 
 import { useRogueLogic } from '../hooks/useRogueLikeLogic.js';
-import { startRogueRun, notifyRogueWon } from '../api/rogueapi.js';
+import { startRogueRun, notifyRogueWon, getCurrentRogueRun, saveRogueProgress, notifyFloorLost } from '../api/rogueapi.js';
 import { audioManager } from '../utils/audioManager.js';
 
 const BOSS_ATTACK_UX_FALLBACK_MS = 12_500;
@@ -28,14 +27,41 @@ export default function RogueGamePage() {
   const winLayerRef    = useRef(0);
   const [buffDetailOpen, setBuffDetailOpen] = useState(false);
 
-  // Start a new run on mount
+  function continueFromSave() {
+    setSaveChoiceVisible(false);
+    if (existingSave && socketRef?.current) {
+      const buffs = (existingSave.enhancements || []).map(e => e?.buff).filter(Boolean);
+      setEnhancements(existingSave.enhancements || []);
+      socketRef.current.emit('restoreFromCheckpoint', {
+        layer: existingSave.layer ?? 1,
+        playerHp: existingSave.playerHp ?? 20,
+        bossHp: existingSave.bossHp ?? 543,
+        buffs,
+      });
+    }
+  }
+
+  function startNewGame() {
+    setSaveChoiceVisible(false);
+    setExistingSave(null);
+    startRogueRun().then(() => {
+      restartGame();
+    }).catch(err => console.error(err));
+  }
+
+  const [saveChoiceVisible, setSaveChoiceVisible] = useState(false);
+  const [exitConfirmVisible, setExitConfirmVisible] = useState(false);
+  const [existingSave, setExistingSave] = useState(null);
+
+  // Check for existing save on mount — never auto-start new run
   useEffect(() => {
     let cancelled = false;
-    startRogueRun().catch(err => {
-      if (!cancelled) console.error(err);
-    });
-    // Defensive BGM trigger: RootLayout already plays BGM on auth, but if the
-    // user navigates here after a tab-switch / autoplay-block, restart it.
+    getCurrentRogueRun().then(save => {
+      if (!cancelled && save?.snapshot?.status === 'active') {
+        setExistingSave(save.snapshot);
+        setSaveChoiceVisible(true);
+      }
+    }).catch(() => {});
     audioManager.playBGM();
     return () => { cancelled = true; };
   }, []);
@@ -48,11 +74,19 @@ export default function RogueGamePage() {
     gameOver, restartGame, battlePhase, phase,
     skillCharges, maxCharges, skillCooldowns, shieldActive,
     skillChangeColor, skillChangeCost, skillActivateShield,
-    isActionPhase, connectionStatus, errorMessage, attackEffect, bossRound, boss,
+    isActionPhase, connectionStatus, errorMessage, socketRef, skillWarning, attackEffect, bossRound, boss,
     // Rogue-specific
-    enhancements, pendingEnhancements, confirmEnhancement, showEnhancementAfterAnimation,
+    enhancements, setEnhancements, pendingEnhancements, confirmEnhancement, showEnhancementAfterAnimation,
     canRetryFloor, retryFloor, showLose, runComplete,
   } = useRogueLogic((layer) => { winLayerRef.current = layer; });
+
+
+  // Save on tab close / navigation away
+  useEffect(() => {
+    const save = () => saveRogueProgress({ layer: floor, playerHp, bossHp, enhancements, stats: { totalRounds: round } }).catch(() => {});
+    window.addEventListener('beforeunload', save);
+    return () => window.removeEventListener('beforeunload', save);
+  }, [floor, playerHp, bossHp, round, enhancements]);
 
   // Boss attack presentation (mirrors GamePage exactly)
   const truthHpRef = useRef(playerHp);
@@ -60,7 +94,7 @@ export default function RogueGamePage() {
 
   const [displayedPlayerHp,          setDisplayedPlayerHp]          = useState(() => playerHp);
   const [bossAttackPresentationHold,  setBossAttackPresentationHold] = useState(false);
-  const [winRevealUnlocked,           setWinRevealUnlocked]          = useState(true);
+  const [winRevealUnlocked,           setWinRevealUnlocked]          = useState(false);
   const [playerDamageFlash,           setPlayerDamageFlash]          = useState(null);
   const [playerHudShakeNonce,         setPlayerHudShakeNonce]        = useState(0);
 
@@ -195,6 +229,7 @@ export default function RogueGamePage() {
     wonNotifiedRef.current = false;
     startRogueRun().catch(console.error);
     restartGame();
+    restartGame();
   }
 
   async function handleRetryFloor() {
@@ -220,6 +255,14 @@ export default function RogueGamePage() {
           <span className="text-yellow-700 text-xs font-mono tracking-widest">
             SCORE {totalScore.toLocaleString()}
           </span>
+          <button
+            type="button"
+            onClick={() => setExitConfirmVisible(true)}
+            className="ml-2 rounded border border-amber-900/55 bg-stone-950/60 px-2 py-1 text-[10px] font-medium text-amber-100/95 hover:border-amber-700/70 hover:bg-amber-950/35 sm:px-3 sm:text-xs"
+            aria-label="Exit to lobby"
+          >
+            Exit
+          </button>
         </div>
       </div>
 
@@ -284,9 +327,57 @@ export default function RogueGamePage() {
         buffDetailOpen={buffDetailOpen}
       />
 
+      {skillWarning && (
+        <div className="absolute left-1/2 top-16 z-[60] -translate-x-1/2 rounded-xl border border-amber-500/30 bg-amber-950/90 px-4 py-2 text-sm text-amber-100 shadow-lg shadow-black/40">
+          {skillWarning.message}
+        </div>
+      )}
       {errorMessage && (
         <div className="absolute left-1/2 top-16 z-[60] -translate-x-1/2 rounded-xl border border-rose-500/30 bg-rose-950/90 px-4 py-2 text-sm text-rose-100 shadow-lg shadow-black/40">
           {errorMessage}
+        </div>
+      )}
+
+      {/* Exit confirmation modal */}
+      {exitConfirmVisible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5 bg-stone-900 border border-amber-800/50 rounded-2xl px-10 py-8 shadow-2xl shadow-black">
+            <div className="text-stone-300 text-lg font-bold tracking-widest">Exit Rogue Mode?</div>
+            <div className="text-stone-400 text-sm">Your progress will be saved.</div>
+            <div className="flex gap-3 mt-1">
+              <button onClick={async () => { await saveRogueProgress({ layer: floor, playerHp, bossHp, enhancements, stats: { totalRounds: round } }).catch(() => {}); navigate('/lobby'); }}
+                      className="px-6 py-2.5 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-amber-600 to-amber-800 text-amber-100 hover:from-amber-500 hover:to-amber-700 active:scale-95 transition-all shadow-lg">
+                Save & Exit
+              </button>
+              <button onClick={async () => { await startRogueRun().catch(() => {}); navigate('/lobby'); }}
+                      className="px-6 py-2.5 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-stone-700 to-stone-900 text-stone-300 hover:from-stone-600 hover:to-stone-800 active:scale-95 transition-all shadow-lg">
+                Exit without Saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save choice modal */}
+      {saveChoiceVisible && existingSave && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5 bg-stone-900 border border-yellow-800/50 rounded-2xl px-10 py-8 shadow-2xl shadow-black">
+            <div className="text-5xl">📂</div>
+            <div className="text-yellow-300 text-xl font-black tracking-widest">Active Run Found</div>
+            <div className="text-stone-400 text-sm text-center">
+              Floor {existingSave.layer ?? 1} · HP {existingSave.playerHp}/{existingSave.playerMaxHp} · {existingSave.enhancements?.length ?? 0} buffs
+            </div>
+            <div className="flex gap-3 mt-2">
+              <button onClick={continueFromSave}
+                      className="px-6 py-2.5 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-yellow-600 to-yellow-800 text-yellow-100 hover:from-yellow-500 hover:to-yellow-700 active:scale-95 transition-all shadow-lg shadow-yellow-900/50">
+                Continue Floor {existingSave.layer ?? 1}
+              </button>
+              <button onClick={startNewGame}
+                      className="px-6 py-2.5 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-red-700 to-red-900 text-white hover:from-red-600 hover:to-red-800 active:scale-95 transition-all shadow-lg">
+                New Game
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -310,9 +401,9 @@ export default function RogueGamePage() {
                     className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-yellow-600 to-yellow-800 text-yellow-100 hover:from-yellow-500 hover:to-yellow-700 active:scale-95 transition-all shadow-lg shadow-yellow-900/50">
               Play Again
             </button>
-            <button onClick={() => navigate('/')}
+            <button onClick={() => { saveRogueProgress({ layer: floor, playerHp, bossHp, enhancements, stats: { totalRounds: round } }).catch(() => {}); navigate('/lobby'); }}
                     className="text-stone-500 text-sm hover:text-stone-300 transition-colors">
-              Back to Home
+              Exit to Lobby
             </button>
           </div>
         </div>
@@ -333,9 +424,9 @@ export default function RogueGamePage() {
               className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-red-700 to-red-900 text-white hover:from-red-600 hover:to-red-800 active:scale-95 transition-all shadow-lg">
               {canRetryFloor ? 'Retry Floor' : 'Play Again'}
             </button>
-            <button onClick={() => navigate('/')}
+            <button onClick={async () => { await notifyFloorLost().catch(() => {}); navigate('/lobby'); }}
                     className="text-stone-500 text-sm hover:text-stone-300 transition-colors">
-              Back to Home
+              Exit to Lobby
             </button>
           </div>
         </div>

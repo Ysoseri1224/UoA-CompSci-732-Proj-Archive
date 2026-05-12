@@ -190,8 +190,8 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const { accessToken, user } = await login(email.trim(), password);
-      setAuth(user, accessToken);
+      const { accessToken, refreshToken, user } = await login(email.trim(), password);
+      setAuth(user, accessToken, refreshToken);
       audioManager.playBGM();
       navigate('/lobby');
     } catch (err) {

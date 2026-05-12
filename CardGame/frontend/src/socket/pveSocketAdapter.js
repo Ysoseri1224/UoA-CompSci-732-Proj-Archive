@@ -8,9 +8,9 @@ const ELEMENT_TO_COLOR = {
 };
 
 const ELEMENT_TO_LABEL = {
-  FIRE: '红',
-  WATER: '蓝',
-  GRASS: '绿',
+  FIRE: 'Fire',
+  WATER: 'Water',
+  GRASS: 'Grass',
 };
 
 const BACKEND_TO_FRONTEND_HAND_TYPE = {

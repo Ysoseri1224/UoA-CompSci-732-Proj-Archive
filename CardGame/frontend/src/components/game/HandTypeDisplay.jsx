@@ -61,12 +61,12 @@ const TYPE_COLOR = {
           </span>
         </div>
   
-        {/* 最终得分 */}
+        {/* 最终得pts */}
         <div className="flex items-baseline gap-1">
           <span className="text-yellow-100 font-black text-2xl leading-none tracking-tight">
             {totalScore.toLocaleString()}
           </span>
-          <span className="text-stone-500 text-xs">分</span>
+          <span className="text-stone-500 text-xs">pts</span>
         </div>
   
       </div>

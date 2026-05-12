@@ -36,6 +36,11 @@ export async function notifyRogueWon() {
   return res.data.data;
 }
 
+export async function getCurrentRogueRun() {
+  const res = await client.get('/api/rogue/current');
+  return res.data.data;
+}
+
 export async function getUpgradeOptions(layer, element) {
   const res = await client.get('/api/rogue/upgrades', { params: { layer, element } });
   return res.data.data;

@@ -24,15 +24,19 @@ export default function SkillBar({
   skillChangeColor,
   skillChangeCost,
   skillActivateShield,
+  disabled = false,
 }) {
   const [panel,      setPanel]      = useState(null);
   const [targetCard, setTargetCard] = useState(null);
   const noCharges = skillCharges <= 0;
+  const locked = disabled || noCharges;
+  const ELEMENT_SORT = { red: 0, blue: 1, green: 2 };
+  const sortedHand = [...hand].sort((a, b) => (ELEMENT_SORT[a.color] ?? 3) - (ELEMENT_SORT[b.color] ?? 3) || b.cost - a.cost);
 
   function closePanel() { setPanel(null); setTargetCard(null); }
 
   function openColorSkill() {
-    if (noCharges) return;
+    if (locked) return;
     setPanel(panel === 'color' ? null : 'color');
     setTargetCard(null);
   }
@@ -42,7 +46,7 @@ export default function SkillBar({
     closePanel();
   }
   function openCostSkill() {
-    if (noCharges) return;
+    if (locked) return;
     setPanel(panel === 'cost' ? null : 'cost');
     setTargetCard(null);
   }
@@ -149,7 +153,7 @@ export default function SkillBar({
               />
             }
             label="Color"
-            disabled={noCharges}
+            disabled={locked}
             active={panel === 'color'}
             onClick={openColorSkill}
           />
@@ -162,7 +166,7 @@ export default function SkillBar({
     />
   }
   label="Rank"
-  disabled={noCharges}
+  disabled={locked}
   active={panel === 'cost'}
   onClick={openCostSkill}
 />
@@ -175,7 +179,7 @@ export default function SkillBar({
     />
   }
   label="Shield"
-  disabled={noCharges || skillCooldowns.shield}
+  disabled={locked || skillCooldowns.shield}
   active={panel === 'shield' || skillCooldowns.shield}
   activated={skillCooldowns.shield}
   onClick={openShieldSkill}
@@ -205,7 +209,7 @@ export default function SkillBar({
             </div>
             {!targetCard ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {hand.map(c => (
+                {sortedHand.map(c => (
                   <MiniCardRow key={c.id} card={c} onClick={() => setTargetCard(c.id)} />
                 ))}
               </div>
@@ -242,7 +246,7 @@ export default function SkillBar({
             </div>
             {!targetCard ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {hand.map(c => (
+                {sortedHand.map(c => (
                   <MiniCardRow key={c.id} card={c} onClick={() => setTargetCard(c.id)} />
                 ))}
               </div>
@@ -353,16 +357,27 @@ function SkillSlot({ icon, label, disabled, active, activated, onClick }) {
   ) : (
     <span style={{ fontSize: 18, pointerEvents: 'none' }}>✓</span>
   )}
-  <span style={{
-    fontSize: 7, marginTop: 2,
-    color: activated ? '#93c5fd' : '#ffd700',
-    fontFamily: 'monospace',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    pointerEvents: 'none',
-  }}>
-    {activated ? 'Active' : 'Ready'}
-  </span>
+  {activated ? (
+    <span style={{
+      position: 'absolute', top: '22%', right: '15%',
+      zIndex: 20,
+      fontSize: 20, fontWeight: 900,
+      color: '#ffe820', fontFamily: '"Cinzel", monospace',
+      letterSpacing: 1, pointerEvents: 'none',
+      textShadow: '0 0 14px rgba(255,230,100,1), 0 0 28px rgba(255,200,40,0.7)',
+      animation: 'cdPulse 1.2s ease-in-out infinite',
+    }}>
+      CD
+    </span>
+  ) : (
+    <span style={{
+      fontSize: 7, marginTop: 2,
+      color: '#ffd700', fontFamily: 'monospace',
+      textTransform: 'uppercase', letterSpacing: 0.5, pointerEvents: 'none',
+    }}>
+      Ready
+    </span>
+  )}
 </div>
       </div>
     </div>
