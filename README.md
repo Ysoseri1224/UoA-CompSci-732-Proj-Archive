@@ -1,114 +1,126 @@
-# CS732 Project – Team Works on My Machine
+# Wild Hand: SkillFlop
 
-Welcome to the CS732 project repository. This repository contains the development environment and source code for our team project this semester.
+[![Node.js 18+](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/docker-enabled-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Node.js CI](https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine/actions/workflows/nodejs-ci.yml/badge.svg?branch=main&event=push)](https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine/actions/workflows/nodejs-ci.yml)
 
-All team members have admin access. The only setup by default is branch protection on main, requiring a pull request with at least one reviewer to modify main. Please follow good version control practices, such as feature branching, to avoid conflicts and to make your contributions clear.
+A browser-based card game project that combines Texas Hold'em mechanics with a skill-driven battle layer, built with React, ExpressJS, Node.js, Socket.io, MongoDB, and Docker Compose.
 
-## Team Members
+## Overview
 
-Zengguang Feng (zfen773@aucklanduni.ac.nz)
-Zihan Zhao (zahz093@aucklanduni.ac.nz)
-Yi Lin (yiln257@aucklanduni.ac.nz)
-Manqi Wang (mwan556@aucklanduni.ac.nz)
-Zhixuan Wei (zwei974@aucklanduni.ac.nz)
-Sheng Xiao (sxia092@aucklanduni.ac.nz)
+Wild Hand: SkillFlop was developed as a course project for COMPSCI 732 Software Tools and Techniques by Team Works on My Machine.
 
-# Project Overview
+The repository contains the application source code, tests, configuration, and supporting technical documentation. This README is intentionally lightweight: it provides the main project entry points, while detailed design, protocol, and testing notes live in `CardGame/docs/`.
 
-This project is a multiplayer card game with the following architecture:
+## Current Features
 
-Component	Technology
-Frontend	React, Tailwind CSS, Vite
-Backend	Node.js, Express
-Real-time Communication	Socket.io
-Game Logic	Server-side Node.js
-Card Evaluation	pokersolver (npm)
-Queue / Cache	Redis
-Authentication	JWT (JSON Web Tokens)
-Database	MongoDB
-Deployment	Netlify (frontend), Render (backend)
-AI Development Aid	Claude (Anthropic, via CLAUDE.md)
-Development Environment
+- Authentication and protected routes
+- PvE gameplay flow with pre-battle skill selection
+- Profile, leaderboard, and match-related backend support
+- Local full-stack development with Docker Compose and CI-backed backend validation
 
-We use Docker Compose to simplify setup. The repository includes:
+## Quick Start
 
-CardGame/frontend/ – React frontend
-CardGame/backend/ – Node.js backend
-CardGame/docker-compose.yml – orchestrates frontend, backend, MongoDB, Redis
-Services & Access
-Service	Local URL / Connection
-React Frontend	http://localhost:5173
+### Clone the Repository
 
-Node.js Backend	http://localhost:3000
-
-MongoDB	mongodb://localhost:27017
-Redis	localhost:6379
-
-All services are run in Docker containers, so team members do not need to install Node.js, MongoDB, or Redis locally.
-
-Setup Instructions
-
-1. Clone the repository:
 ```bash
 git clone https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine.git
 cd group-project-works-on-my-machine
 ```
 
-2. Configure environment variables:
+### Configure Environment Files
+
 ```bash
 cp CardGame/backend/.env.example CardGame/backend/.env
-# Edit .env and fill in your actual values (JWT_SECRET, etc.)
+cp CardGame/frontend/.env.example CardGame/frontend/.env
 ```
 
-3. Start the Docker development environment:
+### Start the Local Stack
+
 ```bash
 docker compose -f CardGame/docker-compose.yml up -d
 ```
 
-This command pulls necessary Docker images and starts all services (frontend, backend, MongoDB, Redis).
+This starts the frontend, backend, MongoDB, and Redis services required for local development and testing.
 
-- Use `docker compose stop` to temporarily stop containers.
-- Use `docker compose down` to stop and remove containers (`-v` to also remove volumes).
+### Start the Frontend and Backend Manually
 
-4. Access the services:
-- React frontend: http://localhost:5173
-- Node.js backend: http://localhost:3000
-- MongoDB: mongodb://localhost:27017
-- Redis: localhost:6379
-
-Database Tests
-
-Run backend database/model tests against the dedicated `balatro_test` database:
+Backend:
 
 ```bash
 cd CardGame/backend
-npm run test:db
+npm install
+npm run dev
 ```
 
-The test suite uses `TEST_MONGO_URI` when provided and defaults to `mongodb://127.0.0.1:27017/balatro_test`.
+Frontend:
 
-See [CardGame/docs/testing.md](CardGame/docs/testing.md) for the full testing workflow.
+```bash
+cd CardGame/frontend
+npm install
+npm run dev
+```
 
-Documentation
+When running the applications manually, make sure MongoDB and Redis are available and that the backend and frontend environment files have been configured first.
 
-| Document | Description |
-|----------|-------------|
-| [docs/api.md](CardGame/docs/api.md) | REST API interface specification |
-| [docs/socket.md](CardGame/docs/socket.md) | Socket.io event protocol |
-| [docs/testing.md](CardGame/docs/testing.md) | Backend testing workflow and directory conventions |
-| [requirement.md](requirement.md) | Full software requirements |
+### Local Service Endpoints
 
-Version Control Guidelines
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+- MongoDB: `mongodb://localhost:27017`
+- Redis: `localhost:6379`
 
-- Always use **feature branches** for new functionality or fixes.
-- Branch naming: `feature/<name>`, `fix/<name>`, `docs/<name>`
-- Commit message format: `feat:`, `fix:`, `docs:`, `refactor:` prefix (Conventional Commits)
-- Create a **pull request (PR)** when merging to main.
-- At least **one team member** must review and approve the PR before merging.
-- Keep `node_modules`, build outputs, and Docker volume data out of the repository via `.gitignore`.
+## Deployment Status
 
-Additional Notes
+### Local Deployment
 
-- `.env` files with secrets must **never** be committed. Use `.env.example` as a template.
-- For MongoDB or Redis persistent data, Docker volumes are used and ignored by Git.
-- The project is fully Dockerized — anyone on the team can get started with a single `docker compose up -d`.
+The project supports local full-stack deployment through Docker Compose, as described above.
+
+### Hosted Deployment
+
+Hosted deployment details are not currently documented in this repository. If a live deployment is made available, the public URLs and hosting notes should be added here.
+
+## Testing
+
+Backend test and lint commands:
+
+```bash
+cd CardGame/backend
+npm run lint
+npm test
+```
+
+Frontend test and lint commands:
+
+```bash
+cd CardGame/frontend
+npm run lint
+npm test
+```
+
+## Documentation
+
+Detailed project documentation is available in the repository:
+
+- [Requirements](requirement.md) - project requirements specification
+- [API documentation](CardGame/docs/api.md) - REST API documentation
+- [Socket protocol](CardGame/docs/socket.md) - Socket.io event protocol
+- [Testing](CardGame/docs/testing.md) - testing workflow and conventions
+- [State machine notes](CardGame/docs/state-machine.md) - gameplay state design notes
+- [Implementation plans](CardGame/docs/plans/) - implementation planning documents
+
+## Repository Structure
+
+- `CardGame/frontend/` - React frontend application
+- `CardGame/backend/` - backend API, gameplay services, and persistence logic
+- `CardGame/docker-compose.yml` - local development environment setup
+- `.github/workflows/` - continuous integration workflows
+
+## Team
+
+- Manqi Wang
+- Sheng Xiao
+- Yi Lin
+- Zengguang Feng
+- Zihan Zhao
+- Zhixuan Wei
