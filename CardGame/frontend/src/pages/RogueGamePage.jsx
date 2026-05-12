@@ -39,7 +39,7 @@ export default function RogueGamePage() {
     hand, deckCount, selected, toggleSelect,
     evaluation, discardSelected, discards, maxDiscards, canDiscard, canPlay,
     playHand, round, totalScore, lastScore,
-    playerHp, playerMaxHp, bossHp, bossMaxHp, floor,
+    playerHp, playerMaxHp, bossHp, bossMaxHp, bossName, floor,
     gameOver, restartGame, battlePhase, phase,
     skillCharges, maxCharges, skillCooldowns, shieldActive,
     skillChangeColor, skillChangeCost, skillActivateShield,
@@ -269,6 +269,7 @@ export default function RogueGamePage() {
         <Battlefield
           bossHp={bossHp}
           bossMaxHp={bossMaxHp}
+          bossName={bossName}
           floor={floor}
           lastScore={lastScore}
           battlePhase={battlePhase}

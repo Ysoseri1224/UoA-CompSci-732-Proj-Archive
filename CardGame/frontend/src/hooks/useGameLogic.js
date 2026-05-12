@@ -570,6 +570,7 @@ export function useGameLogic(roomId = null) {
     playerMaxHp: player.maxHp,
     bossHp: boss?.hp ?? 0,
     bossMaxHp: boss?.maxHp ?? 300,
+    bossName: boss?.name,
     floor,
     gameOver,
     restartGame,

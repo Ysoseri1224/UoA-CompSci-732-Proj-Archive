@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import BossVideoDisplay from './BossVideoDisplay';
 import BattlefieldVideoBackground from './BattlefieldVideoBackground';
+import { getBossDisplayName } from '../../utils/bossDisplayName.js';
 import '../../styles/battlefield.css';
 
 /** Feather boss video into abyss ring — masks hard rectangle edges while keeping torso readable. */
@@ -185,6 +186,7 @@ function AttackEffect({ mode = 'normal' }) {
 
 export default function Battlefield({
   bossHp, bossMaxHp,
+  bossName,
   floor, lastScore,
   battlePhase,
   phase,
@@ -391,10 +393,14 @@ export default function Battlefield({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 'clamp(6px, 1.8vmin, 12px)',
-              flexWrap: 'wrap',
-              padding: '0 2px',
-              maxWidth: 'min(260px, 42vw)',
+              flexWrap: 'nowrap',
+              gap: 'clamp(4px, 1.5vmin, 10px)',
+              padding: '0 4px',
+              boxSizing: 'border-box',
+              alignSelf: 'center',
+              /* Wider than narrow boss stack so EN name + orbs stay one row; capped for viewport */
+              width: 'min(320px, max(100%, 268px))',
+              maxWidth: 'min(320px, calc(100vw - 96px))',
             }}>
               <div style={{
                 width: 'clamp(36px, 6vmin, 44px)',
@@ -411,24 +417,18 @@ export default function Battlefield({
               }}>
                 5
               </div>
-              <div style={{
-                minWidth: 0,
-                textAlign: 'center',
-                padding: '4px clamp(10px, 3vmin, 16px)',
-                borderRadius: 999,
-                background: 'linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.72), rgba(0,0,0,0.2))',
-                border: '1px solid rgba(200,160,90,0.22)',
-              }}>
-                <span className="battlefield-boss-name-inline" style={{
-                  color: '#e8cfa0',
-                  fontSize: 'clamp(10px, 2.2vmin, 12px)',
-                  fontWeight: 800,
-                  letterSpacing: 2,
-                  fontFamily: 'serif',
-                  textShadow: '0 0 10px rgba(200,170,110,0.32), 0 1px 3px rgba(0,0,0,1)',
-                  whiteSpace: 'nowrap',
-                }}>
-                  暗影领主
+              <div
+                className="battlefield-boss-name-pill"
+                style={{
+                  flex: '1 1 0%',
+                  minWidth: 0,
+                  maxWidth: '100%',
+                  textAlign: 'center',
+                  padding: '4px clamp(8px, 2.4vmin, 14px)',
+                }}
+              >
+                <span className="battlefield-boss-name-inline">
+                  {getBossDisplayName(bossName)}
                 </span>
               </div>
               <div style={{
