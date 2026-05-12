@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getMatches } from '../api/matchApi.js';
 import { getUserStats } from '../api/userApi.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { computeLobbyXpProgress, lobbyXpFallback } from '../utils/xpSystem.js';
 import '../styles/LobbyPage.css';
 
 // Shown when profile/stats API fails or userId is missing (local dev, offline, etc.)
