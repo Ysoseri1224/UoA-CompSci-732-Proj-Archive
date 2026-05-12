@@ -1,3 +1,5 @@
+// LEGACY: socketHandlers.js is no longer registered in socket.ts.
+// These tests cover the old XState-based system and are skipped to prevent confusion.
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -25,7 +27,7 @@ function createFakeSocket(id = "sock-1") {
   };
 }
 
-test("socket handler: startPveGame then damageBot to 0 emits gameOver and cleans up runtime", () => {
+test.skip("socket handler: startPveGame then damageBot to 0 emits gameOver and cleans up runtime", () => {
   const socket = createFakeSocket("sock-1");
   registerSocketHandlers(socket);
 
@@ -47,7 +49,7 @@ test("socket handler: startPveGame then damageBot to 0 emits gameOver and cleans
   assert.equal(getRoomSnapshot(roomId), null);
 });
 
-test("socket handler: startPveGame then damagePlayer to 0 emits gameOver and cleans up runtime", () => {
+test.skip("socket handler: startPveGame then damagePlayer to 0 emits gameOver and cleans up runtime", () => {
   const socket = createFakeSocket("sock-2");
   registerSocketHandlers(socket);
 

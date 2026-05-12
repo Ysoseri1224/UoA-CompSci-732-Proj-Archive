@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react';
 import BossVideoDisplay from './BossVideoDisplay';
 import BattlefieldVideoBackground from './BattlefieldVideoBackground';
-import { getBossDisplayName } from '../../utils/bossDisplayName.js';
 import '../../styles/battlefield.css';
 
 /** Feather boss video into abyss ring — masks hard rectangle edges while keeping torso readable. */
@@ -184,16 +183,35 @@ function AttackEffect({ mode = 'normal' }) {
   );
 }
 
+const BOSS_INTENT_STYLE = {
+  ATTACK: {
+    background: 'radial-gradient(circle at 35% 28%, #ff4422, #660a00)',
+    border: '2px solid rgba(255,130,110,0.85)',
+    boxShadow: '0 0 12px rgba(255,60,30,0.5), 0 3px 8px rgba(0,0,0,0.7)',
+  },
+  CHARGE: {
+    background: 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)',
+    border: '2px solid rgba(255,215,96,0.85)',
+    boxShadow: '0 0 12px rgba(220,170,0,0.4), 0 3px 8px rgba(0,0,0,0.7)',
+  },
+  DEFEND: {
+    background: 'radial-gradient(circle at 35% 28%, #4488ff, #001855)',
+    border: '2px solid rgba(110,170,255,0.85)',
+    boxShadow: '0 0 12px rgba(60,120,255,0.5), 0 3px 8px rgba(0,0,0,0.7)',
+  },
+};
+
 export default function Battlefield({
   bossHp, bossMaxHp,
   bossName,
   floor, lastScore,
   battlePhase,
   phase,
-  attackEffect,
-  gameOver,
+  bossRound,
   bossIntent,
   bossAttack,
+  attackEffect,
+  gameOver,
   onBossAttackStart,
   onBossAttackEnded,
   onBossDefeatedAnimationEnd,
@@ -395,72 +413,67 @@ export default function Battlefield({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              flexWrap: 'nowrap',
-              gap: 'clamp(4px, 1.5vmin, 10px)',
-              padding: '0 4px',
-              boxSizing: 'border-box',
-              alignSelf: 'center',
-              /* Wider than narrow boss stack so EN name + orbs stay one row; capped for viewport */
-              width: 'min(320px, max(100%, 268px))',
-              maxWidth: 'min(320px, calc(100vw - 96px))',
+              gap: 'clamp(6px, 1.8vmin, 12px)',
+              flexWrap: 'wrap',
+              padding: '0 2px',
+              maxWidth: 'min(260px, 42vw)',
             }}>
+              {(() => {
+                const intent = bossIntent ?? 'ATTACK';
+                const style = BOSS_INTENT_STYLE[intent] ?? BOSS_INTENT_STYLE.ATTACK;
+                const isAttack = intent === 'ATTACK';
+                return (
+                  <div style={{
+                    width: 'clamp(36px, 6vmin, 44px)',
+                    height: 'clamp(36px, 6vmin, 44px)',
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    background: style.background,
+                    border: style.border,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexDirection: 'column',
+                    fontWeight: 900, color: '#fff',
+                    boxShadow: style.boxShadow,
+                    fontFamily: 'monospace',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+                    lineHeight: 1.1,
+                    textAlign: 'center',
+                    padding: '2px',
+                    gap: 0,
+                  }}>
+                    {isAttack ? (
+                      <>
+                        <span style={{ fontSize: 'clamp(9px, 1.6vmin, 11px)', opacity: 0.85 }}>🗡</span>
+                        <span style={{ fontSize: bossAttack > 99 ? 'clamp(7px, 1.5vmin, 9px)' : 'clamp(9px, 1.8vmin, 12px)' }}>
+                          {bossAttack ?? '?'}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 'clamp(14px, 2.8vmin, 18px)' }}>
+                        {intent === 'CHARGE' ? '⚡' : '🛡'}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{
-                width: 'clamp(36px, 6vmin, 44px)',
-                height: 'clamp(36px, 6vmin, 44px)',
-                flexShrink: 0,
-                borderRadius: '50%',
-                background: bossIntent === 'DEFEND'
-                  ? 'radial-gradient(circle at 35% 28%, #4488ff, #001855)'
-                  : bossIntent === 'CHARGE'
-                    ? 'radial-gradient(circle at 35% 28%, #f0c030, #7a5000)'
-                    : 'radial-gradient(circle at 35% 28%, #ff4422, #660a00)',
-                border: bossIntent === 'DEFEND'
-                  ? '2px solid rgba(110,170,255,0.85)'
-                  : bossIntent === 'CHARGE'
-                    ? '2px solid rgba(255,215,96,0.85)'
-                    : '2px solid rgba(255,130,110,0.85)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: bossIntent === 'ATTACK' && bossAttack > 99
-                  ? 'clamp(8px, 1.8vmin, 10px)'
-                  : 'clamp(11px, 2.2vmin, 14px)',
-                color: '#fff',
-                boxShadow: bossIntent === 'DEFEND'
-                  ? '0 0 12px rgba(60,120,255,0.5), 0 3px 8px rgba(0,0,0,0.7)'
-                  : bossIntent === 'CHARGE'
-                    ? '0 0 12px rgba(220,170,0,0.4), 0 3px 8px rgba(0,0,0,0.7)'
-                    : '0 0 12px rgba(255,60,30,0.5), 0 3px 8px rgba(0,0,0,0.7)',
-                fontFamily: 'monospace',
-                textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-                flexDirection: 'column',
-                lineHeight: 1.1,
+                minWidth: 0,
                 textAlign: 'center',
-                padding: '2px',
-                gap: 0,
+                padding: '4px clamp(10px, 3vmin, 16px)',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.72), rgba(0,0,0,0.2))',
+                border: '1px solid rgba(200,160,90,0.22)',
               }}>
-                {bossIntent === 'DEFEND' && <span style={{ fontSize: 'clamp(14px, 2.8vmin, 18px)' }}>🛡</span>}
-                {bossIntent === 'CHARGE' && <span style={{ fontSize: 'clamp(14px, 2.8vmin, 18px)' }}>⚡</span>}
-                {(!bossIntent || bossIntent === 'ATTACK') && (
-                  <>
-                    <span style={{ fontSize: 'clamp(9px, 1.6vmin, 11px)', opacity: 0.85 }}>🗡</span>
-                    <span style={{ fontSize: bossAttack > 99 ? 'clamp(7px, 1.5vmin, 9px)' : 'clamp(9px, 1.8vmin, 12px)' }}>
-                      {bossAttack ?? '?'}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div
-                className="battlefield-boss-name-pill"
-                style={{
-                  flex: '1 1 0%',
-                  minWidth: 0,
-                  maxWidth: '100%',
-                  textAlign: 'center',
-                  padding: '4px clamp(8px, 2.4vmin, 14px)',
-                }}
-              >
-                <span className="battlefield-boss-name-inline">
-                  {getBossDisplayName(bossName)}
+                <span className="battlefield-boss-name-inline" style={{
+                  color: '#e8cfa0',
+                  fontSize: 'clamp(10px, 2.2vmin, 12px)',
+                  fontWeight: 800,
+                  letterSpacing: 2,
+                  fontFamily: 'serif',
+                  textShadow: '0 0 10px rgba(200,170,110,0.32), 0 1px 3px rgba(0,0,0,1)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {bossName ?? '暗影领主'}
                 </span>
               </div>
               <div style={{
@@ -486,6 +499,47 @@ export default function Battlefield({
                 }
               </div>
             </div>
+
+            {/* Boss intent indicator */}
+            {bossRound ? (
+              <div style={{
+                marginTop: 'clamp(4px, 1vmin, 8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '4px 14px',
+                borderRadius: 12,
+                background: bossRound.intent === 'CHARGE'
+                  ? 'rgba(255,100,20,0.18)'
+                  : bossRound.intent === 'DEFEND'
+                    ? 'rgba(60,140,255,0.18)'
+                    : 'rgba(255,200,60,0.14)',
+                border: `1px solid ${bossRound.intent === 'CHARGE'
+                  ? 'rgba(255,100,20,0.5)'
+                  : bossRound.intent === 'DEFEND'
+                    ? 'rgba(60,140,255,0.5)'
+                    : 'rgba(255,200,60,0.4)'}`,
+                color: bossRound.intent === 'CHARGE'
+                  ? '#ffa45e'
+                  : bossRound.intent === 'DEFEND'
+                    ? '#7eb8ff'
+                    : '#f0d060',
+                fontSize: 'clamp(10px, 1.8vmin, 12px)',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                letterSpacing: 1.5,
+                textShadow: '0 0 8px rgba(0,0,0,0.8)',
+              }}>
+                <span>
+                  {bossRound.intent === 'ATTACK' ? '⚔' : bossRound.intent === 'CHARGE' ? '⚡' : '\u{1F6E1}'}
+                </span>
+                <span>{bossRound.intent}</span>
+                {bossRound.willReleaseCharge ? <span>NEXT: BURST</span> : null}
+                {bossRound.isDefending ? <span>DMG -50%</span> : null}
+              </div>
+            ) : null}
+
           </div>
         </div>
 

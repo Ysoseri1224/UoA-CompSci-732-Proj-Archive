@@ -5,11 +5,10 @@ import {
   saveRogueProgress,
   notifyFloorWon,
   notifyFloorLost,
-  getUpgradeOptions,
 } from '../api/rogueapi.js';
 
 export function useRogueLogic(onBattleWin = null) {
-  const gameLogic     = useGameLogic(null);
+  const gameLogic     = useGameLogic(null, { startEvent: 'startRogueGame' });
   const socketRef     = gameLogic.socketRef;
   const chosenElement = gameLogic.chosenElement;
 
@@ -38,6 +37,12 @@ export function useRogueLogic(onBattleWin = null) {
     const socket = socketRef?.current;
     if (!socket) return;
 
+    const onUpgradeOptions = ({ options }) => {
+      setPendingEnhancements(options);
+    };
+
+    socket.on('upgradeOptions', onUpgradeOptions);
+
     const onBattleWinEvt = ({ layer }) => {
       if (victoryTriggeredRef.current) return;
       victoryTriggeredRef.current = true;
@@ -57,17 +62,14 @@ export function useRogueLogic(onBattleWin = null) {
     socket.on('battleWin',  onBattleWinEvt);
     socket.on('battleLose', onBattleLoseEvt);
     return () => {
+      socket.off('upgradeOptions', onUpgradeOptions);
       socket.off('battleWin',  onBattleWinEvt);
       socket.off('battleLose', onBattleLoseEvt);
     };
   }, [socketRef, gameLogic.connectionStatus]);
 
-  // Win detection (layer 10)
-  useEffect(() => {
-    if (gameLogic.gameOver === 'win' && winLayerRef.current >= 10 && !runComplete) {
-      setRunComplete(true);
-    }
-  }, [gameLogic.gameOver, runComplete]);
+  // L11+ 无限挑战：取消 L10 自动结算，运行只在玩家死亡时终止
+  // runComplete 状态保留，预留未来手动结算或自愿退出时使用
 
   // Auto-save progress (3000ms debounce)
   useEffect(() => {
@@ -84,20 +86,15 @@ export function useRogueLogic(onBattleWin = null) {
     return () => clearTimeout(t);
   }, [gameLogic.playerHp, gameLogic.round, gameLogic.bossHp, gameLogic.gameOver, floor, enhancements]);
 
-  // Called by RogueGamePage when boss death animation ends — fetch options from backend
+  // Called by RogueGamePage when boss death animation ends
+  // Emits upgradePhaseReady — backend validates roguePhase=UPGRADE then pushes upgradeOptions via socket
   const showEnhancementAfterAnimation = useCallback(() => {
     const layer = pendingLayerRef.current;
     if (layer == null) return;
     pendingLayerRef.current = null;
-    if (layer >= 10) {
-      // Full run complete — trigger win overlay
-      setRunComplete(true);
-      return;
-    }
-    getUpgradeOptions(layer, chosenElementRef.current)
-      .then(options => setPendingEnhancements(options))
-      .catch(console.error);
-  }, []);
+    const socket = socketRef?.current;
+    socket?.emit('upgradePhaseReady');
+  }, [socketRef]);
 
   // Confirm enhancement
   const confirmEnhancement = useCallback((enhancement) => {

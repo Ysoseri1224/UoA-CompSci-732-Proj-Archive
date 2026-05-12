@@ -1,7 +1,6 @@
 import http from 'node:http';
 import { Server } from 'socket.io';
 import type { Socket } from 'socket.io';
-import { registerSocketHandlers } from './utils/socketHandlers.js';
 import { registerPveHandlers } from './utils/pveHandlers.js';
 
 export default function initSocket(server: http.Server) {
@@ -10,7 +9,6 @@ export default function initSocket(server: http.Server) {
   });
 
   io.on('connection', (socket: Socket) => {
-    registerSocketHandlers(socket);
     registerPveHandlers(socket);
   });
 

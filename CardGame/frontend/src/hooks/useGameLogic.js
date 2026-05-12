@@ -3,7 +3,9 @@ import { io } from 'socket.io-client';
 import usePveSocketStore from '../store/pveSocketStore.js';
 import { adaptPveGameState } from '../socket/pveSocketAdapter.js';
 import { useAuth } from './useAuth.js';
+import useAuthStore, { isTokenAboutToExpire } from '../store/authStore.js';
 import { HAND_TYPES } from '../data/handTypes.js';
+import { evaluateHand } from '../lib/evaluator.js';
 import { audioManager } from '../utils/audioManager.js';
 
 const MAX_SELECT = 5;
@@ -49,138 +51,9 @@ function inferAttackEffectModeFromCards(cards) {
   return modes[0];
 }
 
-function getHandType(cards) {
-  if (cards.length === 0) return HAND_TYPES.find((h) => h.id === 'high_card');
-
-  const costs = cards.map((c) => c.cost);
-  const colors = cards.map((c) => c.color);
-
-  const costCount = {};
-  costs.forEach((c) => { costCount[c] = (costCount[c] || 0) + 1; });
-  const counts = Object.values(costCount).sort((a, b) => b - a);
-
-  const colorCount = {};
-  colors.forEach((c) => { colorCount[c] = (colorCount[c] || 0) + 1; });
-  const isFlush = cards.length === 5 && Object.keys(colorCount).length === 1;
-
-  const isStraight = (() => {
-    if (cards.length !== 5) return false;
-    const sorted = [...new Set(costs)].sort((a, b) => a - b);
-    if (sorted.length !== 5) return false;
-    if (sorted[4] - sorted[0] === 4) return true;
-    const highStraight = [1, 10, 11, 12, 13];
-    return highStraight.every((v) => sorted.includes(v));
-  })();
-
-  const isRoyalFlush = (() => {
-    if (!isFlush || !isStraight) return false;
-    const sorted = [...costs].sort((a, b) => a - b);
-    const royal = [1, 10, 11, 12, 13];
-    return royal.every((v) => sorted.includes(v));
-  })();
-
-  if (isRoyalFlush) return HAND_TYPES.find((h) => h.id === 'royal_flush');
-  if (isFlush && isStraight) return HAND_TYPES.find((h) => h.id === 'straight_flush');
-  if (counts[0] === 4) return HAND_TYPES.find((h) => h.id === 'four_of_a_kind');
-  if (counts[0] === 3 && counts[1] === 2) return HAND_TYPES.find((h) => h.id === 'full_house');
-  if (isFlush) return HAND_TYPES.find((h) => h.id === 'flush');
-  if (isStraight) return HAND_TYPES.find((h) => h.id === 'straight');
-  if (counts[0] === 3) return HAND_TYPES.find((h) => h.id === 'three_of_a_kind');
-  if (counts[0] === 2 && counts[1] === 2) return HAND_TYPES.find((h) => h.id === 'two_pair');
-  if (counts[0] === 2) return HAND_TYPES.find((h) => h.id === 'one_pair');
-  return HAND_TYPES.find((h) => h.id === 'high_card');
-}
-
-const HAND_SCORES_FRONTEND = {
-  royal_flush:      { chips: 100, mult: 8 },
-  straight_flush:   { chips: 100, mult: 8 },
-  four_of_a_kind:   { chips: 60,  mult: 7 },
-  full_house:       { chips: 40,  mult: 6 },
-  flush:            { chips: 35,  mult: 4 },
-  straight:         { chips: 30,  mult: 4 },
-  three_of_a_kind:  { chips: 30,  mult: 3 },
-  two_pair:         { chips: 20,  mult: 2 },
-  one_pair:         { chips: 10,  mult: 2 },
-  high_card:        { chips: 5,   mult: 1 },
-};
-
-const COMMON_HANDS = ['one_pair', 'two_pair', 'three_of_a_kind', 'high_card'];
-const RARE_HANDS   = ['straight', 'flush'];
-
-function getHandTier(handTypeId) {
-  if (COMMON_HANDS.includes(handTypeId)) return 'common';
-  if (RARE_HANDS.includes(handTypeId))   return 'rare';
-  return 'epic';
-}
-
-export function evaluateHand(cards, buffs = []) {
-  const handType = getHandType(cards);
-  const { chips: baseChipsInit, mult: multInit } =
-    HAND_SCORES_FRONTEND[handType.id] ?? { chips: 5, mult: 1 };
-
-  let baseChips = baseChipsInit;
-  let mult      = multInit;
-
-  // HAND_CHIPS_BONUS / HAND_MULT_BONUS (per hand type)
-  const backendHandType = handType.id
-    .replace('one_pair', 'PAIR')
-    .replace('two_pair', 'TWO_PAIR')
-    .replace('three_of_a_kind', 'THREE_OF_A_KIND')
-    .replace('straight_flush', 'STRAIGHT_FLUSH')
-    .replace('four_of_a_kind', 'FOUR_OF_A_KIND')
-    .replace('full_house', 'FULL_HOUSE')
-    .replace('flush', 'FLUSH')
-    .replace('straight', 'STRAIGHT')
-    .replace('high_card', 'HIGH_CARD')
-    .replace('royal_flush', 'STRAIGHT_FLUSH')
-    .toUpperCase();
-
-  for (const buff of buffs) {
-    if (buff.type === 'HAND_CHIPS_BONUS' && buff.handType === backendHandType)
-      baseChips += buff.bonusChips;
-    if (buff.type === 'HAND_MULT_BONUS' && buff.handType === backendHandType)
-      mult += buff.bonusMult;
-  }
-
-  // TIERED_CHIPS_BONUS / TIERED_MULT_BONUS
-  const tier = getHandTier(handType.id);
-  for (const buff of buffs) {
-    if (buff.type === 'TIERED_CHIPS_BONUS')
-      baseChips += tier === 'common' ? buff.commonBonus : tier === 'rare' ? buff.rareBonus : buff.epicBonus;
-    if (buff.type === 'TIERED_MULT_BONUS')
-      mult += tier === 'common' ? buff.commonMult : tier === 'rare' ? buff.rareMult : buff.epicMult;
-  }
-
-  // Per-card chip calculation
-  const COLOR_TO_ELEMENT_MAP = { red: 'FIRE', blue: 'WATER', green: 'GRASS' };
-  let cardChips = 0;
-  for (const card of cards) {
-    let chip = card.cost;
-    const cardElement = COLOR_TO_ELEMENT_MAP[card.color];
-    for (const buff of buffs) {
-      if (buff.type === 'ELEMENT_CHIP_MULT' && buff.element === cardElement)
-        chip *= buff.mult;
-    }
-    for (const buff of buffs) {
-      if (buff.type === 'ELEMENT_CHIPS_BONUS' && buff.element === cardElement)
-        chip += buff.bonusChips;
-    }
-    for (const buff of buffs) {
-      if (buff.type === 'ALL_CHIPS_BONUS')
-        chip += buff.bonusChips;
-    }
-    cardChips += chip;
-  }
-
-  const totalScore = Math.floor((baseChips + cardChips) * mult);
-  return {
-    handType,
-    baseAttack: baseChips,
-    bonusAttack: cardChips,
-    multiplier: mult,
-    totalScore,
-  };
-}
+// `evaluateHand` and `getHandType` now live in `../lib/evaluator.js` so they
+// can be unit-tested without React/store deps and so the contract test in
+// `backend/tests/unit/scoring.contract.test.ts` can target a pure module.
 
 function createSocket(accessToken) {
   return io('/', {
@@ -190,7 +63,7 @@ function createSocket(accessToken) {
   });
 }
 
-export function useGameLogic(roomId = null) {
+export function useGameLogic(roomId = null, { startEvent = 'startPveGame' } = {}) {
   const { accessToken } = useAuth();
 
   const {
@@ -234,6 +107,7 @@ export function useGameLogic(roomId = null) {
   const [selected, setSelected] = useState([]);
   const [totalScore, setTotalScore] = useState(0);
   const [lastScore, setLastScore] = useState(null);
+  const [skillWarning, setSkillWarning] = useState(null);
   const [battlePhase, setBattlePhase] = useState(null);
   const [resolvedEvaluation, setResolvedEvaluation] = useState(EMPTY_EVALUATION);
   const [restartNonce, setRestartNonce] = useState(0);
@@ -256,8 +130,10 @@ export function useGameLogic(roomId = null) {
   );
 
   const previewEvaluation = useMemo(
-    () => (selectedCards.length ? evaluateHand(selectedCards, player.buffs ?? []) : EMPTY_EVALUATION),
-    [selectedCards, player.buffs],
+    () => (selectedCards.length
+      ? evaluateHand(selectedCards, player?.buffs ?? [], Boolean(bossRound?.isDefending))
+      : EMPTY_EVALUATION),
+    [selectedCards, player?.buffs, bossRound?.isDefending],
   );
 
   const evaluation = selectedCards.length ? previewEvaluation : resolvedEvaluation;
@@ -313,9 +189,41 @@ export function useGameLogic(roomId = null) {
     const socket = createSocket(accessToken);
     socketRef.current = socket;
 
+    // ── Token refresh wiring (three layers) ──────────────────────────────
+    //
+    // ① Reactive sync — whenever any code path (REST 401, manual refresh,
+    //    login response) writes a new access token into the auth store, mirror
+    //    it onto `socket.auth.token`.  The next handshake (reconnect or
+    //    explicit `socket.connect()`) will pick it up automatically.  The
+    //    *current* connection is untouched.
+    const unsubscribeAuth = useAuthStore.subscribe((state, prev) => {
+      if (state.accessToken && state.accessToken !== prev.accessToken && socketRef.current) {
+        socketRef.current.auth = { token: state.accessToken };
+      }
+    });
+
+    // ② Pre-emptive refresh on reconnect — if the user wakes up after a long
+    //    sleep, the cached token is likely stale and there has been no REST
+    //    traffic to refresh it.  Burn one round-trip via the singleton in
+    //    `authStore.refreshAccessToken()` before the handshake, falling back
+    //    to whatever token we have if refresh fails (③ will then handle the
+    //    server-side rejection).
+    socket.on('reconnect_attempt', async () => {
+      let token = useAuthStore.getState().accessToken;
+      if (!token || isTokenAboutToExpire(token)) {
+        try {
+          token = await useAuthStore.getState().refreshAccessToken();
+        } catch {
+          // refresh failed (e.g. refresh token also expired).  Auth state is
+          // already cleared by `refreshAccessToken`; PrivateRoute will redirect.
+        }
+      }
+      if (token) socket.auth = { token };
+    });
+
     socket.on('connect', () => {
       setConnectionStatus('connected');
-      socket.emit('startPveGame');
+      socket.emit(startEvent);
     });
 
     socket.on('disconnect', () => {
@@ -327,8 +235,31 @@ export function useGameLogic(roomId = null) {
       setError(error.message || 'Socket connection failed.');
     });
 
+    // ③ Server-driven recovery — the backend emits this when the handshake
+    //    JWT was syntactically valid but expired.  Refresh, push the new
+    //    token onto the socket, and force-recycle the connection so the next
+    //    handshake carries the fresh token (re-running the userId-resolution
+    //    path on the server so PvE matches will be persisted again).
+    socket.on('auth:expired', async () => {
+      try {
+        const newToken = await useAuthStore.getState().refreshAccessToken();
+        socket.auth = { token: newToken };
+        socket.disconnect();
+        socket.connect();
+      } catch {
+        // refresh failed — leave the (anonymous) socket connected so the
+        // user can still play; PrivateRoute will bounce them after the
+        // current screen finishes rendering.
+      }
+    });
+
     socket.on('gameError', (payload) => {
       setError(payload?.message ?? 'PvE socket error.');
+    });
+
+    socket.on('skillWarning', (payload) => {
+      setSkillWarning(payload);
+      setTimeout(() => setSkillWarning(null), 2500);
     });
 
     socket.on('gameState', (payload) => {
@@ -355,6 +286,7 @@ export function useGameLogic(roomId = null) {
         attackEffectClearTimerRef.current = null;
       }
       setAttackEffect(null);
+      unsubscribeAuth();
       socket.disconnect();
       socketRef.current = null;
       reset();
@@ -585,11 +517,12 @@ export function useGameLogic(roomId = null) {
     skillActivateShield,
     battlePhase,
     phase,
+    bossRound,
+    isActionPhase,
     attackEffect,
     connectionStatus,
     errorMessage: lastError,
-    // Boss data for rogue intent display
-    bossRound,
+    skillWarning,
     boss,
     // Refs exposed for rogue extension hook
     socketRef,
