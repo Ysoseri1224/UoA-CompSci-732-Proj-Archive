@@ -4,7 +4,7 @@
 [![Docker](https://img.shields.io/badge/docker-enabled-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Node.js CI](https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine/actions/workflows/nodejs-ci.yml/badge.svg?branch=main&event=push)](https://github.com/UOA-CS732-S1-2026/group-project-works-on-my-machine/actions/workflows/nodejs-ci.yml)
 
-A browser-based card game project that combines Texas Hold'em mechanics with a skill-driven battle layer, built with React, Node.js, Socket.io, MongoDB, and Docker Compose.
+A browser-based card game project that combines Texas Hold'em mechanics with a skill-driven battle layer, built with React, ExpressJS, Node.js, Socket.io, MongoDB, and Docker Compose.
 
 ## Overview
 
