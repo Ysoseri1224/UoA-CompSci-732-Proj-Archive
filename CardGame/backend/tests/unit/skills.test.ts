@@ -33,19 +33,19 @@ test('skillChangeColor replaces card with same rank + target color', () => {
     const next = skillChangeColor(state, target.id, replacement.element);
 
     // Target removed from hand
-    assert.ok(!next.hand.some(c => c.id === target.id), 'original card still in hand');
+    assert.ok(!next.state.hand.some(c => c.id === target.id), 'original card still in hand');
 
     // Replacement in hand
-    assert.ok(next.hand.some(c => c.id === replacement.id), 'replacement not in hand');
+    assert.ok(next.state.hand.some(c => c.id === replacement.id), 'replacement not in hand');
 
     // Original in discard
-    assert.ok(next.discardPile.some(c => c.id === target.id), 'original card not in discard');
+    assert.ok(next.state.discardPile.some(c => c.id === target.id), 'original card not in discard');
 
     // Replacement removed from deck/discard
-    assert.ok(!next.deck.some(c => c.id === replacement.id), 'replacement still in deck');
+    assert.ok(!next.state.deck.some(c => c.id === replacement.id), 'replacement still in deck');
 
     // Hand size preserved
-    assert.equal(next.hand.length, 7);
+    assert.equal(next.state.hand.length, 7);
   }
 });
 
@@ -75,7 +75,7 @@ test('skillChangeColor falls back to closest rank in target color', () => {
   const next = skillChangeColor(state, card1.id, 'FIRE');
 
   // No FIRE_1 exists, should find FIRE_3 (closest: |3-1|=2 vs |5-1|=4 vs others)
-  const newHandIds = next.hand.map(c => c.id);
+  const newHandIds = next.state.hand.map(c => c.id);
   assert.ok(!newHandIds.includes('WATER_1'), 'original should be gone');
   assert.ok(newHandIds.includes('FIRE_3'), 'closest rank FIRE_3 should be in hand');
 });
@@ -83,8 +83,8 @@ test('skillChangeColor falls back to closest rank in target color', () => {
 test('skillChangeColor does nothing when target card not in hand', () => {
   const state = initDeckState();
   const next = skillChangeColor(state, 'NONEXISTENT_99', 'FIRE');
-  assert.deepEqual(next.hand.map(c => c.id), state.hand.map(c => c.id));
-  assert.deepEqual(next.deck.map(c => c.id), state.deck.map(c => c.id));
+  assert.deepEqual(next.state.hand.map(c => c.id), state.hand.map(c => c.id));
+  assert.deepEqual(next.state.deck.map(c => c.id), state.deck.map(c => c.id));
 });
 
 test('skillChangeColor does nothing when no replacement available', () => {
@@ -98,7 +98,7 @@ test('skillChangeColor does nothing when no replacement available', () => {
 
   const next = skillChangeColor(state, 'WATER_1', 'FIRE');
   // No replacement available — state unchanged
-  assert.deepEqual(next.hand.map(c => c.id), hand.map(c => c.id));
+  assert.deepEqual(next.state.hand.map(c => c.id), hand.map(c => c.id));
 });
 
 test('skillChangeColor does not use a card already in hand', () => {
@@ -118,8 +118,8 @@ test('skillChangeColor does not use a card already in hand', () => {
   // But the filter allows target color only. So only FIRE cards are candidates, and FIRE_7 is in hand.
   // So there's no available FIRE rank replacement at all.
   // Actually wait — there's no other FIRE card in the pool. So the hand stays unchanged.
-  assert.ok(next.hand.some(c => c.id === 'WATER_7'), 'WATER_7 should still be in hand');
-  assert.ok(next.hand.some(c => c.id === 'FIRE_7'), 'FIRE_7 should still be in hand');
+  assert.ok(next.state.hand.some(c => c.id === 'WATER_7'), 'WATER_7 should still be in hand');
+  assert.ok(next.state.hand.some(c => c.id === 'FIRE_7'), 'FIRE_7 should still be in hand');
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -139,18 +139,18 @@ test('skillChangeCost replaces card with same color + target rank', () => {
   const next = skillChangeCost(state, card1.id, 10);
 
   // WATER_3 → WATER_10
-  const newHandIds = next.hand.map(c => c.id);
+  const newHandIds = next.state.hand.map(c => c.id);
   assert.ok(!newHandIds.includes('WATER_3'), 'original should be gone');
   assert.ok(newHandIds.includes('WATER_10'), 'WATER_10 should be in hand');
 
   // Original in discard
-  assert.ok(next.discardPile.some(c => c.id === 'WATER_3'), 'WATER_3 should be in discard');
+  assert.ok(next.state.discardPile.some(c => c.id === 'WATER_3'), 'WATER_3 should be in discard');
 });
 
 test('skillChangeCost does nothing when target card not in hand', () => {
   const state = initDeckState();
   const next = skillChangeCost(state, 'GHOST_7', 5);
-  assert.deepEqual(next.hand.map(c => c.id), state.hand.map(c => c.id));
+  assert.deepEqual(next.state.hand.map(c => c.id), state.hand.map(c => c.id));
 });
 
 test('skillChangeCost does nothing when exact replacement not available', () => {
@@ -166,7 +166,7 @@ test('skillChangeCost does nothing when exact replacement not available', () => 
   // Want WATER_10 but only FIRE_10 exists
   const next = skillChangeCost(state, card1.id, 10);
 
-  assert.deepEqual(next.hand.map(c => c.id), state.hand.map(c => c.id));
+  assert.deepEqual(next.state.hand.map(c => c.id), state.hand.map(c => c.id));
 });
 
 test('skillChangeCost does not use a card already in hand', () => {
@@ -183,8 +183,8 @@ test('skillChangeCost does not use a card already in hand', () => {
   const next = skillChangeCost(state, 'WATER_3', 10);
 
   // No change
-  assert.ok(next.hand.some(c => c.id === 'WATER_3'), 'WATER_3 should still be in hand');
-  assert.ok(next.hand.some(c => c.id === 'WATER_10'), 'WATER_10 should still be in hand');
+  assert.ok(next.state.hand.some(c => c.id === 'WATER_3'), 'WATER_3 should still be in hand');
+  assert.ok(next.state.hand.some(c => c.id === 'WATER_10'), 'WATER_10 should still be in hand');
 });
 
 // ══════════════════════════════════════════════════════════════════

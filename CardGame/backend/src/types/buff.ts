@@ -73,9 +73,9 @@ export function createSkillEnergyMax(bonusEnergy: number = 1): SkillEnergyMaxBuf
 
 // ── 第一层：固定 3 选 1 ─────────────────────────────────────────
 export const FIRST_LAYER_UPGRADES: Upgrade[] = [
-  createUpgrade('water_spec', '水系专精', '水系牌 chip ×1.1', createElementChipMult('WATER')),
-  createUpgrade('fire_spec',  '火系专精', '火系牌 chip ×1.1', createElementChipMult('FIRE')),
-  createUpgrade('grass_spec', '草系专精', '草系牌 chip ×1.1', createElementChipMult('GRASS')),
+  createUpgrade('water_spec', 'Water Spec', 'Water cards chip ×1.1', createElementChipMult('WATER')),
+  createUpgrade('fire_spec',  'Fire Spec', 'Fire cards chip ×1.1', createElementChipMult('FIRE')),
+  createUpgrade('grass_spec', 'Grass Spec', 'Grass cards chip ×1.1', createElementChipMult('GRASS')),
 ];
 
 // ── 玩家属性 buff 计算 ───────────────────────────────────────────
@@ -97,7 +97,7 @@ export function applyPlayerBuffs(
 
 // ── 后续层候选池 ────────────────────────────────────────────────
 
-const ELEMENT_NAMES: Record<Element, string> = { WATER: '水系', FIRE: '火系', GRASS: '草系' };
+const ELEMENT_NAMES: Record<Element, string> = { WATER: 'Water', FIRE: 'Fire', GRASS: 'Grass' };
 
 export function generateUpgradePool(
   chosenElement: Element,
@@ -107,24 +107,24 @@ export function generateUpgradePool(
   const el = ELEMENT_NAMES[chosenElement];
 
   const all: Upgrade[] = [
-    // ── 属性专属 ──
-    createUpgrade(`${chosenElement}_mult_${layer}`, `${el}强化`, `${el}牌 chip ×1.1（可叠加）`, createElementChipMult(chosenElement)),
-    createUpgrade(`${chosenElement}_chips_${layer}`, `${el}充能`, `${el}牌每张 +5 chip（可叠加）`, createElementChipsBonus(chosenElement, 5)),
-    createUpgrade(`${chosenElement}_draw_${layer}`, 'Shuffle保底', `每次 Shuffle 保证获得一张 ${el}牌`, createElementDrawBuff(chosenElement)),
-    createUpgrade(`high_rank_draw_${layer}`, '高费保底', '每次 Shuffle 保证获得一张 K（13点）牌', createHighRankDrawBuff()),
+    // ── Element-specific ──
+    createUpgrade(`${chosenElement}_mult_${layer}`, `${el} Boost`, `${el} cards chip ×1.1 (stackable)`, createElementChipMult(chosenElement)),
+    createUpgrade(`${chosenElement}_chips_${layer}`, `${el} Charge`, `${el} cards +5 chip each (stackable)`, createElementChipsBonus(chosenElement, 5)),
+    createUpgrade(`${chosenElement}_draw_${layer}`, 'Shuffle Guarantee', `Each shuffle guarantees one ${el} card`, createElementDrawBuff(chosenElement)),
+    createUpgrade(`high_rank_draw_${layer}`, 'High Rank Draw', 'Each shuffle guarantees one K (rank 13) card', createHighRankDrawBuff()),
 
-    // ── 通用伤害 ──
-    createUpgrade(`all_chips_${layer}`, '固伤强化', '每张打出牌额外 +2 chip（可叠加）', createAllChipsBonus(2)),
+    // ── Flat damage ──
+    createUpgrade(`all_chips_${layer}`, 'Chip Boost', '+2 chip per played card (stackable)', createAllChipsBonus(2)),
 
-    // ── 分层牌型 buff（常见 +10/+0 / 稀有 +20/+2 / 史诗 +35/+3）──
-    createUpgrade(`tiered_chips_${layer}`, '牌型底分强化', '常见牌型底分 +10 / 稀有 +20 / 史诗 +35（可叠加）', createTieredChipsBonus(10, 20, 35)),
-    createUpgrade(`tiered_mult_${layer}`,  '牌型倍率强化', '稀有牌型倍率 +2 / 史诗 +3（常见 +0，可叠加）',    createTieredMultBonus(0, 2, 3)),
+    // ── Tiered hand buffs (common +10/+0 / rare +20/+2 / epic +35/+3) ──
+    createUpgrade(`tiered_chips_${layer}`, 'Hand Chips', 'Common +10 / Rare +20 / Epic +35 base chips (stackable)', createTieredChipsBonus(10, 20, 35)),
+    createUpgrade(`tiered_mult_${layer}`,  'Hand Mult', 'Rare +2 / Epic +3 multiplier (stackable)',    createTieredMultBonus(0, 2, 3)),
 
-    // ── 生存 ──
-    createUpgrade(`hp_boost_${layer}`, '生命强化', '最大 HP +5（可叠加）', createHpBonus(5)),
+    // ── Survival ──
+    createUpgrade(`hp_boost_${layer}`, 'Vitality', 'Max HP +5 (stackable)', createHpBonus(5)),
 
-    // ── 工具（唯一）──
-    createUpgrade(`skill_energy_${layer}`, '充能扩容', '技能充能上限 +1（唯一）', createSkillEnergyMax(1)),
+    // ── Tool (one-time) ──
+    createUpgrade(`skill_energy_${layer}`, 'Energy Boost', 'Skill energy +1 (one-time only)', createSkillEnergyMax(1)),
   ];
 
   const pool = all.filter(u => !excludeTypes.includes(u.buff.type));

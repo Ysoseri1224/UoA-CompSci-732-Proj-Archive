@@ -30,10 +30,10 @@ function DamageFloat({ value }) {
 }
 
 const ATTACK_EFFECT_META = {
-  normal: { label: '乱刃终击', particles: 28 },
-  fire: { label: '熔岩爆燃', particles: 42 },
-  water: { label: '深海漩涡', particles: 44 },
-  nature: { label: '森根突刺', particles: 42 },
+  normal: { label: 'Multi-Slash', particles: 28 },
+  fire: { label: 'Lava Eruption', particles: 42 },
+  water: { label: 'Abyssal Vortex', particles: 44 },
+  nature: { label: 'Root Impale', particles: 42 },
 };
 
 const SPRITE_EFFECTS = {
@@ -267,7 +267,7 @@ export default function Battlefield({
           zIndex: 50,
         }}>
           <span style={{ color: '#c8a040', fontSize: 11, fontFamily: 'monospace', letterSpacing: 3 }}>
-            第 {floor} 层
+            Floor {floor}
           </span>
           {floor > 1 && (
             <span style={{ color: '#ef4444', fontSize: 10, fontWeight: 700 }}>
@@ -304,8 +304,8 @@ export default function Battlefield({
                 boxShadow: '0 0 24px rgba(59,130,246,0.6), 0 4px 16px rgba(0,0,0,0.6)',
               }),
             }}>
-              {battlePhase === 'boss'        && '💀  BOSS 回合'}
-              {battlePhase === 'shield_break' && '🛡️  护盾吸收！'}
+              {battlePhase === 'boss'        && '💀  BOSS TURN'}
+              {battlePhase === 'shield_break' && '🛡️  SHIELD ABSORB!'}
             </div>
           </div>
         )}
@@ -473,7 +473,7 @@ export default function Battlefield({
                   textShadow: '0 0 10px rgba(200,170,110,0.32), 0 1px 3px rgba(0,0,0,1)',
                   whiteSpace: 'nowrap',
                 }}>
-                  {bossName ?? '暗影领主'}
+                  {bossName ?? 'Shadow Lord'}
                 </span>
               </div>
               <div style={{

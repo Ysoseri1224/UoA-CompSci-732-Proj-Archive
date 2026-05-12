@@ -104,8 +104,7 @@ router.put('/save', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// 层通关 — 保存 checkpoint
-// 注意：每层通关后 HP 重置为该层标准属性值，不继承上层剩余 HP
+// Floor cleared — save checkpoint
 router.post('/floor-won', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -113,27 +112,12 @@ router.post('/floor-won', async (req, res, next) => {
 
     const { layer, playerHp, enhancements } = req.body || {};
 
-    // L11+ 无限挑战：放开上限，由 boss.ts 外推公式接管数值成长
     if (typeof layer !== 'number' || layer < 1)
       return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
     if (typeof playerHp !== 'number' || playerHp < 0)
       return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
     const nextLayer  = layer + 1;
     const save = await loadGame(userId);
-
-    // Layer 10 is the final floor — no next boss needed, just save checkpoint
-    if (layer >= 10) {
-      const snapshot = {
-        ...(save?.snapshot ?? {}),
-        layer:           10,
-        enhancements:    enhancements ?? save?.snapshot?.enhancements ?? [],
-        checkpointLayer: 10,
-        checkpointHp:    playerHp,
-        status:          'active',
-      };
-      await saveGame(userId, 'rogue', snapshot, 10);
-      return res.status(200).json({ success: true, message: 'Final floor cleared', data: null });
-    }
 
     const nextBoss   = createBossForLayer(nextLayer);
     const baseHp     = playerHpForLayer(nextLayer);
@@ -147,7 +131,7 @@ router.post('/floor-won', async (req, res, next) => {
       playerMaxHp:     maxHp,
       bossHp:          nextBoss.hp,
       enhancements:    allEnhancements,
-      checkpointLayer: layer,
+      checkpointLayer: nextLayer,
       checkpointHp:    playerHp,
       status:          'active',
     };

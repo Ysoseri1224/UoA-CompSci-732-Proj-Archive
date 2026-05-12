@@ -1,6 +1,47 @@
 // src/components/game/HandArea.jsx
+import { useState } from 'react';
 import HandCard from './HandCard.jsx';
 import PlayerHUD from './PlayerHUD.jsx';
+
+const ELEMENT_ORDER = { red: 0, blue: 1, green: 2 };
+
+function BuffTag({ buff, onClick }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const label = buff?.label ?? buff?.id ?? '';
+  const desc = buff?.description ?? buff?.desc ?? '';
+  const el = buff?.buff?.element ?? buff?.element ?? '';
+  const color = el === 'WATER' ? '#4ea8ff' : el === 'FIRE' ? '#ff6644' : el === 'GRASS' ? '#5ce68c' : '#f0d060';
+
+  return (
+    <div style={{ position: 'relative' }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <button type="button" onClick={() => onClick?.(buff)} title={desc}
+        style={{
+          background: 'rgba(12,8,4,0.82)', border: `1px solid ${color}55`,
+          borderRadius: 6, padding: '2px 7px', color, fontSize: 10,
+          fontWeight: 700, fontFamily: 'monospace', letterSpacing: 0.5,
+          cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '16px',
+        }}>
+        {label}
+      </button>
+      {showTooltip && desc ? (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+          marginBottom: 6, zIndex: 55,
+          background: 'rgba(8,6,3,0.94)', border: `1px solid ${color}66`,
+          borderRadius: 8, padding: '5px 9px', maxWidth: 260,
+          color: '#d4c0a1', fontSize: 11, fontFamily: 'monospace',
+          lineHeight: 1.4, pointerEvents: 'none', whiteSpace: 'normal',
+          boxShadow: '0 0 16px rgba(0,0,0,0.7)',
+        }}>
+          {desc}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function PlayerBossDamageFloat({ value }) {
   return (
@@ -35,7 +76,12 @@ export default function HandArea({
   shieldActive,
   playerDamageFlash = null,
   playerHudShakeNonce = 0,
+  buffs = [],
+  onBuffClick = null,
 }) {
+  const sortedHand = [...hand].sort((a, b) =>
+    (ELEMENT_ORDER[a.color] ?? 3) - (ELEMENT_ORDER[b.color] ?? 3) || b.cost - a.cost
+  );
   return (
     <div style={{
       position:   'relative',
@@ -118,11 +164,24 @@ export default function HandArea({
             maxHp={playerMaxHp}
             avatar="/images/player.png"
           />
+
+          {/* Buff tags above avatar */}
+          {buffs.length > 0 ? (
+            <div style={{
+              position: 'absolute', bottom: '100%', left: 0,
+              marginBottom: 4, zIndex: 12,
+              display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 160,
+            }}>
+              {buffs.map((b, i) => (
+                <BuffTag key={b?.id ?? i} buff={b} onClick={onBuffClick} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
       {/* ── 手牌 ── */}
-      {hand.map((card) => (
+      {sortedHand.map((card) => (
         <HandCard
           key={card.id}
           card={card}

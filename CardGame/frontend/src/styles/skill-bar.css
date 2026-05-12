@@ -27,3 +27,8 @@
   background: radial-gradient(circle at 40% 30%, #1a2a4a, #0a0f1e);
   border: 1px solid rgba(96, 165, 250, 0.4);
 }
+
+@keyframes cdPulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}

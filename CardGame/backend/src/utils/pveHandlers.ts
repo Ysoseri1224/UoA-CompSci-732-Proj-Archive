@@ -190,41 +190,13 @@ export function registerPveHandlers(socket: Socket): void {
       const roomId = ensureRoomId();
       logger.info({ roomId, socketId: socket.id, userId }, 'rogue startRogueGame');
 
-      const save = await loadGame(userId);
-      const hasActiveSave = save && save.snapshot?.status === 'active';
-
       createRoom({ roomId, socketId: socket.id, userId, rogueMode: true });
-
-      if (hasActiveSave) {
-        // 恢复存档状态
-        const cp = save.snapshot as Record<string, unknown>;
-        const layer = Math.max(1, Number(cp.layer ?? 1));
-        const bossTemplate = createBossForLayer(layer);
-        const boss = { ...bossTemplate, hp: Math.max(1, Math.floor(Number(cp.bossHp ?? bossTemplate.maxHp))) };
-        const baseMaxHp = playerHpForLayer(layer);
-        const enhancements = Array.isArray(cp.enhancements) ? cp.enhancements : [];
-        const buffs = enhancements.map((e: Record<string, unknown>) => e?.buff).filter(Boolean) as Buff[];
-        const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, baseMaxHp, 3);
-        const playerHp = Math.max(1, Math.floor(Number(cp.playerHp ?? maxHp)));
-
-        const ctx = getRoom(roomId)!;
-        const restoredCtx: GameContext = {
-          ...ctx,
-          player: { ...ctx.player, hp: playerHp, maxHp, buffs, skillEnergyMax },
-          boss,
-          round: 1,
-          roundState: freshRoundState(skillEnergyMax, 2),
-          battleResult: 'ONGOING',
-          rogueMode: true,
-          roguePhase: 'BATTLE',
-        };
-        updateRoom(roomId, restoredCtx);
-        logger.info({ roomId, layer }, 'rogue: restored from save');
-      } else {
-        const ctx = getRoom(roomId)!;
-        emit(ctx);
-      }
-
+      const ctx = getRoom(roomId)!;
+      emit(ctx);
+      ctx.rogueMode = true;
+      ctx.roguePhase = "BATTLE";
+      updateRoom(roomId, ctx);
+      logger.info({ roomId, layer: 1 }, "rogue: fresh run started");
       let r = sendRoomEvent(roomId, drawComplete());
       if (r.ctx) emit(r.ctx);
       r = sendRoomEvent(roomId, bossTelegraphComplete());
@@ -440,6 +412,7 @@ export function registerPveHandlers(socket: Socket): void {
     layer: number;
     playerHp: number;
     bossHp: number;
+    buffs?: Buff[];
     shuffleCount: number;
   }) => {
     const roomId = getRoomId(socket.id);
@@ -453,7 +426,7 @@ export function registerPveHandlers(socket: Socket): void {
     const boss = { ...bossTemplate, hp: Math.max(1, Math.floor(payload.bossHp ?? bossTemplate.maxHp)) };
     const baseMaxHp = playerHpForLayer(layer);
     const shuffleCount = Math.max(2, Math.floor(payload.shuffleCount ?? 2));
-    const buffs = ctx.player.buffs ?? [];
+    const buffs = Array.isArray(payload.buffs) ? payload.buffs : (ctx.player.buffs ?? []);
     const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, baseMaxHp, 3);
     const playerHp = Math.max(1, Math.floor(payload.playerHp ?? maxHp));
 

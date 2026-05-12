@@ -61,6 +61,7 @@ export default function GamePage() {
     isActionPhase,
     connectionStatus,
     errorMessage,
+    skillWarning,
   } = useGameLogic(roomId);
 
   /** Authoritative HP from server / hook — never mutated for UX. */
@@ -72,7 +73,7 @@ export default function GamePage() {
   /** While true: hide defeat overlay until boss attack presentation flushes (win overlay ignores this). */
   const [bossAttackPresentationHold, setBossAttackPresentationHold] = useState(false);
   /** Victory overlay gated until boss-hit.mp4 ends (truth `gameOver` may already be `win`). */
-  const [winRevealUnlocked, setWinRevealUnlocked] = useState(true);
+  const [winRevealUnlocked, setWinRevealUnlocked] = useState(false);
 
   /** When true: skip syncing displayedPlayerHp from truth (during boss attack clip). */
   const holdHpSyncDuringBossAttackRef = useRef(false);
@@ -311,6 +312,11 @@ export default function GamePage() {
         playerHudShakeNonce={playerHudShakeNonce}
       />
 
+      {skillWarning && (
+        <div className="absolute left-1/2 top-16 z-[60] -translate-x-1/2 rounded-xl border border-amber-500/30 bg-amber-950/90 px-4 py-2 text-sm text-amber-100 shadow-lg shadow-black/40">
+          {skillWarning.message}
+        </div>
+      )}
       {errorMessage && (
         <div className="absolute left-1/2 top-16 z-[60] -translate-x-1/2 rounded-xl border border-rose-500/30 bg-rose-950/90 px-4 py-2 text-sm text-rose-100 shadow-lg shadow-black/40">
           {errorMessage}
@@ -342,6 +348,10 @@ export default function GamePage() {
             >
               Play Again
             </button>
+            <button onClick={() => navigate("/lobby")}
+                    className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-stone-700 to-stone-900 text-stone-300 hover:from-stone-600 hover:to-stone-800 active:scale-95 transition-all shadow-lg">
+              Exit to Lobby
+            </button>
           </div>
         </div>
       )}
@@ -371,7 +381,11 @@ export default function GamePage() {
                          active:scale-95 transition-all
                          shadow-lg shadow-yellow-900/50"
             >
-              再来一局
+              Play Again
+            </button>
+            <button onClick={() => navigate("/lobby")}
+                    className="mt-2 px-8 py-3 rounded-xl font-black text-sm tracking-widest bg-gradient-to-b from-stone-700 to-stone-900 text-stone-300 hover:from-stone-600 hover:to-stone-800 active:scale-95 transition-all shadow-lg">
+              Exit to Lobby
             </button>
           </div>
         </div>
