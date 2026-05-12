@@ -268,7 +268,6 @@ export default function LobbyPage() {
     };
   }, []);
 
-  const profilePath = user?.id ? `/profile/${user.id}` : '/leaderboard';
   const displayName = user?.username?.trim() || 'Traveler';
   const initials = useMemo(() => {
     const u = user?.username?.trim();
@@ -1049,43 +1048,6 @@ export default function LobbyPage() {
                       <span className="self-start text-[0.8rem] font-bold uppercase tracking-[0.22em] text-cyan-300/95 drop-shadow-[0_0_12px_rgba(34,211,238,0.22)] group-hover:text-cyan-200 sm:text-sm">
                     VIEW RANKINGS →
                   </span>
-                    </div>
-                  </button>
-
-                  <button
-                      type="button"
-                      onClick={() => navigate(profilePath)}
-                      className={`${actionCardBase} flex min-h-[7rem] flex-col justify-between text-left font-sans sm:min-h-[7.75rem]`}
-                  >
-                    <div className="pointer-events-none absolute inset-0" aria-hidden>
-                      <div
-                          className="absolute inset-0 bg-no-repeat"
-                          style={{
-                            backgroundImage: "url('/lobby/profileCard.png')",
-                            backgroundPosition: '64% 52%',
-                            backgroundSize: 'cover',
-                            opacity: 0.38,
-                            filter: 'brightness(1.06) contrast(1.04) saturate(1.02)',
-                          }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-br from-violet-950/25 via-transparent to-indigo-950/15" />
-                      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(7,6,13,0.94)_0%,rgba(7,6,13,0.82)_18%,rgba(7,6,13,0.55)_38%,rgba(7,6,13,0.28)_56%,rgba(7,6,13,0.1)_74%,transparent_96%)]" />
-                    </div>
-                    <div className="relative z-[1] flex min-h-0 flex-1 flex-col justify-between gap-2 pt-px sm:gap-2.5 pr-3">
-                      <div className="min-w-0 max-w-[13rem] pr-2">
-                        <p className={`${labelUi} !tracking-[0.27em]`}>YOU</p>
-                        <h3 className="lobby-display-serif mt-1.5 text-base font-bold uppercase leading-tight tracking-[0.12em] text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.5)] md:text-lg">
-                          PROFILE
-                        </h3>
-                        <p className="lobby-bottom-desc mt-2 text-[0.85rem] font-medium leading-snug text-slate-400/95">
-                          View your stats
-                          <br />
-                          and progress
-                        </p>
-                      </div>
-                      <span className="self-start text-[0.8rem] font-bold uppercase tracking-[0.18em] text-violet-50/95 drop-shadow-[0_0_14px_rgba(196,181,253,0.28)] group-hover:text-white sm:text-sm">
-                        OPEN PROFILE →
-                      </span>
                     </div>
                   </button>
                 </div>
