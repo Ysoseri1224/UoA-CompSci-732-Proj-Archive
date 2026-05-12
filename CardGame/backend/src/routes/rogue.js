@@ -2,7 +2,7 @@ import express from 'express';
 import { protect } from '../middleware/auth.js';
 import { saveGame, loadGame, clearSave } from '../lib/savepoint.js';
 import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
-import { FIRST_LAYER_UPGRADES, generateUpgradePool } from '../types/buff.js';
+import { FIRST_LAYER_UPGRADES, generateUpgradePool, applyPlayerBuffs } from '../types/buff.js';
 
 const router = express.Router();
 
@@ -16,7 +16,10 @@ router.get('/upgrades', async (req, res, next) => {
     const layer = Math.max(1, parseInt(req.query.layer) || 1);
     const elementOrder = ['WATER', 'FIRE', 'GRASS'];
     const chosenElement = req.query.element || elementOrder[(layer - 1) % 3];
-    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer);
+    const excludeTypes = typeof req.query.excludeTypes === 'string'
+      ? req.query.excludeTypes.split(',').filter(Boolean)
+      : [];
+    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer, excludeTypes);
     return res.status(200).json({ success: true, message: 'OK', data: options });
   } catch (err) { next(err); }
 });
@@ -73,7 +76,8 @@ router.put('/save', async (req, res, next) => {
 
     const { layer, playerHp, bossHp, enhancements, stats } = req.body || {};
 
-    if (typeof layer !== 'number' || layer < 1 || layer > 10)
+    // L11+ 无限挑战：放开上限，由 boss.ts 外推公式接管数值成长
+    if (typeof layer !== 'number' || layer < 1)
       return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
     if (typeof playerHp !== 'number' || playerHp < 0)
       return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
@@ -91,6 +95,7 @@ router.put('/save', async (req, res, next) => {
       bossHp:       bossHp      ?? existing.bossHp,
       enhancements: enhancements ?? existing.enhancements,
       stats:        stats        ?? existing.stats,
+      roguePhase:   'BATTLE',
       savedAt:      new Date().toISOString(),
     };
 
@@ -108,7 +113,8 @@ router.post('/floor-won', async (req, res, next) => {
 
     const { layer, playerHp, enhancements } = req.body || {};
 
-    if (typeof layer !== 'number' || layer < 1 || layer > 10)
+    // L11+ 无限挑战：放开上限，由 boss.ts 外推公式接管数值成长
+    if (typeof layer !== 'number' || layer < 1)
       return res.status(400).json({ success: false, message: 'Invalid layer', data: null });
     if (typeof playerHp !== 'number' || playerHp < 0)
       return res.status(400).json({ success: false, message: 'Invalid playerHp', data: null });
@@ -130,16 +136,19 @@ router.post('/floor-won', async (req, res, next) => {
     }
 
     const nextBoss   = createBossForLayer(nextLayer);
-    const nextHp     = playerHpForLayer(nextLayer);
+    const baseHp     = playerHpForLayer(nextLayer);
+    const allEnhancements = enhancements ?? save?.snapshot?.enhancements ?? [];
+    const buffs = allEnhancements.map(e => (typeof e === 'object' && e?.buff) ? e.buff : null).filter(Boolean);
+    const { maxHp }  = applyPlayerBuffs(buffs, baseHp, 3);
     const snapshot = {
       ...(save?.snapshot ?? {}),
       layer:           nextLayer,
-      playerHp:        nextHp,
-      playerMaxHp:     nextHp,
+      playerHp:        maxHp,
+      playerMaxHp:     maxHp,
       bossHp:          nextBoss.hp,
-      enhancements:    enhancements ?? save?.snapshot?.enhancements ?? [],
-      checkpointLayer: nextLayer,
-      checkpointHp:    nextHp,
+      enhancements:    allEnhancements,
+      checkpointLayer: layer,
+      checkpointHp:    playerHp,
       status:          'active',
     };
 

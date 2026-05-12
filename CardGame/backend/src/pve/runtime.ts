@@ -18,6 +18,7 @@ import type { GameEvent } from '../types/events.js';
 interface RoomEntry {
   ctx: GameContext;
   userId: string | null;
+  rogueMode: boolean;
   totalDamage: number;
   turns: TurnRecord[];
 }
@@ -63,8 +64,9 @@ export function createRoom(opts: {
   userId?: string;
   layer?: number;
   buffs?: Buff[];
+  rogueMode?: boolean;
 }): GameContext {
-  const { roomId, socketId, userId = null, layer = 1, buffs = [] } = opts;
+  const { roomId, socketId, userId = null, layer = 1, buffs = [], rogueMode = false } = opts;
 
   if (rooms.has(roomId)) {
     throw new Error(`Room ${roomId} already exists`);
@@ -89,9 +91,11 @@ export function createRoom(opts: {
     round: 1,
     roundState,
     battleResult: 'ONGOING',
+    rogueMode,
+    roguePhase: 'BATTLE',
   };
 
-  rooms.set(roomId, { ctx, userId, totalDamage: 0, turns: [] });
+  rooms.set(roomId, { ctx, userId, rogueMode, totalDamage: 0, turns: [] });
   roomBySocket.set(socketId, roomId);
 
   return ctx;
@@ -133,7 +137,13 @@ export function sendRoomEvent(
   }
 
   // Auto-archive on game end
-  if (result.ctx.battleResult === 'WIN' || result.ctx.battleResult === 'LOSE') {
+  // For Rogue sessions, per-layer WIN keeps battleResult='ONGOING' so archiving
+  // is deferred to run-end (LOSE or /won endpoint). Only archive Solo WIN/LOSE
+  // and Rogue LOSE here.
+  const shouldArchive =
+    result.ctx.battleResult === 'LOSE' ||
+    (result.ctx.battleResult === 'WIN' && !entry.rogueMode);
+  if (shouldArchive) {
     archiveGame(roomId).catch((err) => {
       logArchiveRejection(roomId, err);
     });
@@ -145,6 +155,10 @@ export function sendRoomEvent(
 export function updateRoom(roomId: string, ctx: GameContext): void {
   const entry = rooms.get(roomId);
   if (entry) entry.ctx = ctx;
+}
+
+export function isRogueRoom(roomId: string): boolean {
+  return rooms.get(roomId)?.rogueMode ?? false;
 }
 
 export async function archiveGame(roomId: string): Promise<void> {

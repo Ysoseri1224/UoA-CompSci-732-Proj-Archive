@@ -7,8 +7,10 @@ import {
   createRoom,
   sendRoomEvent,
   updateRoom,
+  isRogueRoom,
   stopRoomForSocket,
 } from '../pve/runtime.js';
+import { loadGame } from '../lib/savepoint.js';
 import { createBossForLayer, playerHpForLayer } from '../lib/boss.js';
 import {
   drawComplete,
@@ -28,6 +30,7 @@ import {
 import type { GameContext } from '../pve/roundMachine.js';
 import { ROUND_PHASE } from '../types/state.js';
 import type { Buff, ElementChipMult, ElementChipsBonus, ElementDrawBuff } from '../types/buff.js';
+import { applyPlayerBuffs, FIRST_LAYER_UPGRADES, generateUpgradePool } from '../types/buff.js';
 import type { Element, Rank } from '../types/card.js';
 
 function freshRoundState(energy: number, shuffleCount: number) {
@@ -52,17 +55,33 @@ function buffKey(b: Buff): string {
 //  注册 Socket 事件处理器
 // ══════════════════════════════════════════════════════════════════
 
-function resolveSocketUserId(socket: Socket): string | null {
+/**
+ * Verify the handshake JWT and return the decoded `userId`.
+ *
+ * The second tuple element reports *why* verification failed, which lets
+ * the caller decide whether to nudge the client into a refresh
+ * (`'expired'`) or treat the connection as unauthenticated (`'invalid'` /
+ * `'missing'`).  We **do not** disconnect on auth failure here — the
+ * current socket layer is non-strict and a missing/expired token simply
+ * means the resulting match will not be persisted.  The frontend can react
+ * to `'expired'` by refreshing and re-handshaking; nothing else changes.
+ */
+type AuthFailureReason = 'missing' | 'invalid' | 'expired';
+
+function resolveSocketUserId(socket: Socket): { userId: string | null; reason: AuthFailureReason | null } {
+  const token = (socket.handshake.auth as Record<string, unknown>)?.token;
+  if (!token || typeof token !== 'string') return { userId: null, reason: 'missing' };
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return { userId: null, reason: 'invalid' };
+
   try {
-    const token = (socket.handshake.auth as Record<string, unknown>)?.token;
-    if (!token || typeof token !== 'string') return null;
-    const secret = process.env.JWT_SECRET;
-    if (!secret) return null;
     const decoded = jwt.verify(token, secret) as Record<string, unknown>;
     const uid = decoded?.userId;
-    return uid ? String(uid) : null;
-  } catch {
-    return null;
+    return { userId: uid ? String(uid) : null, reason: uid ? null : 'invalid' };
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) return { userId: null, reason: 'expired' };
+    return { userId: null, reason: 'invalid' };
   }
 }
 
@@ -97,8 +116,17 @@ function warnIfNoUserId(socket: Socket, resolvedUserId: string | null): void {
 export function registerPveHandlers(socket: Socket): void {
   logger.info({ socketId: socket.id }, 'socket connected');
 
-  const userId = resolveSocketUserId(socket);
+  const { userId, reason: authFailureReason } = resolveSocketUserId(socket);
   warnIfNoUserId(socket, userId);
+
+  // Tell the client *why* its handshake had no user, so the frontend can
+  // react (refresh + re-handshake) without us needing to disconnect.
+  // Done on next tick so the client's `'connect'` listener wires up first.
+  if (authFailureReason === 'expired') {
+    setImmediate(() => {
+      socket.emit('auth:expired', { code: 'TOKEN_EXPIRED' });
+    });
+  }
 
   /** 将当前状态推送回客户端 */
   function emit(ctx: GameContext) {
@@ -138,7 +166,7 @@ export function registerPveHandlers(socket: Socket): void {
     try {
       const roomId = ensureRoomId();
       logger.info({ roomId, socketId: socket.id, userIdPresent: Boolean(userId) }, 'pve startPveGame');
-      const ctx = createRoom({ roomId, socketId: socket.id, userId: userId ?? undefined });
+      const ctx = createRoom({ roomId, socketId: socket.id, userId: userId ?? undefined, rogueMode: false });
       emit(ctx);
 
       // 自动推进：DRAW → BOSS_TELEGRAPH → SKILL
@@ -152,10 +180,67 @@ export function registerPveHandlers(socket: Socket): void {
     }
   });
 
+  // ── 开始 Rogue 跨层模式 ─────────────────────
+  socket.on('startRogueGame', async () => {
+    try {
+      if (!userId) {
+        emitError('Authentication required for Rogue mode');
+        return;
+      }
+      const roomId = ensureRoomId();
+      logger.info({ roomId, socketId: socket.id, userId }, 'rogue startRogueGame');
+
+      const save = await loadGame(userId);
+      const hasActiveSave = save && save.snapshot?.status === 'active';
+
+      createRoom({ roomId, socketId: socket.id, userId, rogueMode: true });
+
+      if (hasActiveSave) {
+        // 恢复存档状态
+        const cp = save.snapshot as Record<string, unknown>;
+        const layer = Math.max(1, Number(cp.layer ?? 1));
+        const bossTemplate = createBossForLayer(layer);
+        const boss = { ...bossTemplate, hp: Math.max(1, Math.floor(Number(cp.bossHp ?? bossTemplate.maxHp))) };
+        const baseMaxHp = playerHpForLayer(layer);
+        const enhancements = Array.isArray(cp.enhancements) ? cp.enhancements : [];
+        const buffs = enhancements.map((e: Record<string, unknown>) => e?.buff).filter(Boolean) as Buff[];
+        const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, baseMaxHp, 3);
+        const playerHp = Math.max(1, Math.floor(Number(cp.playerHp ?? maxHp)));
+
+        const ctx = getRoom(roomId)!;
+        const restoredCtx: GameContext = {
+          ...ctx,
+          player: { ...ctx.player, hp: playerHp, maxHp, buffs, skillEnergyMax },
+          boss,
+          round: 1,
+          roundState: freshRoundState(skillEnergyMax, 2),
+          battleResult: 'ONGOING',
+          rogueMode: true,
+          roguePhase: 'BATTLE',
+        };
+        updateRoom(roomId, restoredCtx);
+        logger.info({ roomId, layer }, 'rogue: restored from save');
+      } else {
+        const ctx = getRoom(roomId)!;
+        emit(ctx);
+      }
+
+      let r = sendRoomEvent(roomId, drawComplete());
+      if (r.ctx) emit(r.ctx);
+      r = sendRoomEvent(roomId, bossTelegraphComplete());
+      if (r.ctx) emit(r.ctx);
+    } catch (err) {
+      logger.error({ err, socketId: socket.id }, 'failed to start Rogue game');
+      socket.emit('gameError', { message: 'Failed to start Rogue game.' });
+    }
+  });
+
   // ── 技能 ──────────────────────────────────────
   socket.on('useSkill', (payload: { skill: string; cardId?: string; target?: string; targetRank?: number }) => {
     const roomId = getRoomId(socket.id);
     if (!roomId) return;
+    const ctxBefore = getRoom(roomId);
+    const handBefore = ctxBefore?.hand.map(c => c.id).join(',') ?? '';
 
     let result;
     switch (payload.skill) {
@@ -173,8 +258,14 @@ export function registerPveHandlers(socket: Socket): void {
         return;
     }
 
-    if (!result.ok) emitError(result.error ?? 'Skill failed');
-    if (result.ctx) emit(result.ctx);
+    if (result.ctx) {
+      const handAfter = result.ctx.hand.map(c => c.id).join(',');
+      if ((payload.skill === 'changeColor' || payload.skill === 'changeCost') && handBefore === handAfter) {
+        socket.emit('skillWarning', { skill: payload.skill, message: 'No valid replacement found' });
+      }
+      emit(result.ctx);
+    }
+    if (result.error) emitError(result.error);
   });
 
   // ── Shuffle ───────────────────────────────────
@@ -207,10 +298,15 @@ export function registerPveHandlers(socket: Socket): void {
     if (r.ctx) emit(r.ctx);
   });
 
-  // ── 确认出牌 ──────────────────────────────────
+  // ── 确认出牌 ──────────────────────────
   socket.on('confirmPlay', () => {
     const roomId = getRoomId(socket.id);
     if (!roomId) return;
+    const ctxCheck = getRoom(roomId);
+    if (ctxCheck?.roguePhase === 'UPGRADE') {
+      emitError('Cannot play cards during upgrade phase');
+      return;
+    }
 
     // PLAY_CONFIRM → RESOLVE
     let r = sendRoomEvent(roomId, playConfirm());
@@ -230,7 +326,13 @@ export function registerPveHandlers(socket: Socket): void {
         battleResult: r.ctx.battleResult,
       }, `pve score resolved roomId=${roomId} round=${r.ctx.round} score=${score} battleResult=${r.ctx.battleResult}`);
       emit(r.ctx);
+      if (r.ctx.roguePhase === 'UPGRADE') {
+        // Rogue 层通关：向前端发 battleWin，前端播放动画后发 upgradePhaseReady
+        socket.emit('battleWin', { layer: r.ctx.boss.layer });
+        return;
+      }
       if (r.ctx.battleResult === 'WIN') {
+        // Solo 通关
         socket.emit('battleWin', { layer: r.ctx.boss.layer });
         return;
       }
@@ -272,12 +374,31 @@ export function registerPveHandlers(socket: Socket): void {
     }
   });
 
-  // ── 推进到下一层（前端在 battleWin 动画后发送）────────────
+  // ── Rogue 动画结束信号 → 后端生成增益选项 ───────────
+  socket.on('upgradePhaseReady', () => {
+    const roomId = getRoomId(socket.id);
+    if (!roomId) return;
+    const ctx = getRoom(roomId);
+    if (!ctx) { emitError('Room not found'); return; }
+    if (!isRogueRoom(roomId)) { emitError('Not a rogue session'); return; }
+    if (ctx.roguePhase !== 'UPGRADE') { emitError('Not in upgrade phase'); return; }
+
+    const layer = ctx.boss.layer;
+    const chosenElement = ctx.player.chosenElement ?? (['WATER', 'FIRE', 'GRASS'] as const)[(layer - 1) % 3];
+    const ownedTypes = (ctx.player.buffs ?? []).map(b => b.type);
+    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer, ownedTypes);
+    socket.emit('upgradeOptions', { options });
+    logger.info({ roomId, layer }, 'rogue: upgrade options sent');
+  });
+
+  // ── 推进到下一层（前端在 battleWin 动画后发送）────────
   socket.on('advanceLayer', (payload?: { shuffleCount?: number; buffs?: Buff[] }) => {
     const roomId = getRoomId(socket.id);
     if (!roomId) return;
     const ctx = getRoom(roomId);
     if (!ctx) { emitError('Room not found'); return; }
+    if (!isRogueRoom(roomId)) { emitError('Not a rogue session'); return; }
+    if (ctx.roguePhase !== 'UPGRADE') { emitError('Not in upgrade phase — cannot advance layer'); return; }
 
     const nextLayer    = ctx.boss.layer + 1;
     const nextBoss     = createBossForLayer(nextLayer);
@@ -293,14 +414,16 @@ export function registerPveHandlers(socket: Socket): void {
       else merged.push(b);
     }
     const buffs = incoming.length > 0 ? merged : existing;
+    const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, nextHp, 3);
 
     const newCtx: GameContext = {
       ...ctx,
-      player: { ...ctx.player, hp: nextHp, maxHp: nextHp, buffs },
+      player: { ...ctx.player, hp: maxHp, maxHp, buffs, skillEnergyMax },
       boss: nextBoss,
       round: 1,
-      roundState: freshRoundState(ctx.player.skillEnergyMax, shuffleCount),
+      roundState: freshRoundState(skillEnergyMax, shuffleCount),
       battleResult: 'ONGOING',
+      roguePhase: 'BATTLE',
     };
     updateRoom(roomId, newCtx);
 
@@ -312,31 +435,36 @@ export function registerPveHandlers(socket: Socket): void {
     logger.info({ socketId: socket.id, roomId, nextLayer }, 'advanced to next layer');
   });
 
-  // ── 从存档恢复─────────────────────────────
+  // ── 从存档恢复─────────────────────
   socket.on('restoreFromCheckpoint', (payload: {
     layer: number;
     playerHp: number;
     bossHp: number;
-    shuffleCount?: number;
+    shuffleCount: number;
   }) => {
     const roomId = getRoomId(socket.id);
     if (!roomId) { emitError('No active room'); return; }
     const ctx = getRoom(roomId);
     if (!ctx) { emitError('Room not found'); return; }
+    if (!isRogueRoom(roomId)) { emitError('Not a rogue session'); return; }
 
     const layer = Math.max(1, Math.floor(payload.layer ?? 1));
     const bossTemplate = createBossForLayer(layer);
     const boss = { ...bossTemplate, hp: Math.max(1, Math.floor(payload.bossHp ?? bossTemplate.maxHp)) };
-    const maxHp = playerHpForLayer(layer);
+    const baseMaxHp = playerHpForLayer(layer);
     const shuffleCount = Math.max(2, Math.floor(payload.shuffleCount ?? 2));
+    const buffs = ctx.player.buffs ?? [];
+    const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, baseMaxHp, 3);
+    const playerHp = Math.max(1, Math.floor(payload.playerHp ?? maxHp));
 
     const restoredCtx: GameContext = {
       ...ctx,
-      player: { ...ctx.player, hp: Math.max(1, Math.floor(payload.playerHp ?? maxHp)), maxHp },
+      player: { ...ctx.player, hp: playerHp, maxHp, buffs, skillEnergyMax },
       boss,
       round: 1,
-      roundState: freshRoundState(ctx.player.skillEnergyMax, shuffleCount),
+      roundState: freshRoundState(skillEnergyMax, shuffleCount),
       battleResult: 'ONGOING',
+      roguePhase: 'BATTLE',
     };
     updateRoom(roomId, restoredCtx);
 

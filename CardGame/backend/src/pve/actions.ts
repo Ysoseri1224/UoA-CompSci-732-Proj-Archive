@@ -13,6 +13,8 @@ import type { Buff } from '../types/buff.js';
 //  GameContext — 状态机操作的顶层上下文
 // ══════════════════════════════════════════════════════════════════
 
+export type RoguePhase = 'BATTLE' | 'UPGRADE';
+
 export interface GameContext {
   deck: Card[];
   discardPile: Card[];
@@ -22,6 +24,8 @@ export interface GameContext {
   round: number;
   roundState: RoundState;
   battleResult: BattleResult;
+  rogueMode: boolean;
+  roguePhase: RoguePhase;
 }
 
 function deckState(ctx: GameContext): DeckState {
@@ -96,10 +100,11 @@ export function doBossTelegraphComplete(ctx: GameContext): GameContext {
 // ══════════════════════════════════════════════════════════════════
 
 export function doSkillChangeColor(ctx: GameContext, cardId: string, newColor: Element): GameContext {
-  const ds = skillChangeColorFn(deckState(ctx), cardId, newColor);
+  const { state: ds, replaced } = skillChangeColorFn(deckState(ctx), cardId, newColor);
+  const ctxWithDeck = { ...ctx, ...ds };
+  if (!replaced) return ctxWithDeck;
   return {
-    ...ctx,
-    ...ds,
+    ...ctxWithDeck,
     roundState: {
       ...ctx.roundState,
       skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
@@ -112,10 +117,11 @@ export function doSkillChangeColor(ctx: GameContext, cardId: string, newColor: E
 // ══════════════════════════════════════════════════════════════════
 
 export function doSkillChangeCost(ctx: GameContext, cardId: string, newCost: Rank): GameContext {
-  const ds = skillChangeCostFn(deckState(ctx), cardId, newCost);
+  const { state: ds, replaced } = skillChangeCostFn(deckState(ctx), cardId, newCost);
+  const ctxWithDeck = { ...ctx, ...ds };
+  if (!replaced) return ctxWithDeck;
   return {
-    ...ctx,
-    ...ds,
+    ...ctxWithDeck,
     roundState: {
       ...ctx.roundState,
       skills: { energy: Math.max(0, ctx.roundState.skills.energy - 1), shield: ctx.roundState.skills.shield },
@@ -244,7 +250,24 @@ export function doResolveComplete(ctx: GameContext): GameContext {
   const newBossHp = ctx.boss.hp - score;
 
   if (newBossHp <= 0) {
-    // Boss 死亡 → WIN
+    if (ctx.rogueMode) {
+      // Rogue: 层通关 → 房间继续，进入 UPGRADE 阶段等待增益选择
+      // battleResult 保持 ONGOING，防止房间被 archiveGame 回收
+      return {
+        ...ctx,
+        battleResult: 'ONGOING',
+        roguePhase: 'UPGRADE',
+        boss: { ...ctx.boss, hp: 0 },
+        roundState: {
+          ...ctx.roundState,
+          skills: {
+            ...ctx.roundState.skills,
+            shield: voidShield(ctx.roundState.skills.shield),
+          },
+        },
+      };
+    }
+    // Solo: Boss 死亡 → WIN，正常结束
     return {
       ...ctx,
       battleResult: 'WIN',

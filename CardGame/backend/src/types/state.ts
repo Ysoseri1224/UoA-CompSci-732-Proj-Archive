@@ -38,6 +38,10 @@ export const BOSS_WEIGHTS_BY_LAYER: Record<number, BossWeights> = {
 };
 
 // ── 全局阶段 ────────────────────────────────────────────────────
+// @deprecated GamePhase/UpgradePhase/GAME_PHASE are design-time stubs that were
+// never wired to any active handler. Rogue meta-state is now managed via
+// GameContext.roguePhase ('BATTLE' | 'UPGRADE') in pve/actions.ts.
+// These types are retained only because lib/savepoint.ts imports GameState.
 export type GamePhase = 'BATTLE' | 'UPGRADE' | 'GAME_OVER' | 'RUN_COMPLETE';
 export type UpgradePhase = 'GENERATING' | 'CHOOSING' | 'APPLYING' | null;
 
@@ -125,7 +129,8 @@ export function createBossState(opts: {
 } = {}): BossState {
   const layer = opts.layer ?? 1;
   const atk = opts.attackPerRound ?? 5;
-  const weights = BOSS_WEIGHTS_BY_LAYER[layer] ?? BOSS_WEIGHTS_BY_LAYER[1];
+  // L11+ 无限挑战：行为权重沿用 L10（calc.py 模型不再变化）
+  const weights = BOSS_WEIGHTS_BY_LAYER[layer] ?? BOSS_WEIGHTS_BY_LAYER[10];
   return {
     id: opts.id ?? `boss_layer_${layer}`, layer, element: opts.element ?? 'FIRE',
     hp: opts.hp ?? 300, maxHp: opts.maxHp ?? 300, attackPerRound: atk,

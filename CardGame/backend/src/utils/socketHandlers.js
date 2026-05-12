@@ -1,3 +1,6 @@
+// LEGACY: This file is superseded by pveHandlers.ts (custom TS state machine).
+// It is no longer registered in socket.ts and has no active callers.
+// Retained for git history only. Do not import or use.
 import { logger } from "../middleware/logger.js";
 
 import {

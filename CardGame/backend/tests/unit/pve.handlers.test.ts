@@ -7,6 +7,7 @@ import { ROUND_PHASE } from '../../src/types/state.js';
 
 class FakeSocket {
   id: string;
+  handshake = { auth: {} as Record<string, unknown> };
   handlers = new Map<string, (payload?: unknown) => void>();
   emitted: Array<{ event: string; payload: unknown }> = [];
 
