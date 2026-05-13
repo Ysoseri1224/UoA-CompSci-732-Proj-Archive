@@ -125,15 +125,18 @@ export function useRogueLogic(onBattleWin = null) {
       }
 
       const cp = result.checkpoint;
-      setEnhancements(Array.isArray(cp.enhancements) ? cp.enhancements : []);
+      const restoredEnhancements = Array.isArray(cp.enhancements) ? cp.enhancements : [];
+      setEnhancements(restoredEnhancements);
       setShowLose(false);
       setCanRetryFloor(false);
       victoryTriggeredRef.current = false;
 
       socket.emit('restoreFromCheckpoint', {
-        layer:    cp.floor,
-        playerHp: cp.playerHp,
-        bossHp:   cp.bossHp,
+        layer:        cp.floor,
+        playerHp:     cp.playerHp,
+        bossHp:       cp.bossHp,
+        buffs:        restoredEnhancements.map(e => e.buff).filter(Boolean),
+        shuffleCount: 2,
       });
       return true;
     } catch (err) {

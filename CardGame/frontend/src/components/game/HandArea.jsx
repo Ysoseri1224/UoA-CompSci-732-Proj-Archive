@@ -43,6 +43,50 @@ function BuffTag({ buff, onClick }) {
   );
 }
 
+function BuffPanel({ buffs, onBuffClick }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{
+      position: 'absolute', bottom: '100%', left: 0,
+      marginBottom: 4, zIndex: 12,
+    }}>
+      {/* Toggle button */}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          background: 'rgba(12,8,4,0.88)',
+          border: '1px solid rgba(200,160,70,0.4)',
+          borderRadius: 6,
+          padding: '3px 9px',
+          color: '#f0d060',
+          fontSize: 10,
+          fontWeight: 700,
+          fontFamily: 'monospace',
+          letterSpacing: 0.5,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          lineHeight: '16px',
+          marginBottom: open ? 4 : 0,
+        }}
+      >
+        {open ? `▾ Hide buffs` : `▸ See your ${buffs.length} buff${buffs.length !== 1 ? 's' : ''}`}
+      </button>
+
+      {/* Expanded buff list */}
+      {open && (
+        <div style={{
+          display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 200,
+        }}>
+          {buffs.map((b, i) => (
+            <BuffTag key={b?.id ?? i} buff={b} onClick={onBuffClick} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlayerBossDamageFloat({ value }) {
   return (
     <div style={{
@@ -167,15 +211,7 @@ export default function HandArea({
 
           {/* Buff tags above avatar */}
           {buffs.length > 0 ? (
-            <div style={{
-              position: 'absolute', bottom: '100%', left: 0,
-              marginBottom: 4, zIndex: 12,
-              display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 160,
-            }}>
-              {buffs.map((b, i) => (
-                <BuffTag key={b?.id ?? i} buff={b} onClick={onBuffClick} />
-              ))}
-            </div>
+            <BuffPanel buffs={buffs} onBuffClick={onBuffClick} />
           ) : null}
         </div>
       </div>
