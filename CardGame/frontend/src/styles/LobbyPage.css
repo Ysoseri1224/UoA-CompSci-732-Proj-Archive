@@ -58,14 +58,14 @@
 @media (max-width: 1600px) and (min-width: 1024px) {
   .lobby-dash-root .lobby-dash-grid {
     gap: clamp(1.75rem, 3vw, 3rem);
-    grid-template-columns: minmax(200px, min(246px, 16.85vw)) minmax(0, 1fr) minmax(210px, min(264px, 17.95vw));
+    grid-template-columns: minmax(200px, min(246px, 16.85vw)) minmax(0, 1fr) minmax(244px, min(318px, 21vw));
   }
 }
 
 @media (max-width: 1512px) and (min-width: 1024px) {
   .lobby-dash-root .lobby-dash-grid {
     gap: clamp(1.35rem, 2.65vw, 2.65rem);
-    grid-template-columns: minmax(180px, min(226px, 15.95vw)) minmax(0, 1fr) minmax(196px, min(246px, 17vw));
+    grid-template-columns: minmax(180px, min(226px, 15.95vw)) minmax(0, 1fr) minmax(228px, min(298px, 20vw));
   }
   .lobby-dash-root .lobby-dash-hero-title {
     font-size: clamp(1.5rem, 3.95vw, 2.72rem);
@@ -76,7 +76,7 @@
 @media (max-width: 1440px) and (min-width: 1024px) {
   .lobby-dash-root .lobby-dash-grid {
     gap: clamp(1.25rem, 2.35vw, 2.35rem);
-    grid-template-columns: minmax(166px, min(210px, 15.55vw)) minmax(0, 1fr) minmax(184px, min(232px, 17.15vw));
+    grid-template-columns: minmax(166px, min(210px, 15.55vw)) minmax(0, 1fr) minmax(214px, min(282px, 20vw));
   }
   .lobby-dash-root .lobby-dash-shell {
     padding-left: clamp(0.75rem, 1.65vw, 2.25rem);
@@ -87,7 +87,7 @@
 @media (max-width: 1280px) and (min-width: 1024px) {
   .lobby-dash-root .lobby-dash-grid {
     gap: clamp(0.55rem, 1.05vw, 0.95rem) !important;
-    grid-template-columns: minmax(132px, min(172px, 15.5vw)) minmax(0, 1fr) minmax(148px, min(194px, 16.95vw)) !important;
+    grid-template-columns: minmax(132px, min(172px, 15.5vw)) minmax(0, 1fr) minmax(180px, min(236px, 20vw)) !important;
   }
   .lobby-dash-root .lobby-dash-hero-title {
     font-size: clamp(1.38rem, 3.85vw, 2.48rem);
@@ -128,8 +128,8 @@
   .lobby-dash-root .lobby-dash-grid {
     gap: clamp(0.45rem, 1vw, 0.82rem) !important;
     grid-template-columns: minmax(128px, min(188px, 15.05vw)) minmax(0, 1fr) minmax(
-        138px,
-        min(208px, 16.95vw)
+        178px,
+        min(250px, 20.5vw)
       ) !important;
     padding-bottom: 0.15rem !important;
     min-height: 0;

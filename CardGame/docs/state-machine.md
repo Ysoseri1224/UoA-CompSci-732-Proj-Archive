@@ -1,53 +1,53 @@
-# 状态机设计 — Elemental Poker (v0.1)
+# State Machine Design - Elemental Poker (v0.1)
 
-> 技术栈：React 18 + Zustand 4 + XState（推荐引入）
-> 本文档定义完整的回合状态机，可直接映射到 XState v5 或 Zustand slice。
-
----
-
-## 1. 全局状态层级
-
-```
-GameState（整局 Run）
-  └── BattleState（单层 Boss 战）
-        └── RoundState（单回合）
-```
-
-三层分离，互不污染。存档只需序列化 GameState。
+> Tech stack: React 18 + Zustand 4 + XState (recommended to introduce)
+> This document defines the complete turn state machine and can be mapped directly to XState v5 or a Zustand slice.
 
 ---
 
-## 2. GameState — 整局 Run
+## 1. Global State Hierarchy
+
+```txt
+GameState (entire run)
+  -> BattleState (single-layer boss fight)
+        -> RoundState (single turn)
+```
+
+The three layers are separated and do not interfere with each other. Saving only requires serializing GameState.
+
+---
+
+## 2. GameState - Entire Run
 
 ```typescript
 interface GameState {
-  runId: string;                    // 唯一 run 标识
-  layer: number;                    // 当前层数（从 1 开始）
+  runId: string;                    // unique run identifier
+  layer: number;                    // current layer (starts from 1)
   
-  // 玩家持久数据
+  // persistent player data
   player: {
-    hp: number;                     // 当前 HP
-    maxHp: number;                  // 最大 HP
-    buffs: Buff[];                  // 永久累积的强化效果
-    chosenElement: Element | null;  // 第一层选择的属性专精
+    hp: number;                     // current HP
+    maxHp: number;                  // max HP
+    buffs: Buff[];                  // permanently stacked enhancement effects
+    chosenElement: Element | null;  // specialization chosen in layer 1
   };
   
-  // 牌库持久数据（跨回合共享同一副牌）
-  deck: Card[];                     // 当前牌堆（未抽出）
-  discardPile: Card[];              // 弃牌堆
-  hand: Card[];                     // 当前手牌（7张）
+  // persistent deck data (shared deck across turns)
+  deck: Card[];                     // current deck (undrawn cards)
+  discardPile: Card[];              // discard pile
+  hand: Card[];                     // current hand (7 cards)
   
-  // 进度
+  // progress
   phase: 'BATTLE' | 'UPGRADE' | 'GAME_OVER' | 'RUN_COMPLETE';
 
-  // UPGRADE 子状态（仅在 phase = 'UPGRADE' 时有值）
+  // UPGRADE sub-state (only valid when phase = 'UPGRADE')
   upgradePhase: 'GENERATING' | 'CHOOSING' | 'APPLYING' | null;
-  upgradeOptions: Upgrade[];        // 当前展示给玩家的候选（CHOOSING 阶段有值）
+  upgradeOptions: Upgrade[];        // current candidate options shown to the player (present during CHOOSING)
 
-  savepoint: SavePoint | null;      // 最近存档点
+  savepoint: SavePoint | null;      // most recent save point
 }
 
-// 存档点（每层结束后写入）
+// Save point (written after each layer)
 interface SavePoint {
   layer: number;
   timestamp: number;
@@ -55,37 +55,37 @@ interface SavePoint {
 }
 ```
 
-### 2.1 UPGRADE 子状态流转
+### 2.1 UPGRADE Sub-state Flow
 
-```
-BATTLE_WIN 触发
-  → upgradePhase = 'GENERATING'（生成3个候选buff，写入 upgradeOptions）
-  → upgradePhase = 'CHOOSING'（等待玩家 SELECT_UPGRADE 事件）
-  → upgradePhase = 'APPLYING'（将选中 buff 写入 player.buffs）
-  → upgradePhase = null，GameState.phase = 'BATTLE'，进入下一层
+```txt
+BATTLE_WIN triggered
+  -> upgradePhase = 'GENERATING' (generate 3 candidate buffs and write them to upgradeOptions)
+  -> upgradePhase = 'CHOOSING' (wait for the player's SELECT_UPGRADE event)
+  -> upgradePhase = 'APPLYING' (write the selected buff into player.buffs)
+  -> upgradePhase = null, GameState.phase = 'BATTLE', enter the next layer
 ```
 
 ---
 
-## 3. BattleState — 单层 Boss 战
+## 3. BattleState - Single-Layer Boss Fight
 
 ```typescript
 interface BattleState {
   boss: {
     hp: number;
     maxHp: number;
-    attackPerRound: number;         // 本层普通攻击值
-    chargeAttack: number;           // 蓄力爆发值（= attackPerRound × 2.2，取整）
-    element: Element;               // 属性（未来相克用）
+    attackPerRound: number;         // normal attack value for this layer
+    chargeAttack: number;           // charged burst value (= attackPerRound x 2.2, rounded down)
+    element: Element;               // element (for future advantage rules)
 
     behavior: {
-      currentIntent: BossIntent;    // 本回合意图（对玩家可见）
-      chargeStored: boolean;        // 是否有蓄力待释放
+      currentIntent: BossIntent;    // current turn intent (visible to the player)
+      chargeStored: boolean;        // whether a charge is stored and waiting to be released
     };
-    weights: BossWeights;           // 本层行为权重（从配置表读入，不随回合变化）
+    weights: BossWeights;           // behavior weights for this layer (read from config, does not change per turn)
   };
-  round: number;                    // 当前回合数（从 1 开始）
-  roundState: RoundState;           // 当前回合子状态
+  round: number;                    // current turn number (starts from 1)
+  roundState: RoundState;           // current turn sub-state
   result: 'ONGOING' | 'WIN' | 'LOSE';
 }
 ```
@@ -94,14 +94,14 @@ interface BattleState {
 type BossIntent = 'ATTACK' | 'CHARGE' | 'DEFEND';
 
 interface BossWeights {
-  attack: number;   // 示例：0.80
-  charge: number;   // 示例：0.15
-  defend: number;   // 示例：0.05
-  // 三者之和必须 = 1.0
+  attack: number;   // example: 0.80
+  charge: number;   // example: 0.15
+  defend: number;   // example: 0.05
+  // the three values must sum to 1.0
 }
 ```
 
-权重配置表（硬编码为常量，不进状态）：
+Weight table (hard-coded as constants, not stored in state):
 
 ```typescript
 const BOSS_WEIGHTS_BY_LAYER: Record<number, BossWeights> = {
@@ -120,44 +120,44 @@ const BOSS_WEIGHTS_BY_LAYER: Record<number, BossWeights> = {
 
 ---
 
-## 4. RoundState — 单回合状态机
+## 4. RoundState - Single-Turn State Machine
 
-### 4.1 状态枚举
+### 4.1 State Enum
 
 ```typescript
 type RoundPhase =
-  | 'DRAW'            // 补牌阶段（自动）
-  | 'BOSS_TELEGRAPH'  // Boss 意图展示阶段（自动）
-  | 'SKILL'           // 技能阶段（玩家操作）
-  | 'SHUFFLE'         // Shuffle 阶段（玩家操作，可与 SKILL 交替）
-  | 'PLAY'            // 出牌阶段（玩家选牌 → 打出）
-  | 'RESOLVE'         // 结算阶段（计算伤害，自动）
-  | 'BOSS_ATTACK'     // Boss 攻击阶段（自动）
-  | 'ROUND_END';      // 回合结束（触发下一回合 or 胜负判定）
+  | 'DRAW'            // draw phase (automatic)
+  | 'BOSS_TELEGRAPH'  // boss intent display phase (automatic)
+  | 'SKILL'           // skill phase (player action)
+  | 'SHUFFLE'         // shuffle phase (player action, can alternate with SKILL)
+  | 'PLAY'            // play phase (player selects cards -> plays them)
+  | 'RESOLVE'         // resolution phase (calculate damage, automatic)
+  | 'BOSS_ATTACK'     // boss attack phase (automatic)
+  | 'ROUND_END';      // turn end (trigger next turn or victory/defeat check)
 ```
 
-### 4.2 状态转移图
+### 4.2 State Transition Diagram
 
-```
+```txt
             ┌─────────────────────────────────────────┐
             │              ROUND START                │
             └──────────────────┬──────────────────────┘
                                │ auto
                                ▼
                            ┌──────┐
-                           │ DRAW │  补牌至 7 张
+                           │ DRAW │  draw up to 7 cards
                            └──┬───┘
                               │ done
                               ▼
                      ┌──────────────────┐
-                     │  BOSS_TELEGRAPH  │  确定Boss意图 → 对玩家展示
+                     │  BOSS_TELEGRAPH  │  determine boss intent -> show to the player
                      └────────┬─────────┘
                               │ done
                               ▼
                ┌──────────────────────────┐
                │     SKILL / SHUFFLE      │◄──────────────┐
-               │  （玩家可任意操作，      │               │
-               │   顺序自由，可交替）     │               │
+               │  (player can act freely,  │               │
+               │   in any order, alternating)              │
                └──────────┬───────────────┘               │
                           │                               │
                ┌──────────┴───────────┐                   │
@@ -165,195 +165,195 @@ type RoundPhase =
                └──────────┬───────────┘                   │
                           ▼                               │
                       ┌──────┐                            │
-                      │ PLAY │  玩家选牌（1-7张）          │
+                      │ PLAY │  player selects cards (1-7)│
                       └──┬───┘                            │
                          │ confirm selection              │
                          ▼                               │
                     ┌─────────┐                          │
-                    │ RESOLVE │  计算伤害，扣 Boss HP      │
+                    │ RESOLVE │  calculate damage, reduce boss HP
                     └────┬────┘                          │
                          │                               │
               ┌──────────┴──────────┐                    │
               │                     │                    │
-          Boss HP ≤ 0           Boss HP > 0              │
+          Boss HP <= 0         Boss HP > 0              │
               │                     │                    │
               ▼                     ▼                    │
           ┌─────────────────────┐  ┌─────────────┐      │
-          │  WIN（护盾作废）   │  │ BOSS_ATTACK │      │
+          │  WIN (shield void)  │  │ BOSS_ATTACK │      │
           └─────────────────────┘  └──────┬──────┘      │
                                     │                    │
                          ┌──────────┴──────────┐         │
                          │                     │         │
-                    Player HP ≤ 0         Player HP > 0  │
+                    Player HP <= 0         Player HP > 0  │
                          │                     │         │
                          ▼                     ▼         │
                       ┌──────┐          ┌───────────┐    │
                       │ LOSE │          │ ROUND_END │────┘
                       └──────┘          └───────────┘
-                                        （进入下一回合）
+                                        (enter next turn)
 ```
 
-### 4.2.1 BOSS_TELEGRAPH 阶段说明
+### 4.2.1 BOSS_TELEGRAPH Phase Notes
 
-- 自动触发，无需玩家操作
-- 系统根据 `boss.weights` 随机抽取本回合 intent
-- 若 `boss.behavior.chargeStored === true`，强制 intent = 'ATTACK'（释放蓄力），忽略权重
-- 将结果写入 `bossRound.intent`、`bossRound.isDefending`、`bossRound.willReleaseCharge`
-- 对玩家 UI 展示本回合意图后，进入 SKILL/SHUFFLE 阶段
+- Triggers automatically; no player action required
+- The system randomly samples the current turn's intent according to `boss.weights`
+- If `boss.behavior.chargeStored === true`, intent is forced to `'ATTACK'` (release the charge) and the weights are ignored
+- The result is written to `bossRound.intent`, `bossRound.isDefending`, and `bossRound.willReleaseCharge`
+- After the player UI shows the current turn's intent, move into the SKILL / SHUFFLE phase
 
-### 4.3 RoundState 数据结构
+### 4.3 RoundState Data Structure
 
 ```typescript
 interface RoundState {
   phase: RoundPhase;
   
-  // 技能冷却与使用状态（每回合重置）
+  // skill cooldown and usage state (reset every turn)
   skills: {
-    changeColor: { used: boolean };   // 每回合重置
-    changeCost:  { used: boolean };   // 每回合重置
+    changeColor: { used: boolean };   // reset every turn
+    changeCost:  { used: boolean };   // reset every turn
     shield: {
-      active: boolean;                // 护盾当前是否激活
-      onCooldown: boolean;            // 是否在冷却中（碎裂后）
+      active: boolean;                // whether shield is currently active
+      onCooldown: boolean;            // whether the shield is cooling down (after breaking)
     };
   };
   
-  // Shuffle 状态
+  // Shuffle state
   shuffle: {
-    remaining: number;                // 本回合剩余次数（初始 2）
-    pendingDiscard: CardId[];         // 待弃置的牌（确认前）
+    remaining: number;                // remaining uses this turn (starts at 2)
+    pendingDiscard: CardId[];         // cards queued to be discarded (before confirmation)
   };
   
-  // 出牌状态
+  // play state
   play: {
-    selectedCards: CardId[];          // 玩家当前选中的牌
-    handType: HandType | null;        // 识别出的牌型
-    score: number | null;             // 计算出的伤害值
+    selectedCards: CardId[];          // cards currently selected by the player
+    handType: HandType | null;        // detected hand type
+    score: number | null;             // computed damage value
   };
 
-  // Boss 回合状态
+  // boss-turn state
   bossRound: {
-    intent: BossIntent;               // 本回合意图（DRAW阶段结束后确定并展示）
-    isDefending: boolean;             // true 时玩家本回合伤害减半
-    willReleaseCharge: boolean;       // true 时本回合 Boss 攻击为蓄力爆发
+    intent: BossIntent;               // current turn intent (determined and shown after DRAW)
+    isDefending: boolean;             // when true, the player's damage this turn is halved
+    willReleaseCharge: boolean;       // when true, the boss attack this turn is a charged burst
   };
 }
 ```
 
 ---
 
-## 5. 事件（Actions / Events）
+## 5. Events (Actions / Events)
 
-> 以下为状态机接受的所有事件，Zustand action 或 XState event 均可对应。
+> The following are all events accepted by the state machine. They can map to either Zustand actions or XState events.
 
 ```typescript
-// ── 技能事件 ──────────────────────────────
+// ── Skill events ──────────────────────────────
 { type: 'SKILL_CHANGE_COLOR'; cardId: CardId; newColor: Element }
 { type: 'SKILL_CHANGE_COST';  cardId: CardId; newCost: number  }
 { type: 'SKILL_SHIELD'                                         }
 
-// ── Shuffle 事件 ──────────────────────────
-{ type: 'SHUFFLE_SELECT';   cardIds: CardId[] }  // 选定要弃置的牌
-{ type: 'SHUFFLE_CONFIRM'                     }  // 确认执行 shuffle
-{ type: 'SHUFFLE_CANCEL'                      }  // 取消选择
+// ── Shuffle events ────────────────────────────
+{ type: 'SHUFFLE_SELECT';   cardIds: CardId[] }  // select cards to discard
+{ type: 'SHUFFLE_CONFIRM'                     }  // confirm shuffle
+{ type: 'SHUFFLE_CANCEL'                      }  // cancel selection
 
-// ── 出牌事件 ──────────────────────────────
-{ type: 'PLAY_SELECT';   cardId: CardId }        // 选/取消选一张牌
-{ type: 'PLAY_CONFIRM'                  }        // 确认打出选中牌
+// ── Play events ───────────────────────────────
+{ type: 'PLAY_SELECT';   cardId: CardId }        // select / deselect one card
+{ type: 'PLAY_CONFIRM'                  }        // confirm playing selected cards
 
-// ── 系统事件（自动触发）──────────────────
-{ type: 'DRAW_COMPLETE'           }              // 补牌完成
-{ type: 'BOSS_TELEGRAPH_COMPLETE' }              // Boss 意图展示完成
-{ type: 'RESOLVE_COMPLETE'        }              // 伤害结算完成
-{ type: 'BOSS_ATTACK_COMPLETE'    }              // Boss 攻击完成
-{ type: 'ROUND_END_CONFIRM'       }              // 进入下一回合
+// ── System events (automatic) ─────────────────
+{ type: 'DRAW_COMPLETE'           }              // drawing finished
+{ type: 'BOSS_TELEGRAPH_COMPLETE' }              // boss intent display finished
+{ type: 'RESOLVE_COMPLETE'        }              // damage resolution finished
+{ type: 'BOSS_ATTACK_COMPLETE'    }              // boss attack finished
+{ type: 'ROUND_END_CONFIRM'       }              // proceed to next turn
 
-// ── 胜负事件 ─────────────────────────────
+// ── Victory / defeat events ───────────────────
 { type: 'BATTLE_WIN'    }
 { type: 'BATTLE_LOSE'   }
 
-// ── Roguelike 事件 ────────────────────────
-{ type: 'UPGRADE_OPTIONS_READY'                }  // 候选生成完成（GENERATING → CHOOSING）
-{ type: 'SELECT_UPGRADE'; upgradeId: string }     // 玩家选择强化选项
-{ type: 'UPGRADE_APPLIED'                      }  // 强化应用完成（APPLYING → BATTLE）
-{ type: 'LOAD_SAVEPOINT'                   }     // 读取存档
+// ── Roguelike events ──────────────────────────
+{ type: 'UPGRADE_OPTIONS_READY'                }  // candidate generation finished (GENERATING -> CHOOSING)
+{ type: 'SELECT_UPGRADE'; upgradeId: string }     // player chooses an enhancement option
+{ type: 'UPGRADE_APPLIED'                      }  // enhancement application finished (APPLYING -> BATTLE)
+{ type: 'LOAD_SAVEPOINT'                   }     // load save point
 ```
 
 ---
 
-## 6. 守卫条件（Guards）
+## 6. Guards
 
 ```typescript
-// 技能是否可用
+// whether a skill can be used
 canUseChangeColor  = !skills.changeColor.used && phase === 'SKILL'
 canUseChangeCost   = !skills.changeCost.used  && phase === 'SKILL'
 canUseShield       = !skills.shield.active && !skills.shield.onCooldown && phase === 'SKILL'
 
-// Shuffle 是否可用
+// whether Shuffle can be used
 canShuffle = shuffle.remaining > 0 && phase === 'SHUFFLE'
 
-// 出牌是否合法
+// whether play is valid
 canPlay = play.selectedCards.length >= 1 && phase === 'PLAY'
 
-// Boss 攻击是否被护盾阻挡
+// whether the boss attack is blocked by shield
 shieldBlocksBossAttack = skills.shield.active
 
-// 护盾是否在 Boss 死亡时作废
-shieldVoided = bossHP <= 0   // 若进入 WIN，护盾不保留
+// whether shield is void when the boss dies
+shieldVoided = bossHP <= 0   // if entering WIN, shield does not persist
 ```
 
 ---
 
-## 7. 副作用（Side Effects）
+## 7. Side Effects
 
-| 触发条件              | 副作用                                              |
-|-----------------------|-----------------------------------------------------|
-| DRAW 阶段             | 若牌堆不足，先将弃牌堆洗回牌堆，再补牌              |
-| SHUFFLE_CONFIRM       | 弃牌暂存，补牌完成后弃牌才回牌堆                    |
-| RESOLVE 后 Boss HP≤0  | 护盾状态重置（作废），触发 WIN                       |
-| BOSS_ATTACK + Shield  | 护盾碎裂，shield.active=false, onCooldown=true       |
-| ROUND_END             | skills.changeColor.used / changeCost.used 重置为false；shuffle.remaining 重置为 2 |
-| BOSS_TELEGRAPH：intent = CHARGE         | `bossRound.willReleaseCharge = false`；本回合跳过 BOSS_ATTACK；`boss.behavior.chargeStored = true` |
-| BOSS_TELEGRAPH：chargeStored = true     | 强制 intent = ATTACK；`bossRound.willReleaseCharge = true`；`boss.behavior.chargeStored = false` |
-| BOSS_TELEGRAPH：intent = DEFEND         | `bossRound.isDefending = true` |
-| RESOLVE 阶段：`bossRound.isDefending = true` | 玩家本回合计算出的伤害值 × 0.5（取整）再扣 Boss HP |
-| BOSS_ATTACK 阶段：`bossRound.willReleaseCharge = true` | 扣玩家 HP = `boss.chargeAttack`，护盾可拦截 |
-| BOSS_ATTACK 阶段：intent = ATTACK，无蓄力 | 扣玩家 HP = `boss.attackPerRound`，护盾可拦截 |
-| BOSS_ATTACK 阶段：intent = CHARGE 或 DEFEND | Boss 本回合不攻击，跳过扣血 |
-| ROUND_END                               | `bossRound` 重置为默认值（intent='ATTACK', isDefending=false, willReleaseCharge=false） |
-| BATTLE_WIN            | 写入 SavePoint，进入 UPGRADE 阶段                   |
-| SELECT_UPGRADE        | 将 Upgrade 推入 player.buffs，进入下一层 BattleState |
+| Trigger Condition | Side Effect |
+|------------------|-------------|
+| DRAW phase | If the deck is short, shuffle the discard pile back in first, then draw |
+| SHUFFLE_CONFIRM | Stage the discard pile first, and only return it after drawing completes |
+| After RESOLVE, boss HP <= 0 | Reset shield state (void it) and trigger WIN |
+| BOSS_ATTACK + Shield | Shield breaks, `shield.active=false`, `onCooldown=true` |
+| ROUND_END | Reset `skills.changeColor.used` / `changeCost.used` to `false`; reset `shuffle.remaining` to 2 |
+| BOSS_TELEGRAPH: intent = CHARGE | `bossRound.willReleaseCharge = false`; skip BOSS_ATTACK this turn; `boss.behavior.chargeStored = true` |
+| BOSS_TELEGRAPH: `chargeStored = true` | Force intent = ATTACK; `bossRound.willReleaseCharge = true`; `boss.behavior.chargeStored = false` |
+| BOSS_TELEGRAPH: intent = DEFEND | `bossRound.isDefending = true` |
+| RESOLVE phase: `bossRound.isDefending = true` | Halve the player's computed damage this turn (rounded down) before applying it to the boss |
+| BOSS_ATTACK phase: `bossRound.willReleaseCharge = true` | Reduce player HP by `boss.chargeAttack`; shield can block it |
+| BOSS_ATTACK phase: intent = ATTACK, no charge | Reduce player HP by `boss.attackPerRound`; shield can block it |
+| BOSS_ATTACK phase: intent = CHARGE or DEFEND | Boss does not attack this turn; skip damage |
+| ROUND_END | Reset `bossRound` to defaults (`intent='ATTACK'`, `isDefending=false`, `willReleaseCharge=false`) |
+| BATTLE_WIN | Write a SavePoint and enter the UPGRADE phase |
+| SELECT_UPGRADE | Push the Upgrade into `player.buffs` and enter the next BattleState |
 
 ---
 
-## 8. PVP 预留接口
+## 8. PvP Reserved Interface
 
 ```typescript
-// 当前 PVP 实现为 future feature
-// 状态机设计上，将玩家行动抽象为 PlayerAction，
-// PVP 模式只需将"等待对手"注入为一个额外 phase
+// current PvP implementation is a future feature
+// in the state machine design, player actions are abstracted as PlayerAction,
+// and PvP mode only needs to inject "waiting for opponent" as an extra phase
 
-type RoundPhaseExtended = RoundPhase | 'WAITING_OPPONENT'; // PVP 专用
+type RoundPhaseExtended = RoundPhase | 'WAITING_OPPONENT'; // PvP only
 
 interface PVPRoundState extends RoundState {
   opponentReady: boolean;
-  opponentAction: PlayerAction | null;  // 异步轮流制下对手的行动结果
+  opponentAction: PlayerAction | null;  // opponent action result in asynchronous alternating turns
 }
 ```
 
 ---
 
-## 9. 状态持久化策略
+## 9. Persistence Strategy
 
 ```typescript
-// 需要持久化（写入 SavePoint）：
-// - GameState.player（HP、buffs、chosenElement）
+// Persisted (written to SavePoint):
+// - GameState.player (HP, buffs, chosenElement)
 // - GameState.deck / discardPile / hand
 // - GameState.layer
 
-// 不需要持久化（每回合/每层重建）：
-// - RoundState（每回合重置）
-// - BattleState.roundState（每回合重置）
-// - skills.used 标志（每回合重置）
+// Not persisted (rebuilt every turn / every layer):
+// - RoundState (reset every turn)
+// - BattleState.roundState (reset every turn)
+// - skills.used flags (reset every turn)
 
-// 存档时机：BATTLE_WIN 事件触发后，进入 UPGRADE 阶段前
+// Save timing: after the BATTLE_WIN event triggers, before entering the UPGRADE phase
 ```

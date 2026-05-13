@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Elemental Poker — 数值计算脚本 v0.2
-用途：生成数值表、验证胜率、模拟buff效果
-可复用：修改底部 LAYER_CONFIGS 和 BUFF_CHAIN 后重新运行即可
+Elemental Poker - Numeric Calculation Script v0.2
+Purpose: generate numeric tables, validate win rates, and simulate buff effects
+Reusable: modify LAYER_CONFIGS and BUFF_CHAIN at the bottom, then rerun
 
-依赖：Python 3.8+，无第三方库
+Dependencies: Python 3.8+, no third-party libraries
 """
 
 import random
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 # ════════════════════════════════════════════════
-# 1. 固定常量（不可修改）
+# 1. Fixed Constants (Do Not Modify)
 # ════════════════════════════════════════════════
 
 HAND_TABLE = {
@@ -38,12 +38,12 @@ HAND_ORDER = [
 ]
 
 ELEMENTS = ['W', 'F', 'G']  # Water Fire Grass
-DECK_BASE = [(e, r) for e in ELEMENTS for r in range(1, 14)]  # 39张
+DECK_BASE = [(e, r) for e in ELEMENTS for r in range(1, 14)]  # 39 cards
 
 PLAYER_BASE_HP   = 20
 LAYER1_BOSS_HP   = 300
 
-# Boss行为权重（层数 → 权重）
+# Boss behavior weights (layer -> weights)
 BOSS_WEIGHTS = {
     **{l: (0.80, 0.15, 0.05) for l in range(1, 4)},   # attack, charge, defend
     **{l: (0.60, 0.25, 0.15) for l in range(4, 7)},
@@ -51,15 +51,15 @@ BOSS_WEIGHTS = {
 }
 
 # ════════════════════════════════════════════════
-# 2. 牌型识别
+# 2. Hand Detection
 # ════════════════════════════════════════════════
 
 def chip_value(rank: int) -> int:
-    """A=1, 2-10=面值, J=11, Q=12, K=13"""
+    """A=1, 2-10=face value, J=11, Q=12, K=13"""
     return rank
 
 def detect_hand(cards: list[tuple]) -> str:
-    """识别牌型，对齐 TS 代码 detectHandType() in lib/hand.ts"""
+    """Detect the hand type, aligned with TS detectHandType() in lib/hand.ts."""
     ranks  = [c[1] for c in cards]
     colors = [c[0] for c in cards]
     n = len(cards)
@@ -90,7 +90,7 @@ def detect_hand(cards: list[tuple]) -> str:
 
 
 def check_straight(cards: list[tuple]) -> bool:
-    """顺子检测，对齐 TS 代码：去重排序后逐位检查连续"""
+    """Straight detection, aligned with the TS code: dedupe, sort, then check consecutive ranks."""
     if len(cards) < 5:
         return False
     ranks = sorted(set(c[1] for c in cards))
@@ -102,7 +102,7 @@ def check_straight(cards: list[tuple]) -> bool:
     return True
 
 # ════════════════════════════════════════════════
-# 3. Buff 数据结构
+# 3. Buff Data Structures
 # ════════════════════════════════════════════════
 
 @dataclass
@@ -124,10 +124,10 @@ class PlayerState:
     hp:      int
     max_hp:  int
     buffs:   list = field(default_factory=list)
-    element: Optional[str] = None  # 已选属性专精
+    element: Optional[str] = None  # Selected element specialization
 
 # ════════════════════════════════════════════════
-# 4. 伤害计算（含buff）
+# 4. Damage Calculation (with buffs)
 # ════════════════════════════════════════════════
 
 def calc_damage(
@@ -137,8 +137,8 @@ def calc_damage(
     boss_defending: bool = False
 ) -> int:
     """
-    计算一次出牌的实际伤害。
-    hand_table 若传入则使用（允许被 buff 修改后的表）。
+    Calculate the actual damage of one card play.
+    If hand_table is provided, use it instead (allows a buff-modified table).
     """
     if hand_table is None:
         hand_table = HAND_TABLE
@@ -146,17 +146,17 @@ def calc_damage(
     hand_type = detect_hand(cards)
     base_chips, base_mult = hand_table[hand_type]
 
-    # 步骤2：HAND_CHIPS_BONUS
+    # Step 2: HAND_CHIPS_BONUS
     for b in buffs:
         if b.type == 'HAND_CHIPS_BONUS' and b.hand_type == hand_type:
             base_chips += b.bonus_chips
 
-    # 步骤3：HAND_MULT_BONUS（加法叠加，不是乘法）
+    # Step 3: HAND_MULT_BONUS (additive stacking, not multiplicative)
     for b in buffs:
         if b.type == 'HAND_MULT_BONUS' and b.hand_type == hand_type:
             base_mult += b.bonus_mult
 
-    # 步骤4：每张牌的chip
+    # Step 4: chip value for each card
     total_card_chips = 0.0
     for card in cards:
         elem, rank = card
@@ -174,14 +174,14 @@ def calc_damage(
 
     damage = math.floor((base_chips + total_card_chips) * base_mult)
 
-    # 步骤6：Boss防御减半
+    # Step 6: Boss DEFEND halves damage
     if boss_defending:
         damage = math.floor(damage * 0.5)
 
     return damage
 
 def best_damage(hand7: list[tuple], buffs: list[Buff], hand_table: dict = None) -> int:
-    """从7张手牌中选出最优出牌组合，返回最高伤害。"""
+    """Select the best playable combination from 7 hand cards and return the maximum damage."""
     best = 0
     for n in range(1, 8):
         for combo in combinations(hand7, n):
@@ -191,7 +191,7 @@ def best_damage(hand7: list[tuple], buffs: list[Buff], hand_table: dict = None) 
     return best
 
 # ════════════════════════════════════════════════
-# 5. DPS 期望值计算（蒙特卡洛）
+# 5. Expected DPS Calculation (Monte Carlo)
 # ════════════════════════════════════════════════
 
 def simulate_avg_dps(
@@ -201,8 +201,8 @@ def simulate_avg_dps(
     seed: int = 42
 ) -> dict:
     """
-    模拟 n_sims 局，返回 DPS 分布统计。
-    返回：{'avg', 'p25', 'p50', 'p75', 'p90', 'p10'}
+    Simulate n_sims runs and return DPS distribution statistics.
+    Returns: {'avg', 'p25', 'p50', 'p75', 'p90', 'p10'}
     """
     random.seed(seed)
     scores = []
@@ -221,7 +221,7 @@ def simulate_avg_dps(
     }
 
 # ════════════════════════════════════════════════
-# 6. 单层数值计算
+# 6. Per-Layer Numeric Calculation
 # ════════════════════════════════════════════════
 
 def calc_layer(
@@ -234,12 +234,12 @@ def calc_layer(
     charge_freq:  float,
 ) -> dict:
     """
-    根据本层参数计算关键比值和胜率估算。
-    defend_freq / charge_freq 来自 BOSS_WEIGHTS。
+    Compute key ratios and win-rate estimates from the current layer parameters.
+    defend_freq / charge_freq come from BOSS_WEIGHTS.
     """
     attack_freq = 1.0 - defend_freq - charge_freq
 
-    # Boss DEFEND时玩家伤害减半 → 有效伤害系数
+    # Player damage is halved when Boss DEFENDs -> effective damage coefficient
     eff_coeff = attack_freq * 1.0 + charge_freq * 1.0 + defend_freq * 0.5
     effective_dps = avg_dps * eff_coeff
 
@@ -249,7 +249,7 @@ def calc_layer(
 
     charge_atk = math.floor(boss_atk * 2.2)
 
-    # 胜率估算（简化比值法，护盾额外贡献约+5-10%未计入）
+    # Win-rate estimate (simplified ratio method, excluding the extra ~5-10% shield contribution)
     if   ratio > 2.5:  wr = ">99%"
     elif ratio > 1.8:  wr = "~95%"
     elif ratio > 1.3:  wr = "~90%"
@@ -277,13 +277,13 @@ def calc_layer(
     }
 
 # ════════════════════════════════════════════════
-# 7. 胜率蒙特卡洛验证（精确，慢）
+# 7. Win-Rate Monte Carlo Validation (Exact, Slow)
 # ════════════════════════════════════════════════
 
 def simulate_win_rate_with_shield(
     layer, player_hp, boss_hp, boss_atk, buffs, n_sims=800, seed=0
 ) -> float:
-    """带开局护盾的胜率模拟（每层第一次Boss攻击被免疫）"""
+    """Win-rate simulation with a starting shield (the first Boss attack each layer is negated)."""
     random.seed(seed + layer * 19)
     atk_w, chg_w, def_w = BOSS_WEIGHTS[layer]
     charge_atk = math.floor(boss_atk * 2.2)
@@ -291,7 +291,7 @@ def simulate_win_rate_with_shield(
     for _ in range(n_sims):
         php = player_hp; bhp = boss_hp
         charge_stored = False
-        shield = True  # 开局护盾
+        shield = True  # Starting shield
         rounds = 0
         while php > 0 and bhp > 0 and rounds < 100:
             rounds += 1
@@ -328,8 +328,8 @@ def simulate_win_rate(
     seed:      int = 0,
 ) -> float:
     """
-    蒙特卡洛模拟真实胜率（含Boss行为随机性）。
-    速度较慢，用于验证关键层（建议只验证第1、4、7、10层）。
+    Monte Carlo simulation of the actual win rate (including Boss behavior randomness).
+    Slower, intended for validating key layers only (recommended: layers 1, 4, 7, and 10).
     """
     random.seed(seed + layer * 17)
     atk_w, chg_w, def_w = BOSS_WEIGHTS[layer]
@@ -345,7 +345,7 @@ def simulate_win_rate(
         while php > 0 and bhp > 0 and rounds < 100:
             rounds += 1
 
-            # BOSS_TELEGRAPH：决定本回合意图
+            # BOSS_TELEGRAPH: determine intent for this round
             if charge_stored:
                 intent = 'ATTACK'
                 releasing_charge = True
@@ -359,7 +359,7 @@ def simulate_win_rate(
                 else:
                     intent = 'DEFEND';  releasing_charge = False
 
-            # 玩家出牌
+            # Player turn
             hand7 = random.sample(DECK_BASE, 7)
             dmg = best_damage(hand7, buffs, hand_table)
             if intent == 'DEFEND':
@@ -370,28 +370,28 @@ def simulate_win_rate(
                 wins += 1
                 break
 
-            # Boss攻击
+            # Boss attack
             if intent == 'ATTACK':
                 php -= (charge_atk if releasing_charge else boss_atk)
             elif intent == 'CHARGE':
                 charge_stored = True
-            # DEFEND：Boss本回合不攻击
+            # DEFEND: Boss does not attack this round
 
     return wins / n_sims
 
 # ════════════════════════════════════════════════
-# 8. 完整数值表生成入口
+# 8. Full Numeric Table Generation Entry
 # ════════════════════════════════════════════════
 
 def generate_table(layer_configs: list[dict], validate_layers: list[int] = None):
     """
-    layer_configs: 每层的配置 dict，格式见底部 LAYER_CONFIGS
-    validate_layers: 需要精确模拟胜率的层（None = 全部快速估算）
+    layer_configs: config dict for each layer, format shown in LAYER_CONFIGS at the bottom
+    validate_layers: layers that need exact win-rate simulation (None = fast estimation for all)
     """
     print("=" * 100)
-    print(f"{'层':>3} | {'BossHP':>7} | {'BossATK':>8} | {'蓄力ATK':>8} | "
-          f"{'玩家HP':>7} | {'avgDPS':>7} | {'effDPS':>7} | "
-          f"{'击杀轮':>7} | {'存活轮':>7} | {'比值':>5} | {'胜率估算':>8}")
+    print(f"{'Lyr':>3} | {'BossHP':>7} | {'BossATK':>8} | {'ChargeATK':>9} | "
+          f"{'PlayerHP':>8} | {'avgDPS':>7} | {'effDPS':>7} | "
+          f"{'KillRnd':>7} | {'LiveRnd':>7} | {'Ratio':>5} | {'WR Est':>8}")
     print("-" * 100)
 
     results = []
@@ -409,7 +409,7 @@ def generate_table(layer_configs: list[dict], validate_layers: list[int] = None)
             charge_freq = chg_w,
         )
 
-        # 可选：精确模拟
+        # Optional: exact simulation
         if validate_layers and layer in validate_layers:
             exact_wr = simulate_win_rate(
                 layer=layer, player_hp=cfg['player_hp'],
@@ -418,7 +418,7 @@ def generate_table(layer_configs: list[dict], validate_layers: list[int] = None)
             )
             row['win_rate_exact'] = f"{exact_wr:.1%}"
         else:
-            row['win_rate_exact'] = '—'
+            row['win_rate_exact'] = '-'
 
         results.append(row)
 
@@ -427,51 +427,51 @@ def generate_table(layer_configs: list[dict], validate_layers: list[int] = None)
               f"{row['avg_dps']:7.0f} | {row['effective_dps']:7.0f} | "
               f"{row['kill_rounds']:7.1f} | {row['survive_rounds']:7.1f} | "
               f"{row['ratio']:5.2f} | {row['win_rate_est']:>8}"
-              + (f" (实测{row['win_rate_exact']})" if row['win_rate_exact'] != '—' else ''))
+              + (f" (actual {row['win_rate_exact']})" if row['win_rate_exact'] != '-' else ''))
 
     print("=" * 100)
     return results
 
 # ════════════════════════════════════════════════
-# 9. 【入口】在这里填写数值，运行脚本生成表格
+# 9. [Entry] Fill In Values Here and Run the Script to Generate the Table
 # ════════════════════════════════════════════════
 #
-# 使用说明：
-#   1. 先用 simulate_avg_dps(buffs) 算出每层的 avg_dps
-#   2. 填入下方 LAYER_CONFIGS
-#   3. 运行脚本，检查 '比值' 和 '胜率估算' 列
-#   4. 若胜率偏差 > 10%，调整 boss_hp 或 boss_atk 后重新运行
+# Usage:
+#   1. Use simulate_avg_dps(buffs) to calculate avg_dps for each layer
+#   2. Fill the results into LAYER_CONFIGS below
+#   3. Run the script and check the 'Ratio' and 'WR Est' columns
+#   4. If the win-rate deviation is > 10%, adjust boss_hp or boss_atk and rerun
 #
-# buff 示例：
-#   Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.1)   # 火系chip×1.1
-#   Buff(type='HAND_MULT_BONUS', hand_type='FLUSH', bonus_mult=1.0)  # 同花倍率+1
-#   Buff(type='ALL_CHIPS_BONUS', bonus_chips=5)              # 所有牌+5chip
-#   Buff(type='HAND_CHIPS_BONUS', hand_type='PAIR', bonus_chips=20)  # 一对底分+20
+# Buff examples:
+#   Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.1)   # Fire chip x1.1
+#   Buff(type='HAND_MULT_BONUS', hand_type='FLUSH', bonus_mult=1.0)  # Flush multiplier +1
+#   Buff(type='ALL_CHIPS_BONUS', bonus_chips=5)              # All cards +5 chip
+#   Buff(type='HAND_CHIPS_BONUS', hand_type='PAIR', bonus_chips=20)  # Pair base chips +20
 # ────────────────────────────────────────────────
 
-# 第1层：无buff基准
+# Layer 1: baseline without buffs
 BUFFS_L1 = []
 
-# 第2层起：在上一层基础上追加新buff（累积）
-# 示例：选了火系专精，第2层又选了"同花倍率+1"
+# Starting from layer 2: append a new buff on top of the previous layer (cumulative)
+# Example: chose Fire specialization, then selected "Flush multiplier +1" in layer 2
 BUFFS_L2 = BUFFS_L1 + [
-    Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.1),  # 第1层结束获得
+    Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.1),  # Gained after layer 1
 ]
-# （后续层依此类推，每层在上层基础上 + 新buff）
+# (Follow the same pattern for later layers: previous layer buffs + new buff)
 
-# ── 快速算出各层avg_dps（取消注释运行）──
+# -- Quickly compute avg_dps for each layer (uncomment to run) --
 # if __name__ == '__main__':
 #     for i, buffs in enumerate([BUFFS_L1, BUFFS_L2], start=1):
 #         d = simulate_avg_dps(buffs, n_sims=1500)
-#         print(f"第{i}层 avg_dps={d['avg']:.0f}, p50={d['p50']:.0f}, p75={d['p75']:.0f}")
+#         print(f"Layer {i} avg_dps={d['avg']:.0f}, p50={d['p50']:.0f}, p75={d['p75']:.0f}")
 
-# ── 数值表配置（填完 avg_dps 后启用）──
+# -- Numeric table configuration (enable after filling avg_dps) --
 LAYER_CONFIGS = [
-    # 第1层（割草关，基准）
+    # Layer 1 (easy baseline stage)
     {'layer':1, 'player_hp':200, 'avg_dps':147, 'boss_hp':300,  'boss_atk':8,  'buffs':BUFFS_L1},
 
-    # 第2-10层：avg_dps 待填入（运行上方 simulate_avg_dps 后填写）
-    # buff链和boss数值由数值策划根据 numerical-design-spec.md 填写
+    # Layers 2-10: avg_dps to be filled in (run simulate_avg_dps above first)
+    # The buff chain and boss values should be filled in by game balance design according to numerical-design-spec.md
     # {'layer':2, 'player_hp':200, 'avg_dps':???, 'boss_hp':???, 'boss_atk':???, 'buffs':BUFFS_L2},
     # ...
 ]
@@ -480,8 +480,8 @@ if __name__ == '__main__':
     BASELINE = simulate_avg_dps([], n_sims=8000)
 
     # ════════════════════════════════════════════════
-    #  10 层完整数值表生成
-    #  工具buff 唯一性：选了就从池子消失
+    #  Full 10-layer numeric table generation
+    #  Utility buff uniqueness: once selected, it disappears from the pool
 
     TIER_CHIPS2 = {
         'PAIR': 10, 'TWO_PAIR': 10, 'THREE_OF_A_KIND': 10,
@@ -499,36 +499,36 @@ if __name__ == '__main__':
     S2_list = [Buff(type='HAND_CHIPS_BONUS', hand_type=ht, bonus_chips=bc) for ht, bc in TIER_CHIPS2.items()]
     S3_list = [Buff(type='HAND_MULT_BONUS', hand_type=ht, bonus_mult=bm) for ht, bm in TIER_MULT4.items()]
 
-    # 搏档buf
-    B1 = Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.5)  # 可叠加在专精上
-    # 固伤+20 & 回血+2 不在Buff系统内，单独在win_rate模拟中处理
+    # High-risk buff path
+    B1 = Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.5)  # Can stack with specialization
+    # Flat damage +20 and heal +2 are outside the Buff system and handled separately in win_rate simulation
 
-    # 工具buf（唯一）
+    # Utility buffs (unique)
     TOOLS = [
         ('Shuffle+1', 'shuffle'),
-        ('充能+1',   'energy'),
-        ('手牌+1',   'handsize'),
+        ('Charge+1',  'energy'),
+        ('Hand+1',    'handsize'),
     ]
 
-    # 混合路径：3稳->3搏->3工具（模拟典型平衡玩家）
-    # 模拟 DPS 增长路径：每层堆一个主要buff
-    DUMMY = Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.05)  # 模拟次要buff的微弱叠加
+    # Mixed path: 3 stable -> 3 risky -> 3 utility (simulates a typical balanced player)
+    # Simulated DPS growth path: stack one major buff each layer
+    DUMMY = Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.05)  # Simulate minor stacking from secondary buffs
 
     BALANCED_BUFFS = [
-        ([], '裸打'),                                                    # L1
-        ([ELE_SPEC], '专精'),                                           # L2
-        ([ELE_SPEC] + [S1], '专精+属chip'),                              # L3
-        ([ELE_SPEC] + [S1] + S2_list, '专精+属chip+分层底分'),          # L4
-        ([ELE_SPEC] + [S1] + S2_list + S3_list, '专精+属chip+底分+倍率'), # L5
-        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1], '同上+属倍率x1.5'), # L6
-        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY], '同上+次要'), # L7
-        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY], '同上+次要x2'), # L8
-        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY, DUMMY], '同上+次要x3'), # L9
-        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY, DUMMY, DUMMY], '同上+次要x4'), # L10
+        ([], 'No buffs'),                                                    # L1
+        ([ELE_SPEC], 'Specialization'),                                      # L2
+        ([ELE_SPEC] + [S1], 'Specialization + element chip'),                # L3
+        ([ELE_SPEC] + [S1] + S2_list, 'Specialization + element chip + tiered base chips'),          # L4
+        ([ELE_SPEC] + [S1] + S2_list + S3_list, 'Specialization + element chip + base chips + multiplier'), # L5
+        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1], 'Above + element multiplier x1.5'),           # L6
+        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY], 'Above + secondary'),                  # L7
+        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY], 'Above + secondary x2'),        # L8
+        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY, DUMMY], 'Above + secondary x3'), # L9
+        ([ELE_SPEC] + [S1] + S2_list + S3_list + [B1, DUMMY, DUMMY, DUMMY, DUMMY], 'Above + secondary x4'), # L10
     ]
 
     print("\n" + "=" * 110)
-    print("10 层完整数值表")
+    print("Full 10-Layer Numeric Table")
     print("=" * 110)
 
     LAYER_DPS = []
@@ -538,15 +538,15 @@ if __name__ == '__main__':
         print(f"  L{i} [{desc}]: avg={d['avg']:.0f}, p50={d['p50']:.0f}, p90={d['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  Boss 数值设计
-    #  锚定：kill_rounds=3~5
+    #  Boss numeric design
+    #  Anchor: kill_rounds=3~5
     #  boss_hp = avg_dps * target_rounds
     # ════════════════════════════════════════════════
-    print(f"\n{'层':>3} | {'玩家DPS':>7} | {'目标回合':>8} | {'BossHP':>7} | {'bossATK':>8} | {'存活轮':>7} | {'比值':>6} | {'胜率估算':>8}")
+    print(f"\n{'Lyr':>3} | {'PlayerDPS':>9} | {'TargetRnd':>9} | {'BossHP':>7} | {'bossATK':>8} | {'LiveRnd':>7} | {'Ratio':>6} | {'WR Est':>8}")
     print("-" * 100)
 
     TARGET_WIN_RATES = [0.99, 0.98, 0.95, 0.80, 0.72, 0.65, 0.58, 0.52, 0.48, 0.50]
-    TARGET_ROUNDS = [4.0, 3.8, 3.6, 3.8, 4.0, 4.2, 4.4, 4.5, 4.5, 4.5]  # 层1教学关稍快
+    TARGET_ROUNDS = [4.0, 3.8, 3.6, 3.8, 4.0, 4.2, 4.4, 4.5, 4.5, 4.5]  # Layer 1 tutorial stage is slightly faster
 
     for layer in range(1, 11):
         dps = LAYER_DPS[layer - 1]
@@ -554,16 +554,16 @@ if __name__ == '__main__':
         boss_hp = int(dps * target_r)
 
         atk_w, chg_w, def_w = BOSS_WEIGHTS[layer]
-        # boss_atk: 让存活轮在层1~3宽松(20+), 层4~6中等(9-12), 层7~10紧(6-9)
+        # boss_atk: keep survive rounds generous for layers 1-3 (20+), moderate for layers 4-6 (9-12), tight for layers 7-10 (6-9)
         if layer <= 3:   target_survive = 22 - layer * 2
         elif layer <= 6: target_survive = 14 - layer
         else:            target_survive = 11 - (layer - 7) * 0.5
 
         boss_atk = max(3, int(PLAYER_BASE_HP / target_survive * (atk_w + chg_w * 2.2 * 0.5)))
 
-        # 考虑工具buff（固伤+20、回血+2）对存活的影响——保守估计有效HP+4
+        # Account for utility buffs (flat damage +20, heal +2) on survivability - conservatively estimate effective HP +4
         effective_hp = PLAYER_BASE_HP
-        if layer >= 7: effective_hp += 8   # 回血+2*4rounds ≈ 8额外HP
+        if layer >= 7: effective_hp += 8   # heal +2 * 4 rounds ≈ 8 extra HP
         survive_rounds = effective_hp / (boss_atk * atk_w) if (boss_atk * atk_w) > 0 else 99
         kill_rounds = boss_hp / dps
         ratio = survive_rounds / kill_rounds if kill_rounds > 0 else 99
@@ -579,26 +579,26 @@ if __name__ == '__main__':
         elif ratio > 0.75: wr_est = "~55%"
         else: wr_est = "<50%"
 
-        print(f"{layer:3d} | {dps:7.0f} | {target_r:6.1f}回合 | {boss_hp:7d} | {boss_atk:8d} | {survive_rounds:7.1f} | {ratio:5.2f} | {wr_est:>8} (目标{target_wr*100:.0f}%)")
+        print(f"{layer:3d} | {dps:7.0f} | {target_r:6.1f} rnds | {boss_hp:7d} | {boss_atk:8d} | {survive_rounds:7.1f} | {ratio:5.2f} | {wr_est:>8} (target {target_wr*100:.0f}%)")
 
     # ════════════════════════════════════════════════
-    #  精确胜率验证（关键层）
+    #  Exact win-rate validation (key layers)
     # ════════════════════════════════════════════════
-    print("\n=== 精确胜率验证（蒙特卡洛，3000次模拟）===")
+    print("\n=== Exact Win-Rate Validation (Monte Carlo, 3000 simulations) ===")
     for layer in [1, 4, 7, 10]:
         boss_hp = int(LAYER_DPS[layer - 1] * TARGET_ROUNDS[layer - 1])
         atk_w, chg_w, def_w = BOSS_WEIGHTS[layer]
         boss_atk = max(3, int(PLAYER_BASE_HP / (22 - layer * 2) * (atk_w + chg_w * 2.2 * 0.5)))
-        if layer >= 7: boss_atk -= 2  # 工具buff减伤效果
+        if layer >= 7: boss_atk -= 2  # Utility buff damage-reduction effect
         wr = simulate_win_rate(layer, PLAYER_BASE_HP, boss_hp, boss_atk, [], n_sims=800)
-        print(f"  层{layer}: HP={PLAYER_BASE_HP} bossHP={boss_hp} bossATK={boss_atk} → 胜率≈{wr:.1%}")
-    print("=== 基准 DPS ===")
+        print(f"  Layer {layer}: HP={PLAYER_BASE_HP} bossHP={boss_hp} bossATK={boss_atk} -> win rate ≈ {wr:.1%}")
+    print("=== Baseline DPS ===")
     print(f"avg={BASELINE['avg']:.1f}, p50={BASELINE['p50']:.0f}, p75={BASELINE['p75']:.0f}, p90={BASELINE['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案A：单牌型 buff（对照用）
+    #  Option A: single hand-type buff (for comparison)
     # ════════════════════════════════════════════════
-    print("\n=== 方案A：单牌型 Buff ===")
+    print("\n=== Option A: Single Hand-Type Buff ===")
     SINGLE = {
         'PAIR +1 mult':      Buff(type='HAND_MULT_BONUS', hand_type='PAIR',    bonus_mult=1),
         'FLUSH +2 mult':     Buff(type='HAND_MULT_BONUS', hand_type='FLUSH',   bonus_mult=2),
@@ -611,12 +611,12 @@ if __name__ == '__main__':
         print(f"  {name:<20} avg={d['avg']:6.1f}  +{pct:.1f}%  p90={d['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案B：全牌型分层 Buff（一个buff覆盖所有牌型）
-    #  常见牌型(PAIR/TWO_PAIR/THREE): +1 mult
-    #  稀有牌型(STRAIGHT/FLUSH):      +2 mult
-    #  史诗牌型(FULL_HOUSE/FOUR/SF):  +3 mult
+    #  Option B: tiered multiplier buffs for all hand types (one buff covers every hand type)
+    #  Common hands (PAIR/TWO_PAIR/THREE): +1 mult
+    #  Rare hands (STRAIGHT/FLUSH):        +2 mult
+    #  Epic hands (FULL_HOUSE/FOUR/SF):    +3 mult
     # ════════════════════════════════════════════════
-    print("\n=== 方案B：全牌型分层倍率 Buff ===")
+    print("\n=== Option B: Tiered Multiplier Buff for All Hand Types ===")
     TIER_MULT = {
         'PAIR': 1, 'TWO_PAIR': 1, 'THREE_OF_A_KIND': 1,
         'STRAIGHT': 2, 'FLUSH': 2,
@@ -631,9 +631,9 @@ if __name__ == '__main__':
     print(f"  avg={d_tier['avg']:.1f}  +{pct:.1f}%  p90={d_tier['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案C：全牌型分层底分 Buff（同样逻辑，不同维度）
+    #  Option C: tiered base-chip buffs for all hand types (same logic, different axis)
     # ════════════════════════════════════════════════
-    print("\n=== 方案C：全牌型分层底分 Buff ===")
+    print("\n=== Option C: Tiered Base-Chip Buff for All Hand Types ===")
     TIER_CHIPS = {
         'PAIR': 15, 'TWO_PAIR': 15, 'THREE_OF_A_KIND': 15,
         'STRAIGHT': 30, 'FLUSH': 30,
@@ -648,9 +648,9 @@ if __name__ == '__main__':
     print(f"  avg={d_tc['avg']:.1f}  +{pct:.1f}%  p90={d_tc['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案C调优：降低底分数值
+    #  Option C tuning: lower base-chip values
     # ════════════════════════════════════════════════
-    print("\n=== 方案Cv2：分层底分（调低数值）===")
+    print("\n=== Option Cv2: Tiered Base Chips (Lower Values) ===")
     TIER_CHIPS2 = {
         'PAIR': 10, 'TWO_PAIR': 10, 'THREE_OF_A_KIND': 10,
         'STRAIGHT': 20, 'FLUSH': 20,
@@ -662,9 +662,9 @@ if __name__ == '__main__':
     print(f"  avg={d_tc2['avg']:.1f}  +{pct:.1f}%  p90={d_tc2['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案B砍半：全牌型分层倍率（常见0/稀有+1/史诗+2）
+    #  Option B halved: tiered multiplier for all hand types (common 0 / rare +1 / epic +2)
     # ════════════════════════════════════════════════
-    print("\n=== 方案Bv2：分层倍率（砍半）===")
+    print("\n=== Option Bv2: Tiered Multiplier (Halved) ===")
     TIER_MULT2 = {
         'PAIR': 0, 'TWO_PAIR': 0, 'THREE_OF_A_KIND': 0,
         'STRAIGHT': 1, 'FLUSH': 1,
@@ -673,13 +673,13 @@ if __name__ == '__main__':
     tb2 = [Buff(type='HAND_MULT_BONUS', hand_type=ht, bonus_mult=bm) for ht, bm in TIER_MULT2.items()]
     d_tb2 = simulate_avg_dps(tb2, n_sims=8000)
     pct_b2 = (d_tb2['avg'] - BASELINE['avg']) / BASELINE['avg'] * 100
-    print(f"  常见牌型+0 / 稀有+1 / 史诗+2")
+    print(f"  Common hands +0 / rare +1 / epic +2")
     print(f"  avg={d_tb2['avg']:.1f}  +{pct_b2:.1f}%  p90={d_tb2['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案Bv3：分层倍率（常见+1/稀有+1/史诗+2）
+    #  Option Bv3: tiered multiplier (common +1 / rare +1 / epic +2)
     # ════════════════════════════════════════════════
-    print("\n=== 方案Bv3：分层倍率（常见+1）===")
+    print("\n=== Option Bv3: Tiered Multiplier (Common +1) ===")
     TIER_MULT3 = {
         'PAIR': 1, 'TWO_PAIR': 1, 'THREE_OF_A_KIND': 1,
         'STRAIGHT': 1, 'FLUSH': 1,
@@ -688,16 +688,16 @@ if __name__ == '__main__':
     tb3 = [Buff(type='HAND_MULT_BONUS', hand_type=ht, bonus_mult=bm) for ht, bm in TIER_MULT3.items()]
     d_tb3 = simulate_avg_dps(tb3, n_sims=8000)
     pct_b3 = (d_tb3['avg'] - BASELINE['avg']) / BASELINE['avg'] * 100
-    print(f"  常见+1 / 稀有+1 / 史诗+2")
+    print(f"  Common +1 / rare +1 / epic +2")
     print(f"  avg={d_tb3['avg']:.1f}  +{pct_b3:.1f}%  p90={d_tb3['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  双属性牌加成（打出牌含2+元素时，每张 +N chip）
+    #  Dual-element card bonus (when a played set contains 2+ elements, each card gets +N chip)
     # ════════════════════════════════════════════════
     # ════════════════════════════════════════════════
-    #  方案Bv4：分层倍率（常见+0/稀有+2/史诗+3）
+    #  Option Bv4: tiered multiplier (common +0 / rare +2 / epic +3)
     # ════════════════════════════════════════════════
-    print("\n=== 方案Bv4：分层倍率（常见0/稀有2/史诗3）===")
+    print("\n=== Option Bv4: Tiered Multiplier (Common 0 / Rare 2 / Epic 3) ===")
     TIER_MULT4 = {
         'PAIR': 0, 'TWO_PAIR': 0, 'THREE_OF_A_KIND': 0,
         'STRAIGHT': 2, 'FLUSH': 2,
@@ -709,9 +709,9 @@ if __name__ == '__main__':
     print(f"  avg={d_tb4['avg']:.1f}  +{pct_b4:.1f}%  p90={d_tb4['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  方案Bv5：分层倍率（常见+1/稀有+2/史诗+3）
+    #  Option Bv5: tiered multiplier (common +1 / rare +2 / epic +3)
     # ════════════════════════════════════════════════
-    print("\n=== 方案Bv5：分层倍率（常见1/稀有2/史诗3）===")
+    print("\n=== Option Bv5: Tiered Multiplier (Common 1 / Rare 2 / Epic 3) ===")
     TIER_MULT5 = {
         'PAIR': 1, 'TWO_PAIR': 1, 'THREE_OF_A_KIND': 1,
         'STRAIGHT': 2, 'FLUSH': 2,
@@ -723,18 +723,18 @@ if __name__ == '__main__':
     print(f"  avg={d_tb5['avg']:.1f}  +{pct_b5:.1f}%  p90={d_tb5['p90']:.0f}")
 
     # ════════════════════════════════════════════════
-    #  最终汇总
+    #  Final summary
     # ════════════════════════════════════════════════
     print("\n" + "=" * 60)
-    print("=== 最终池子候选 ===")
+    print("=== Final Pool Candidates ===")
     print("=" * 60)
     FINAL = {}
-    FINAL['ALL_CHIPS +2']              = 171.9
-    FINAL['分层底分Cv2(10/20/35)']      = d_tc2['avg']
-    FINAL['分层倍率Bv4(0/2/3)']        = d_tb4['avg']
-    FINAL['分层倍率Bv5(1/2/3)']        = d_tb5['avg']
-    FINAL['ELEM_CHIPS +5']             = simulate_avg_dps([Buff(type='ELEMENT_CHIPS_BONUS', element='F', bonus_chips=5)], n_sims=1500)['avg']
-    FINAL['ELEM_CHIP_MULT x1.4']       = simulate_avg_dps([Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.4)], n_sims=1500)['avg']
-    FINAL['ELEM_CHIP_MULT x1.5']       = simulate_avg_dps([Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.5)], n_sims=1500)['avg']
+    FINAL['ALL_CHIPS +2']                 = 171.9
+    FINAL['Tiered Base Chips Cv2(10/20/35)'] = d_tc2['avg']
+    FINAL['Tiered Multiplier Bv4(0/2/3)']    = d_tb4['avg']
+    FINAL['Tiered Multiplier Bv5(1/2/3)']    = d_tb5['avg']
+    FINAL['ELEM_CHIPS +5']                = simulate_avg_dps([Buff(type='ELEMENT_CHIPS_BONUS', element='F', bonus_chips=5)], n_sims=1500)['avg']
+    FINAL['ELEM_CHIP_MULT x1.4']          = simulate_avg_dps([Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.4)], n_sims=1500)['avg']
+    FINAL['ELEM_CHIP_MULT x1.5']          = simulate_avg_dps([Buff(type='ELEMENT_CHIP_MULT', element='F', mult=1.5)], n_sims=1500)['avg']
 
-    print(f"\n{'Buff':<30} {'avg':>6} {'+%':>6}  {'定位'}")
+    print(f"\n{'Buff':<30} {'avg':>6} {'+%':>6}  {'Role'}")

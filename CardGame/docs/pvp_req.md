@@ -1,159 +1,159 @@
-# PvP 对战设计文档 — Elemental Poker v0.1
+# PvP Match Design Document - Elemental Poker v0.1
 
 ---
 
-## 一、模式概述
+## 1. Mode Overview
 
-异步 1v1 对战。双方各自操作，都确认后统一结算。HP 归零的一方丢一分，HP 重置。先达到 N 分者胜。
+An asynchronous 1v1 match. Both players act independently, and the results are resolved once both sides confirm. Whoever's HP reaches zero loses one point and HP is reset. The first player to reach N points wins.
 
-| 赛制 | 目标分数 | 基础 HP | Buff 次数 |
+| Match Format | Target Score | Base HP | Buff Count |
 |---|---|---|---|
-| BO2（二分制） | 2 | 600 | 1 次（开局前） |
-| BO3（三分制） | 3 | 600 | 2 次（开局前 + 第 2 轮后） |
-| BO5（五分制） | 5 | 600 | 3 次（开局前 + 第 2 轮后 + 第 6 轮后） |
+| BO2 (best of 2) | 2 | 600 | 1 time (before the match starts) |
+| BO3 (best of 3) | 3 | 600 | 2 times (before the match starts + after round 2) |
+| BO5 (best of 5) | 5 | 600 | 3 times (before the match starts + after round 2 + after round 6) |
 
 ---
 
-## 二、回合流程
+## 2. Turn Flow
 
-```
-[回合开始]
-  ├─ 双方补牌至 7 张
-  ├─ 技能/Shuffle 阶段（各自操作，互不可见）
-  ├─ 双方确认出牌 → 各自锁定
-  ├─ 两人都锁定 → 结算
-  │     A 的伤害打给 B，B 的伤害打给 A（同时生效）
-  │     双方展示手牌和得分
-  ├─ 判定 HP
-  │     ├─ 双方 HP > 0 → 下一回合
-  │     ├─ 一方 HP ≤ 0 → 丢一分，胜方 +1 分
-  │     │        HP 重置，进入 buff 窗口（若有），开始下一分
-  │     └─ 双方同时 HP ≤ 0 → A 和 B 同时丢分，进入下一分
-  └─ 有人达到目标分数 → 对局结束
+```txt
+[Turn starts]
+  |- Both players draw up to 7 cards
+  |- Skill / Shuffle phase (each player acts independently, hidden from the other)
+  |- Both players confirm their plays -> both lock in
+  |- Once both are locked -> resolve
+  |     A's damage is dealt to B, and B's damage is dealt to A (applied simultaneously)
+  |     Both players reveal hands and scores
+  |- Check HP
+  |     |- If both players have HP > 0 -> next turn
+  |     |- If one player's HP <= 0 -> that player loses a point, the winner gains 1 point
+  |     |        HP resets, enter the buff window (if any), and start the next point
+  |     `- If both players have HP <= 0 at the same time -> A and B both lose a point, then proceed to the next point
+  `- Once someone reaches the target score -> match ends
 ```
 
 ---
 
-## 三、对战伤害公式
+## 3. Match Damage Formula
 
-与 PvE 相同：
+Same as PvE:
 
+```txt
+Damage = floor((base chips + ΣcardChip) x multiplier)
 ```
-伤害 = floor((底分 + ΣcardChip) × 倍率)
-```
 
-- 双方各自对对方造成伤害
-- 没有 DEFEND / CHARGE / Boss 行为
-- 没有蓄力爆发
+- Both players deal damage to each other
+- There is no DEFEND / CHARGE / boss behavior
+- There is no charged burst
 
 ---
 
-## 四、技能系统
+## 4. Skill System
 
-双方各自独立充能池。同一套技能：
+Both players have independent energy pools. The same skill set is used:
 
-| 技能 | 消耗 | 效果 |
+| Skill | Cost | Effect |
 |---|---|---|
-| skillChangeColor(cardId, newColor) | 1 能量 | 变色 |
-| skillChangeCost(cardId, newRank) | 1 能量 | 变费 |
-| skillShield() | 1 能量 | 免疫伤害 |
+| skillChangeColor(cardId, newColor) | 1 energy | Change color |
+| skillChangeCost(cardId, newRank) | 1 energy | Change cost |
+| skillShield() | 1 energy | Negate damage |
 
-**PvP 中护盾机制**：激活后免疫本回合对方造成的伤害。盾持续 1 回合，碎裂后进入 3 回合冷却。消耗 1 能量。
+**Shield behavior in PvP**: after activation, it negates the opponent's damage for that turn. The shield lasts 1 turn, then breaks and enters a 3-turn cooldown. It costs 1 energy.
 
-充能池独立于 PvE：
-- 初始 3 点
-- 跨回合不恢复
-- 每次赢/输一分后，HP 重置同时回满充能
-- Shuffle 保持 2 次/回合
+The energy pool is independent from PvE:
+- Starts at 3
+- Does not regenerate across turns
+- Each time a point is won or lost, HP resets and energy is fully restored
+- Shuffle remains 2 times per turn
 
 ---
 
-## 五、Buff 系统
+## 5. Buff System
 
-PvP 不使用数值型 buff（属性增伤、牌型加成、固伤等全部禁用）。只保留工具类 + PvP 专属互动型。
+PvP does not use numeric buffs (all elemental damage bonuses, hand bonuses, fixed damage bonuses, etc. are disabled). Only utility buffs and PvP-specific interaction buffs remain.
 
-### 5.1 复用 PvE 的工具 Buff（品质均为普通）
+### 5.1 Reuse PvE Utility Buffs (all common rarity)
 
-| # | Buff | 效果 | PvP 备注 |
+| # | Buff | Effect | PvP Notes |
 |---|---|---|---|
-| 1 | Shuffle +1 | 每回合换牌 3 次 | 同 PvE |
-| 2 | 充能 +1 | 能量上限 +1 | 同 PvE |
-| 3 | 手牌 +1 | 手牌上限 8 张 | 同 PvE |
+| 1 | Shuffle +1 | 3 shuffle actions per turn | Same as PvE |
+| 2 | Energy +1 | Energy cap +1 | Same as PvE |
+| 3 | Hand +1 | Hand cap 8 cards | Same as PvE |
 
-### 5.2 PvP 专属 Buff —— 设计思路
+### 5.2 PvP-Specific Buffs - Design Direction
 
-PvE buff 是"让数字更大"——`ALL_CHIPS +2`、`倍率 +1`。PvP 如果也是这些，两边都在叠伤害，互秒，没意思。
+PvE buffs are about "making the numbers bigger" - `ALL_CHIPS +2`, `multiplier +1`. If PvP uses the same type of buff, both sides simply scale damage and one-shot each other, which is not interesting.
 
-PvP buff 做**改变打法**——信息差、干扰对手、绝地翻盘。分两档：
+PvP buffs should **change how the match is played** - information advantage, disruption, and comeback tools. There are three tiers:
 
-| 档位 | 出现率 | 定位 | 数量 |
+| Tier | Frequency | Positioning | Count |
 |---|---|---|---|
-| **普通** | ~50% | 战术干扰、稳定收益 | 6 个 |
-| **稀有** | ~40% | 高影响力、改变比赛节奏 | 8 个 |
-| **史诗** | ~10% | 改变游戏规则 | 1 个 |
+| **Common** | ~50% | Tactical disruption, stable value | 6 |
+| **Rare** | ~40% | High-impact, changes match tempo | 8 |
+| **Epic** | ~10% | Changes the rules of the game | 1 |
 
-每层 3 选 1 时混合抽取：1-2 普通 + 1 稀有，约 10% 概率含 1 史诗。
+When selecting 1 of 3 each round, draw from a mix: 1-2 common + 1 rare, with about a 10% chance of one epic.
 
-#### 普通档
+#### Common Tier
 
-| # | Buff | 效果 |
+| # | Buff | Effect |
 |---|---|---|
-| P1 | **换牌干扰** | 对方本回合 Shuffle 次数 -1（下限为 0） |
-| P2 | **偷牌** | Shuffle 后，从对方手牌中随机偷一张到自己手里（对方少一张，你多一张） |
-| P3 | **透支** | 充能不足时可透支 1 点（下回合同充能 -1，不能连续透支） |
-| P4 | **回能** | 额外多 1 点充能 |
-| P5 | **赌徒** | 每回合出牌前掷骰：50% 概率伤害 ×1.5，50% 概率伤害 ×0.7 |
-| P6 | **收藏家** | 手牌中每有一张未打出的满点数牌（K/A），本回合伤害 +15 |
+| P1 | **Shuffle Disruption** | Reduce the opponent's Shuffle count by 1 this turn (minimum 0) |
+| P2 | **Steal** | After Shuffle, steal one random card from the opponent's hand into your own hand (they lose one, you gain one) |
+| P3 | **Overdraft** | You may spend 1 energy even when you are short on energy (the next turn starts with -1 energy; cannot overdraft consecutively) |
+| P4 | **Recharge** | Gain 1 extra energy |
+| P5 | **Gambler** | Before each play, roll a die: 50% chance damage x1.5, 50% chance damage x0.7 |
+| P6 | **Collector** | For every unplayed max-rank card (K/A) in hand, gain +15 damage this turn |
 
-#### 稀有档
+#### Rare Tier
 
-| # | Buff | 效果 |
+| # | Buff | Effect |
 |---|---|---|
-| P7 | **不屈** | 受到致命伤害时，保留 1 点 HP（每分限触发 1 次） |
-| P8 | **狂暴** | 当 HP 降至 25% 以下时，下一出手伤害 ×1.5（每分限触发 1 次） |
-| P9 | **复制** | 对手使用技能后，你可免费再用一次（消耗为 0；每分限 1 次） |
-| P10 | **空手道** | 充能为 0 时出手，伤害 ×1.3 |
-| P11 | **干扰** | 每次结算时，将对方随机一张牌降低至1费 |
-| P12 | **破釜** | 主动将 HP 降至 1，下一出手伤害 ×3（每局限 1 次） |
-| P13 | **反伤盾** | 护盾激活时，对方本回合造成的伤害 1:1 反弹回去（自身不受伤害，每分限 1 次） |
-| P14 | **封印** | 消耗 1 充能，封印对方一个技能槽，该技能本轮（1 分）内无法使用（每分限 1 次） |
+| P7 | **Unbending** | When you take lethal damage, stay at 1 HP (once per point) |
+| P8 | **Berserk** | When HP drops below 25%, the next play deals x1.5 damage (once per point) |
+| P9 | **Copy** | After the opponent uses a skill, you may use it once for free (cost 0; once per point) |
+| P10 | **Empty-Hand Karate** | When your energy is 0, your play deals x1.3 damage |
+| P11 | **Interference** | On each resolution, randomly reduce one of the opponent's cards to cost 1 |
+| P12 | **Desperation** | Reduce your HP to 1 manually, then your next play deals x3 damage (once per match) |
+| P13 | **Reflect Shield** | When your shield is active, reflect the opponent's damage back 1:1 this turn (you take no damage; once per point) |
+| P14 | **Seal** | Spend 1 energy to seal one of the opponent's skill slots; that skill cannot be used for the current point (once per point) |
 
-#### 史诗档（出现率约 10%，Buff 窗口中极低概率可见）
+#### Epic Tier (roughly 10% appearance, extremely rare in the buff window)
 
-| # | Buff | 效果 |
+| # | Buff | Effect |
 |---|---|---|
-| P15 | **孤注** | 仅打出 1 张 rank≤3 的牌时，选取手牌中点数最大的两张牌与该牌乘算（例：打 A(1)，手牌有 Q(12) 和 K(13)，伤害 = 1×12×13 = 156）。独立充能（初始 1 点），用后 3 回合恢复 1 点 |
+| P15 | **All-in** | Only when you play 1 card with rank <= 3, multiply it by the two highest-rank cards in your hand (example: play A(1), have Q(12) and K(13), damage = 1x12x13 = 156). Separate energy pool (starts with 1 point, recovers 1 point every 3 turns after use) |
 
-### 5.3 Buff 时机
+### 5.3 Buff Timing
 
-- BO2：开局前选 1 次（3 选 1）
-- BO3：开局前选 1 次 + 第 2 轮结束后选 1 次 → 共 2 次
-- BO5：开局前选 1 次 + 第 2 轮结束后选 1 次 + 第 6 轮结束后选 1 次 → 共 3 次
+- BO2: choose once before the match starts (pick 1 of 3)
+- BO3: choose once before the match starts + once after round 2 -> total 2 times
+- BO5: choose once before the match starts + once after round 2 + once after round 6 -> total 3 times
 
-工具类 buff（Shuffle+1、充能+1、手牌+1）为唯一选择，选后从池子移除。专属 buff 可重复叠加。
+Utility buffs (Shuffle +1, Energy +1, Hand +1) are unique choices and are removed from the pool after selection. PvP-specific buffs can stack repeatedly.
 
 ---
 
-## 六、房间系统
+## 6. Room System
 
-### 6.1 创建房间
+### 6.1 Create Room
 
-玩家 A 点击"创建房间"→ 生成 6 位房间号 → 等待玩家 B 加入。
+Player A clicks "Create Room" -> a 6-digit room code is generated -> wait for Player B to join.
 
-### 6.2 加入房间
+### 6.2 Join Room
 
-玩家 B 输入房间号 → 加入 → 双方就位 → 赛前选 buff → 开始。
+Player B enters the room code -> joins -> both players are seated -> pre-match buff selection -> start.
 
-### 6.3 掉线/退房
+### 6.3 Disconnect / Leave
 
-- 任何一方断开或主动退出 → **直接判负**，对手胜
-- 断线 30 秒内重连 → 继续（待定）
+- Either player disconnects or leaves voluntarily -> **immediate loss**, opponent wins
+- Reconnect within 30 seconds -> continue (pending)
 
 ---
 
-## 七、状态机设计
+## 7. State Machine Design
 
-PvP 状态机为独立的状态机，不修改现有 PvE 状态机。
+The PvP state machine is independent and does not modify the existing PvE state machine.
 
 ### 7.1 PvPGameState
 
@@ -173,65 +173,65 @@ interface PvPGameState {
 interface PvPPlayerState {
   userId: string;
   socketId: string;
-  hp: number;           // 当前 HP
+  hp: number;           // current HP
   maxHp: number;        // 600
-  score: number;        // 已赢几分
-  energy: number;       // 当前充能
-  energyMax: number;    // 充能上限（初始 3）
+  score: number;        // points already won
+  energy: number;       // current energy
+  energyMax: number;    // energy cap (starts at 3)
   buffs: PvPBuff[];
   hand: Card[];
   deck: Card[];
   discardPile: Card[];
 
-  // 回合内
-  locked: boolean;      // 是否已确认出牌
+  // within the turn
+  locked: boolean;      // whether the player has confirmed the play
   selectedCards: CardId[];
   currentScore: number | null;
 }
 ```
 
-### 7.2 状态转移
+### 7.2 State Transitions
 
-```
-MATCHING（等待对手）
-  → BUFF_SELECT（双方选 buff）
-    → PLAYING（双方操作）
-      → 双方 locked → RESOLVE（结算，亮牌，扣血）
-        → 有人 HP ≤ 0 → ROUND_END（得分判定）
-          → 有人达到 targetScore → MATCH_END
-          → 否则 → BUFF_SELECT（如果触发 buff 窗口）或 PLAYING（新一回合）
-        → 无人 HP ≤ 0 → PLAYING（下一回合）
+```txt
+MATCHING (waiting for opponent)
+  -> BUFF_SELECT (both players choose buffs)
+    -> PLAYING (both players act)
+      -> both locked -> RESOLVE (resolve, reveal cards, apply damage)
+        -> if someone has HP <= 0 -> ROUND_END (score check)
+          -> if someone reaches targetScore -> MATCH_END
+          -> otherwise -> BUFF_SELECT (if a buff window is triggered) or PLAYING (next round)
+        -> if no one has HP <= 0 -> PLAYING (next round)
 ```
 
 ---
 
-## 八、Socket 事件
+## 8. Socket Events
 
-| 客户端 → 服务端 | 参数 | 说明 |
+| Client -> Server | Parameters | Description |
 |---|---|---|
-| `createPvpRoom` | `{ format }` | 创建房间，返回 roomId |
-| `joinPvpRoom` | `{ roomId }` | 加入房间 |
-| `pvpSelectBuff` | `{ buffId }` | 选择 buff |
-| `pvpUseSkill` | `{ skill, cardId, target }` | 使用技能 |
-| `pvpShuffle` | `{ cardIds }` | 换牌 |
-| `pvpPlayConfirm` | `{ cardIds }` | 确认出牌（锁定） |
+| `createPvpRoom` | `{ format }` | Create a room and return the roomId |
+| `joinPvpRoom` | `{ roomId }` | Join a room |
+| `pvpSelectBuff` | `{ buffId }` | Select a buff |
+| `pvpUseSkill` | `{ skill, cardId, target }` | Use a skill |
+| `pvpShuffle` | `{ cardIds }` | Shuffle |
+| `pvpPlayConfirm` | `{ cardIds }` | Confirm play (lock in) |
 
-| 服务端 → 客户端 | 说明 |
+| Server -> Client | Description |
 |---|---|
-| `pvpRoomState` | 房间状态变更（对手加入、buff 窗口开始等） |
-| `pvpGameState` | 游戏状态推送（每步操作后） |
-| `pvpResolve` | 结算结果（双方亮牌 + 伤害值） |
-| `pvpScore` | 得分更新 |
-| `pvpMatchEnd` | 对局结束 |
+| `pvpRoomState` | Room state changes (opponent joined, buff window starts, etc.) |
+| `pvpGameState` | Game state push (after each action) |
+| `pvpResolve` | Resolution result (both hands revealed + damage values) |
+| `pvpScore` | Score update |
+| `pvpMatchEnd` | Match ends |
 
 ---
 
-## 九、数据库
+## 9. Database
 
-对局结束后写入 Match 记录：
+Write a Match record when the match ends:
 
 ```typescript
-// 复用现有 Match 模型，matchType='PVP'
+// Reuse the existing Match model, matchType='PVP'
 {
   matchType: 'PVP',
   format: 'BO3',
@@ -248,32 +248,32 @@ MATCHING（等待对手）
 }
 ```
 
-MatchReplay 复用现有结构，`turns` 数组记录每回合双方的操作和结果。
+MatchReplay reuses the existing structure, and the `turns` array records each round's actions and results.
 
 ---
 
-## 十、后端实现文件规划
+## 10. Backend Implementation File Plan
 
-```
+```txt
 backend/src/pvp/
-  types.ts          ← PvPGameState, PvPPlayerState, PvPBuff 等接口
-  machine.ts        ← transition(ctx, event) 自定义 PvP 状态机
-  guards.ts         ← 守卫条件（canLock, canResolve, canBuff 等）
-  actions.ts        ← 回合结算、HP扣减、得分判定、buff应用
-  runtime.ts        ← 房间管理（createRoom, sendEvent, stopRoom）
-  buffs.ts          ← PvP buff 池（普通/稀有抽取、唯一性检查）
-  index.ts          ← 统一导出
+  types.ts          <- PvPGameState, PvPPlayerState, PvPBuff, etc.
+  machine.ts        <- custom PvP state machine transition(ctx, event)
+  guards.ts         <- guard conditions (canLock, canResolve, canBuff, etc.)
+  actions.ts        <- round resolution, HP reduction, score checks, buff application
+  runtime.ts        <- room management (createRoom, sendEvent, stopRoom)
+  buffs.ts          <- PvP buff pool (common / rare selection, uniqueness checks)
+  index.ts          <- unified export
 backend/src/utils/
-  pvpHandlers.ts    ← Socket 事件处理器（对接 pvp/ 模块）
+  pvpHandlers.ts    <- Socket event handler (connects to the pvp/ module)
 ```
 
-状态机和 PvE 独立，不复用 `pve/roundMachine.ts`。复用部分：`lib/deck.ts`（牌堆）、`lib/hand.ts`（伤害计算）、`lib/skills.ts`（技能逻辑）。
+The state machine is separate from PvE and does not reuse `pve/roundMachine.ts`. Reused parts: `lib/deck.ts` (deck), `lib/hand.ts` (damage calculation), `lib/skills.ts` (skill logic).
 
 ---
 
-## 十一、待定事项
+## 11. Open Questions
 
-- [ ] 断线重连时间窗口（30 秒是否合适）
-- [ ] BO2/BO3/BO5 的排队匹配是否未来做随机队列
-- [ ] 对局聊天/表情系统是否需要
-- [ ] PvP 排行榜（胜率、最高连胜）
+- [ ] Is a 30-second reconnect window appropriate?
+- [ ] Should BO2/BO3/BO5 matching eventually become a random queue?
+- [ ] Is an in-match chat / emoji system needed?
+- [ ] Should there be a PvP leaderboard (win rate, best win streak)?

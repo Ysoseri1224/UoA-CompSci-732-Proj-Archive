@@ -130,10 +130,10 @@ export default function LobbyPage() {
         if (cancelled) return;
         const games = data?.totalGames ?? 0;
         const wins = data?.totalWins ?? 0;
-        const wr =
-          games > 0 && typeof data?.winRate === 'number'
-            ? `${(data.winRate * 100).toFixed(1)}%`
-            : '—';
+        const winRateNum =
+          typeof data?.winRate === 'number' ? data.winRate : games > 0 ? wins / games : 0;
+        const wrDisplay = games > 0 ? `${(winRateNum * 100).toFixed(1)}%` : '—';
+        const maxDamage = typeof data?.maxDamage === 'number' ? data.maxDamage : 0;
         setStats({
           totalWins: wins,
           totalGames: games,
@@ -249,7 +249,7 @@ export default function LobbyPage() {
 
       <div className="lobby-dash-shell relative z-10 flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 pb-5 pt-5 sm:px-6 md:pb-6 xl:px-12">
         {/* —— Three columns (reference proportions) —— */}
-        <div className="lobby-dash-grid grid min-h-0 min-w-0 max-w-full flex-1 grid-cols-1 gap-8 pb-3 lg:grid-cols-[minmax(248px,280px)_minmax(0,1fr)_minmax(268px,300px)] lg:items-stretch lg:gap-12 xl:gap-16">
+        <div className="lobby-dash-grid grid min-h-0 min-w-0 max-w-full flex-1 grid-cols-1 gap-8 pb-3 lg:grid-cols-[minmax(248px,280px)_minmax(0,1fr)_minmax(300px,360px)] lg:items-stretch lg:gap-12 xl:gap-16">
           {/* LEFT — profile / XP / stats / nav */}
           <aside
             className={`lobby-sidebar-left ${panelSurface} ${padStd} flex min-h-0 min-w-0 flex-col overflow-y-auto`}>

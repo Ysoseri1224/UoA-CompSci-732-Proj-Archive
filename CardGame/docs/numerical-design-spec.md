@@ -1,277 +1,277 @@
-# 数值策划：考虑因素与计算方法
-# Elemental Poker v0.1 — 供AI生成数值表使用
+# Numeric Design: Considerations and Calculation Method
+# Elemental Poker v0.1 - For AI-Generated Numeric Tables
 
-注意：以下部分计算结果来自旧底分表的模拟，需要根据A=1, 2-10=面值, J/Q/K=11,12,13进行重算
-
----
-
-## 一、已确认的固定参数（不可改动）
-
-```
-玩家初始HP         = 200
-第1层Boss HP       = 300
-牌库               = 水/火/草各1-13，共39张，无重复
-手牌数             = 7张
-Shuffle次数/回合   = 2次（每回合重置）
-计分公式           = floor((牌型底分 + Σ打出牌chip) × 牌型倍率)
-chip映射           = A=1, 2-10=面值, J=11, Q=12, K=13
-```
-
-### 牌型得分表（固定）
-```
-同花顺  底分100  倍率8
-四条    底分60   倍率7
-葫芦    底分40   倍率6
-同花    底分35   倍率4
-顺子    底分30   倍率4
-三条    底分30   倍率3
-两对    底分20   倍率2
-一对    底分10   倍率2
-高牌    底分5    倍率1
-```
+Note: the calculations below were produced from the old base-chip table and need to be recalculated using A=1, 2-10=face value, J/Q/K=11,12,13.
 
 ---
 
-## 二、已知的基准数值（来自模拟，5万次，7张最优出牌）
+## 1. Confirmed Fixed Parameters (Do Not Change)
 
-```
-无buff时玩家期望DPS  = 147
-无buff时DPS中位数    = 128
-无buff时DPS P75      = 152
-无buff时DPS P90      = 280
-
-牌型出现概率（最优出牌策略下）：
-  高牌    18.8%  avg伤害  56
-  一对    42.5%  avg伤害 123
-  两对    20.9%  avg伤害 142
-  三条     3.2%  avg伤害 243
-  顺子     4.3%  avg伤害 278
-  同花     8.6%  avg伤害 289
-  葫芦     1.6%  avg伤害 544
-  四条     ~0%
-  同花顺   0.1%  avg伤害1066
+```txt
+Player initial HP     = 200
+Boss HP at layer 1    = 300
+Deck                  = Water / Fire / Grass, ranks 1-13, 39 cards total, no duplicates
+Hand size             = 7
+Shuffle per turn      = 2 (resets every turn)
+Scoring formula       = floor((hand base chips + Σplayed card chip) x hand multiplier)
+chip mapping          = A=1, 2-10=face value, J=11, Q=12, K=13
 ```
 
-### 关键结论
-- 玩家63%的时间处于"一对/两对"平台，avg伤害约130
-- 属性增伤buff（×1.1/层）对avg DPS影响极弱：
-  10层叠加后DPS仅从147→195（+33%），因为增伤只作用于匹配色牌的chip部分
-- **结论：属性增伤buff不能作为后期数值成长的主要来源，必须设计更强力的buff类型**
-
----
-
-## 三、Buff成长链设计要求
-
-### 3.1 第1层结束后固定选择
-```
-三选一（选属性专精）：
-  水系专精 / 火系专精 / 草系专精
-  效果：该属性牌的chip值 × 1.1（第1层的属性增伤基础）
-```
-
-### 3.2 第2层起每层必得一个强化（3选1）
-**设计要求：**
-- 每层的buff池只出现已选属性相关的选项
-- buff效果必须能实质性提升玩家DPS，不能全是弱效
-- buff分三个强度梯度：弱（行为引导）/ 中（稳定提升）/ 强（高风险高回报）
-- 10层累积后，玩家avg DPS应达到400-600（无buff147，目标增长约3-4倍）
-
-### 3.3 需要设计的buff类型（至少8种，覆盖以下方向）
-
-**方向A：直接伤害放大**
-- 牌型倍率加成（最强，直接乘以倍率公式）
-- 牌型底分加成（次强）
-- 全手牌chip加成（稳定）
-- 待补充
-
-**方向B：属性增伤（当前已有的弱效方向，作为辅助）**
-- 属性chip倍率（已有，弱）
-- 属性牌底分加成（新增）
-- 待补充
-
-**方向C：操作空间扩展**
-- Shuffle次数+1（每回合可用3次）
-- 护盾冷却缩短
-- 待补充
-
-**方向D：条件触发**
-- 凑成同花时额外伤害+X%
-- 连续两回合同牌型触发爆发
-- 血量低于50%时伤害+X%
-- 待补充
-
-### 3.4 DPS成长目标曲线
-```
-第1层（无buff）：avg DPS ≈ 147
-第3层（2个buff）：avg DPS ≈ 200-250
-第5层（4个buff）：avg DPS ≈ 280-350
-第7层（6个buff）：avg DPS ≈ 380-450
-第10层（9个buff）：avg DPS ≈ 500-600
-```
-生成数值表时，每层的buff效果必须能推动DPS达到上述目标。
-
----
-
-## 四、Boss数值设计要求
-
-### 4.1 Boss HP增长
-```
-第1层：300（固定）
-成长方式：独立设计，不跟随玩家DPS（因为DPS成长曲线非线性）
-参考成长率：第2-3层每层×1.4，第4-6层每层×1.5，第7-10层每层×1.3-1.4
-目标：第10层Boss HP约为第1层的15-20倍（4500-6000）
-```
-
-### 4.2 对局时长锚定（按段设计）
-```
-第1-3层：3-5回合击杀Boss（割草感，容错极高）
-第4-6层：6-10回合击杀Boss（有压力，需要运营）
-第7-10层：10-15回合击杀Boss（攻坚，需要精准决策）
-```
-
-计算方式：
-```
-有效DPS = avg_DPS × (1 - DEFEND频率×0.5)
-  （DEFEND回合玩家伤害减半而非清零，减轻压力）
-目标击杀回合 = Boss HP / 有效DPS
-```
-
-### 4.3 Boss ATK设计
-```
-锚定：玩家在"纯普攻模式"下能抗survive_rounds回合
-Boss普通ATK = player_HP / survive_rounds
-
-survive_rounds目标：
-  第1-3层：20-25回合（玩家几乎不会被打死）
-  第4-6层：9-12回合（开始有被打死的风险）
-  第7-10层：6-9回合（必须用护盾/运营控制受伤）
-```
-
-### 4.4 Boss行为系统
-
-**三种行为及其效果：**
-```
-ATTACK（普通攻击）：造成本层Boss ATK伤害
-CHARGE（蓄力）：本回合不攻击，下回合强制ATTACK且伤害×2.2
-DEFEND（防御/减伤）：本回合不攻击玩家；玩家本回合造成的伤害减半（不是清零）
-```
-
-**行为权重表（开发端可配置）：**
-```
-层数    ATTACK  CHARGE  DEFEND
-1-3     80%     15%     5%
-4-6     60%     25%     15%
-7-10    45%     30%     25%
-```
-
-**Boss行为对DPS的实际影响（期望值计算）：**
-```
-有效伤害系数 = P(ATTACK)×1.0 + P(CHARGE)×1.0 + P(DEFEND)×0.5
-  第1-3层：0.80×1 + 0.15×1 + 0.05×0.5 = 0.975
-  第4-6层：0.60×1 + 0.25×1 + 0.15×0.5 = 0.925
-  第7-10层：0.45×1 + 0.30×1 + 0.25×0.5 = 0.875
-```
-
-**Boss攻击期望伤害（考虑蓄力）：**
-```
-Boss攻击期望 = P(ATTACK)×ATK + P(CHARGE)×0 + P(CHARGE_RELEASE)×ATK×2.2
-  （CHARGE_RELEASE在蓄力后的下一回合必定触发）
-  简化：每两回合期望伤害 ≈ ATK×(P_ATTACK×2 + P_CHARGE×2.2)
+### Hand Score Table (Fixed)
+```txt
+Straight Flush  base 100  mult 8
+Four of a Kind  base 60   mult 7
+Full House      base 40   mult 6
+Flush           base 35   mult 4
+Straight        base 30   mult 4
+Three of a Kind base 30   mult 3
+Two Pair        base 20   mult 2
+Pair            base 10   mult 2
+High Card       base 5    mult 1
 ```
 
 ---
 
-## 五、胜率估算方法
+## 2. Known Baseline Numbers (from simulation, 50,000 runs, best 7-card play)
 
-**简化比值法（快速估算）：**
+```txt
+Expected player DPS without buffs = 147
+Median DPS without buffs           = 128
+P75 DPS without buffs              = 152
+P90 DPS without buffs              = 280
+
+Hand appearance probability (under optimal play):
+  High Card     18.8%  avg damage   56
+  Pair          42.5%  avg damage  123
+  Two Pair      20.9%  avg damage  142
+  Three of a Kind 3.2% avg damage  243
+  Straight       4.3%  avg damage  278
+  Flush          8.6%  avg damage  289
+  Full House     1.6%  avg damage  544
+  Four of a Kind  ~0%
+  Straight Flush  0.1% avg damage 1066
 ```
-kill_rounds  = Boss HP / (avg_DPS × 有效伤害系数)
+
+### Key Conclusions
+- The player spends 63% of the time in the "Pair / Two Pair" plateau, with average damage around 130.
+- Element damage buffs (x1.1 per layer) have very little effect on average DPS:
+  after 10 stacks, DPS only grows from 147 to 195 (+33%) because the bonus only applies to the chip portion of matching-color cards.
+- **Conclusion: element damage buffs cannot be the main source of late-game growth; stronger buff types are required.**
+
+---
+
+## 3. Buff Growth Chain Requirements
+
+### 3.1 Fixed Choice After Layer 1
+```txt
+Choose one of three specialization paths:
+  Water specialization / Fire specialization / Grass specialization
+  Effect: chip value of that element x 1.1 (the base element-damage buff for layer 1)
+```
+
+### 3.2 One Enhancement Per Layer from Layer 2 Onward (Pick 1 of 3)
+**Design Requirements:**
+- Each layer's buff pool should only show options related to the chosen element
+- Buffs must materially improve player DPS; not all options can be weak
+- Buffs should be split into three strength tiers: weak (behavior guidance) / medium (stable boost) / strong (high-risk, high-reward)
+- After stacking across 10 layers, the player's average DPS should reach 400-600 (from 147 without buffs, a target growth of roughly 3-4x)
+
+### 3.3 Buff Types That Need To Be Designed (At least 8, covering these directions)
+
+**Direction A: direct damage amplification**
+- Hand multiplier bonus (strongest, applies directly to the multiplier formula)
+- Hand base-chip bonus (second strongest)
+- All-hand chip bonus (stable)
+- More to be added
+
+**Direction B: element damage amplification (the current weak direction, used as support)**
+- Element chip multiplier (already exists, weak)
+- Element card base-chip bonus (new)
+- More to be added
+
+**Direction C: expanded action space**
+- Shuffle count +1 (3 uses per turn)
+- Shield cooldown reduction
+- More to be added
+
+**Direction D: conditional triggers**
+- Extra damage +X% when forming a Flush
+- Burst damage on two consecutive turns with the same hand type
+- Damage +X% when HP is below 50%
+- More to be added
+
+### 3.4 DPS Growth Target Curve
+```txt
+Layer 1 (no buffs): avg DPS ~= 147
+Layer 3 (2 buffs): avg DPS ~= 200-250
+Layer 5 (4 buffs): avg DPS ~= 280-350
+Layer 7 (6 buffs): avg DPS ~= 380-450
+Layer 10 (9 buffs): avg DPS ~= 500-600
+```
+When generating the numeric table, each layer's buff effects must drive DPS toward these targets.
+
+---
+
+## 4. Boss Numeric Design Requirements
+
+### 4.1 Boss HP Growth
+```txt
+Layer 1: 300 (fixed)
+Growth method: designed independently, not tied to player DPS (because DPS growth is nonlinear)
+Reference growth rate: x1.4 per layer for layers 2-3, x1.5 per layer for layers 4-6, x1.3-1.4 per layer for layers 7-10
+Target: Layer 10 boss HP should be about 15-20x layer 1 (4500-6000)
+```
+
+### 4.2 Run Length Anchoring (by segment)
+```txt
+Layers 1-3: kill the boss in 3-5 turns (high forgiveness, easy pace)
+Layers 4-6: kill the boss in 6-10 turns (pressure starts, requires management)
+Layers 7-10: kill the boss in 10-15 turns (hard push, requires precise decisions)
+```
+
+Calculation method:
+```txt
+Effective DPS = avg_DPS x (1 - DEFEND frequency x 0.5)
+  (DEFEND turns halve player damage rather than nullifying it, which reduces pressure)
+Target kill turns = Boss HP / Effective DPS
+```
+
+### 4.3 Boss ATK Design
+```txt
+Anchor: the number of turns the player can survive in a "pure normal-attack mode"
+Boss normal ATK = player_HP / survive_rounds
+
+Target survive_rounds:
+  Layers 1-3: 20-25 turns (the player is almost never killed)
+  Layers 4-6: 9-12 turns (killing the player starts to become a risk)
+  Layers 7-10: 6-9 turns (shield / management is needed to control damage taken)
+```
+
+### 4.4 Boss Behavior System
+
+**Three behaviors and their effects:**
+```txt
+ATTACK (normal attack): deal the layer's Boss ATK damage
+CHARGE (charge): do not attack this turn, then force ATTACK next turn with x2.2 damage
+DEFEND (defense / damage reduction): boss does not attack this turn; player damage this turn is halved (not zeroed)
+```
+
+**Behavior weight table (configurable by development):**
+```txt
+Layer    ATTACK  CHARGE  DEFEND
+1-3      80%     15%     5%
+4-6      60%     25%     15%
+7-10     45%     30%     25%
+```
+
+**Actual DPS impact of boss behavior (expected-value calculation):**
+```txt
+Effective damage coefficient = P(ATTACK)x1.0 + P(CHARGE)x1.0 + P(DEFEND)x0.5
+  Layers 1-3: 0.80x1 + 0.15x1 + 0.05x0.5 = 0.975
+  Layers 4-6: 0.60x1 + 0.25x1 + 0.15x0.5 = 0.925
+  Layers 7-10: 0.45x1 + 0.30x1 + 0.25x0.5 = 0.875
+```
+
+**Expected boss attack damage (including charge):**
+```txt
+Expected boss attack = P(ATTACK)xATK + P(CHARGE)x0 + P(CHARGE_RELEASE)xATKx2.2
+  (CHARGE_RELEASE is forced on the turn after charging)
+  Simplified: expected damage per 2 turns ~= ATK x (P_ATTACK x 2 + P_CHARGE x 2.2)
+```
+
+---
+
+## 5. Win-Rate Estimation Method
+
+**Simplified ratio method (quick estimate):**
+```txt
+kill_rounds    = Boss HP / (avg_DPS x effective damage coefficient)
 survive_rounds = player_HP / Boss_ATK
 
 ratio = survive_rounds / kill_rounds
 
-ratio > 2.5 → 胜率 >99%
-ratio 1.8-2.5 → 胜率 ~95%
-ratio 1.3-1.8 → 胜率 ~90%
-ratio 1.1-1.3 → 胜率 ~80%
-ratio 0.95-1.1 → 胜率 ~70%
-ratio 0.85-0.95 → 胜率 ~60%
-ratio 0.75-0.85 → 胜率 ~55%
-ratio < 0.75 → 胜率 <50%
+ratio > 2.5   -> win rate >99%
+ratio 1.8-2.5 -> win rate ~95%
+ratio 1.3-1.8 -> win rate ~90%
+ratio 1.1-1.3 -> win rate ~80%
+ratio 0.95-1.1 -> win rate ~70%
+ratio 0.85-0.95 -> win rate ~60%
+ratio 0.75-0.85 -> win rate ~55%
+ratio < 0.75  -> win rate <50%
 ```
 
-**注意：护盾机制会额外提升胜率约5-10%（未计入上述估算）**
+**Note: shield mechanics add about 5-10% to the win rate (not included above).**
 
 ---
 
-## 六、目标胜率曲线
+## 6. Target Win-Rate Curve
 
-```
-第1层：>99%（必胜教学关）
-第2层：~98%
-第3层：~95%
-第4层：~80%（★难度跃升）
-第5层：~72%
-第6层：~65%
-第7层：~58%
-第8层：~52%
-第9层：~47%
-第10层：~42%
+```txt
+Layer 1: >99% (guaranteed tutorial win)
+Layer 2: ~98%
+Layer 3: ~95%
+Layer 4: ~80% (major difficulty spike)
+Layer 5: ~72%
+Layer 6: ~65%
+Layer 7: ~58%
+Layer 8: ~52%
+Layer 9: ~47%
+Layer 10: ~42%
 ```
 
 ---
 
-注意：这个胜率是有问题的，既然双方的数值都在同步提升，胜率不应该下滑的那么快
+Note: this win-rate curve is problematic. Since both sides scale up together, the win rate should not fall this quickly.
 
-## 七、数值表格式要求
+## 7. Numeric Table Format Requirements
 
-生成的数值表应包含以下列：
+The generated numeric table should contain the following columns:
 
+```txt
+Layer | Boss HP | Boss ATK | Charge Burst ATK | Player Expected DPS | Effective DPS | Kill Rounds (avg) | Survive Rounds | Win-Rate Ratio | Win-Rate Estimate | New Buff Effect | DPS After Buff Stacking
 ```
-层数 | Boss HP | Boss ATK | 蓄力爆发ATK | 玩家期望DPS | 有效DPS | 击杀回合(avg) | Survive回合 | 胜率比值 | 胜率估算 | 新增Buff效果 | Buff累积后DPS
-```
 
-每层还需注明：
-- 本层Boss行为权重（ATTACK/CHARGE/DEFEND比例）
-- 本层3选1的buff候选池（3个选项）
-- 设计备注（关卡体验定位）
+Each layer should also include:
+- The boss behavior weights for that layer (ATTACK / CHARGE / DEFEND ratios)
+- The 3-choice buff candidate pool for that layer
+- Design notes (level experience positioning)
 
 ---
 
-## 八、计算脚本接口约定
+## 8. Calculation Script Interface Contract
 
-如果用代码生成数值表，函数签名约定如下：
+If code is used to generate the numeric table, the function signatures should follow this contract:
 
 ```python
 def calc_layer(
     layer: int,
-    player_hp: int,          # 玩家当前HP（含HP buff）
-    avg_dps: float,          # 玩家当前avg DPS（含所有累积buff）
-    boss_hp: int,            # 本层Boss HP
-    boss_atk: int,           # 本层Boss普通ATK
-    defend_freq: float,      # Boss DEFEND频率
-    charge_freq: float,      # Boss CHARGE频率
+    player_hp: int,          # Player current HP (including HP buffs)
+    avg_dps: float,          # Player current avg DPS (including all stacked buffs)
+    boss_hp: int,            # Boss HP for this layer
+    boss_atk: int,           # Boss normal ATK for this layer
+    defend_freq: float,      # Boss DEFEND frequency
+    charge_freq: float,      # Boss CHARGE frequency
 ) -> dict:
     """
-    返回：{
-      'effective_dps': float,       # 有效DPS（扣除DEFEND减伤）
-      'kill_rounds': float,         # 平均击杀回合
-      'survive_rounds': float,      # 纯普攻下存活回合
+    Returns: {
+      'effective_dps': float,       # Effective DPS (after DEFEND reduction)
+      'kill_rounds': float,         # Average kill rounds
+      'survive_rounds': float,      # Survival turns under pure normal attacks
       'ratio': float,               # survive/kill
-      'win_rate_est': str,          # 胜率估算字符串
-      'charge_atk': int,            # 蓄力爆发伤害
+      'win_rate_est': str,          # win-rate estimate string
+      'charge_atk': int,            # charge burst damage
     }
     """
 
 def apply_buff(
-    buff_type: str,          # buff类型标识符
-    buff_value: float,       # buff数值参数
-    current_dps: float,      # 当前avg DPS
-    current_hand_scores: dict, # 当前牌型得分表（可能被buff修改）
+    buff_type: str,          # buff type identifier
+    buff_value: float,       # buff numeric parameter
+    current_dps: float,      # current avg DPS
+    current_hand_scores: dict, # current hand score table (may be modified by buffs)
 ) -> tuple[float, dict]:
     """
-    返回：(new_avg_dps, new_hand_scores)
-    必须重新跑模拟或用解析公式更新DPS
+    Returns: (new_avg_dps, new_hand_scores)
+    Must rerun simulation or update DPS with an analytic formula
     """
 
 def generate_layer_table(
@@ -280,44 +280,44 @@ def generate_layer_table(
     layer1_boss_hp: int = 300,
 ) -> list[dict]:
     """
-    生成完整数值表
-    每层自动：1)选择最优buff组合 2)计算Boss HP 3)验证胜率
-    返回每层的完整数值dict列表
+    Generate the full numeric table
+    For each layer, automatically: 1) choose the optimal buff combination 2) calculate boss HP 3) validate win rate
+    Returns a full list of per-layer numeric dicts
     """
 ```
 
 ---
 
-## 九、给AI的生成指令
+## 9. AI Generation Instructions
 
-将本文档作为context，要求AI完成以下任务：
+Use this document as context and ask the AI to complete the following:
 
-1. **设计8-10种buff类型**，覆盖三、3.3节的四个方向，每种buff需要：
-   - 名称和描述（给玩家看的）
-   - 效果公式（精确的数值计算方式）
-   - 强度分级（弱/中/强）
-   - 对avg DPS的提升量估算
-2. **生成10层完整数值表**，每层包含七、数值表格式要求中的所有列
-3. **验证DPS成长曲线**：确认每层累积buff后的avg DPS符合三、3.4节的目标曲线
-4. **验证胜率曲线**：确认每层胜率符合六、目标胜率曲线
-5. 如发现数值冲突，优先保证胜率曲线正确，其次保证DPS成长曲线，最后调整Boss HP
+1. **Design 8-10 buff types** covering the four directions in section 3.3, and for each buff provide:
+   - Name and description (player-facing)
+   - Effect formula (precise numeric calculation)
+   - Strength tiers (weak / medium / strong)
+   - Estimated improvement to avg DPS
+2. **Generate a full 10-layer numeric table**, with every column listed in section 7
+3. **Validate the DPS growth curve**: confirm that the stacked avg DPS for each layer matches the target curve in section 3.4
+4. **Validate the win-rate curve**: confirm that each layer's win rate matches the target curve in section 6
+5. If there is a numeric conflict, prioritize the win-rate curve first, then the DPS growth curve, and finally adjust Boss HP
 
-## 十、计算脚本和注意事项
+## 10. Calculation Script and Notes
 
-**buff强度差距极大：**
+**Buff strength gaps are huge:**
 
-- 火系专精 `ELEMENT_CHIP_MULT ×1.1`：avg只+3（+2%），几乎可以忽略
-- 同花倍率+1：avg只+6（+4%），效果也很弱
-- `ALL_CHIPS_BONUS +8`（每张牌+8chip）：avg+114（**+78%**），是量级最强的buff类型
+- Fire specialization `ELEMENT_CHIP_MULT x1.1`: avg only +3 (+2%), almost negligible
+- Flush multiplier +1: avg only +6 (+4%), also weak
+- `ALL_CHIPS_BONUS +8` (+8 chip per card): avg +114 (**+78%**), the strongest buff type by a large margin
 
-这说明另一个AI设计buff链时，**主力buff应该是`ALL_CHIPS_BONUS`和`HAND_MULT_BONUS`**，属性增伤系列只作为专精方向的行为引导，不能指望它推动DPS成长曲线。这个结论要附在`numerical-design-spec.md`旁边一起给那个AI，否则它会把buff设计方向搞反。
+This means that when another AI designs the buff chain, the **main buffs should be `ALL_CHIPS_BONUS` and `HAND_MULT_BONUS`**. The element-damage buffs should only serve as guidance for specialization and should not be expected to drive the DPS growth curve. This conclusion should be attached alongside `numerical-design-spec.md` when you pass it to that AI, otherwise it may reverse the intended buff direction.
 
-脚本使用流程：
+Script workflow:
 
-1. 在底部 `BUFFS_L2` 之后继续追加每层的buff组合
-2. 取消注释 `simulate_avg_dps` 那段，运行得到每层avg_dps
-3. 把avg_dps填进 `LAYER_CONFIGS`，补全boss_hp和boss_atk
-4. 重新运行，看比值列和胜率估算列是否符合目标曲线
-5. 需要精确验证时把 `validate_layers=None` 改成 `validate_layers=[1,4,7,10]`
+1. Continue appending each layer's buff combination below `BUFFS_L2`
+2. Uncomment the `simulate_avg_dps` block and run it to obtain the avg_dps for each layer
+3. Fill avg_dps into `LAYER_CONFIGS`, and complete boss_hp and boss_atk
+4. Run again and check whether the ratio and win-rate estimate columns match the target curve
+5. For more precise validation, change `validate_layers=None` to `validate_layers=[1,4,7,10]`
 
-初步的计算脚本相对路径为：/docs/calc.py
+The initial calculation script lives at: /scripts/calc.py

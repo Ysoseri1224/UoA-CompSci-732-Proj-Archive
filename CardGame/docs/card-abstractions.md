@@ -1,20 +1,20 @@
-# 卡牌与牌堆抽象 — Elemental Poker (v0.1)
+# Card and Deck Abstractions - Elemental Poker (v0.1)
 
-> 本文档定义卡牌数据结构、牌堆操作接口与强化 Buff 系统。
-> 所有类型为 TypeScript，可直接用于 React + Zustand 项目。
+> This document defines card data structures, deck operation interfaces, and the buff system.
+> All types are written in TypeScript and can be used directly in a React + Zustand project.
 
 ---
 
-## 1. 基础类型
+## 1. Basic Types
 
 ```typescript
-// ── 属性 ──────────────────────────────────
+// -- Element ----------------------------------
 type Element = 'WATER' | 'FIRE' | 'GRASS';
 
-// ── 点数（1–13，对应 A/2–10/J/Q/K）────────
+// -- Rank (1-13, corresponding to A/2-10/J/Q/K) --
 type Rank = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
 
-// ── 牌型 ──────────────────────────────────
+// -- Hand Type --------------------------------
 type HandType =
   | 'STRAIGHT_FLUSH'
   | 'FOUR_OF_A_KIND'
@@ -26,28 +26,28 @@ type HandType =
   | 'PAIR'
   | 'HIGH_CARD';
 
-// ── 卡牌唯一 ID ───────────────────────────
-// 格式："{element}_{rank}"，例如 "WATER_1"、"FIRE_13"
+// -- Unique Card ID ---------------------------
+// Format: "{element}_{rank}", for example "WATER_1" or "FIRE_13"
 type CardId = string;
 ```
 
 ---
 
-## 2. 卡牌数据结构
+## 2. Card Data Structure
 
 ```typescript
 interface Card {
-  id: CardId;              // 唯一标识，格式 "{ELEMENT}_{rank}"
-  element: Element;        // 属性
-  rank: Rank;              // 点数 1–13
+  id: CardId;              // Unique identifier, format "{ELEMENT}_{rank}"
+  element: Element;        // Element
+  rank: Rank;              // Rank 1-13
   
-  // 派生字段（可计算，不需要单独存储，但可缓存）
-  displayRank: string;     // 展示文字："A" | "2"–"10" | "J" | "Q" | "K"
-  chipValue: number;       // 计分用点数值：A=1, 2–10=面值, J=11, Q=12, K=13
+  // Derived fields (computable, no need to store separately, but may be cached)
+  displayRank: string;     // Display text: "A" | "2"-"10" | "J" | "Q" | "K"
+  chipValue: number;       // Scoring rank value: A=1, 2-10=face value, J=11, Q=12, K=13
 }
 ```
 
-### 2.1 工厂函数
+### 2.1 Factory Functions
 
 ```typescript
 function createCard(element: Element, rank: Rank): Card {
@@ -69,19 +69,19 @@ function rankToDisplay(rank: Rank): string {
 }
 
 function rankToChipValue(rank: Rank): number {
-  return rank;  // A=1, 2-10=面值, J=11, Q=12, K=13
+  return rank;  // A=1, 2-10=face value, J=11, Q=12, K=13
 }
 ```
 
 ---
 
-## 3. 完整牌库定义
+## 3. Full Deck Definition
 
 ```typescript
 const ALL_ELEMENTS: Element[] = ['WATER', 'FIRE', 'GRASS'];
 const ALL_RANKS: Rank[] = [1,2,3,4,5,6,7,8,9,10,11,12,13];
 
-// 生成完整 39 张牌库（有序，未洗牌）
+// Generate the full 39-card deck (ordered, unshuffled)
 function createFullDeck(): Card[] {
   const deck: Card[] = [];
   for (const element of ALL_ELEMENTS) {
@@ -89,23 +89,23 @@ function createFullDeck(): Card[] {
       deck.push(createCard(element, rank));
     }
   }
-  return deck; // 39 张
+  return deck; // 39 cards
 }
 ```
 
 ---
 
-## 4. 牌堆操作接口
+## 4. Deck Operation Interface
 
 ```typescript
 interface DeckState {
-  deck:        Card[];   // 牌堆（未抽出，index 0 = 堆顶）
-  discardPile: Card[];   // 弃牌堆
-  hand:        Card[];   // 手牌（最多 7 张）
+  deck:        Card[];   // Deck (not yet drawn, index 0 = top of deck)
+  discardPile: Card[];   // Discard pile
+  hand:        Card[];   // Hand (up to 7 cards)
 }
 
-// ── 洗牌 ──────────────────────────────────────────────────────────
-// Fisher-Yates 原地洗牌
+// -- Shuffle -----------------------------------------------
+// Fisher-Yates shuffle
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -115,7 +115,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// ── 初始化 ────────────────────────────────────────────────────────
+// -- Initialization ----------------------------------------
 function initDeckState(): DeckState {
   const deck = shuffle(createFullDeck());
   const hand  = deck.slice(0, 7);
@@ -126,13 +126,13 @@ function initDeckState(): DeckState {
   };
 }
 
-// ── 补牌（draw）──────────────────────────────────────────────────
-// 从牌堆顶部抽 n 张；牌堆不足时先将弃牌堆洗回
+// -- Draw cards --------------------------------------------
+// Draw n cards from the top of the deck; if the deck is too small, reshuffle the discard pile back first
 function drawCards(state: DeckState, n: number): DeckState {
   let { deck, discardPile, hand } = { ...state, deck: [...state.deck], discardPile: [...state.discardPile], hand: [...state.hand] };
   
   if (deck.length < n) {
-    // 弃牌堆洗回牌堆
+    // Reshuffle the discard pile back into the deck
     deck = shuffle([...deck, ...discardPile]);
     discardPile = [];
   }
@@ -143,8 +143,8 @@ function drawCards(state: DeckState, n: number): DeckState {
   return { deck, discardPile, hand };
 }
 
-// ── 打出手牌 ─────────────────────────────────────────────────────
-// 选中的牌进弃牌堆；从牌堆补等量
+// -- Play cards --------------------------------------------
+// Move selected cards to the discard pile, then draw the same number from the deck
 function playCards(state: DeckState, cardIds: CardId[]): DeckState {
   let { deck, discardPile, hand } = state;
   
@@ -153,7 +153,7 @@ function playCards(state: DeckState, cardIds: CardId[]): DeckState {
   
   const newDiscard = [...discardPile, ...played];
   
-  // 补牌至 7 张
+  // Draw back up to 7 cards
   const needed = 7 - newHand.length;
   return drawCards(
     { deck, discardPile: newDiscard, hand: newHand },
@@ -161,16 +161,16 @@ function playCards(state: DeckState, cardIds: CardId[]): DeckState {
   );
 }
 
-// ── Shuffle 手牌（玩家主动换牌）─────────────────────────────────
-// 规则：弃置的牌须等本次操作完成后才回牌堆（两步执行）
+// -- Shuffle hand (player-initiated redraw) ----------------
+// Rule: discarded cards do not return to the deck until the current operation finishes (two-step flow)
 function shuffleHand(state: DeckState, cardIds: CardId[]): DeckState {
   const { deck, discardPile, hand } = state;
   
-  // Step 1：将选中牌从手牌移除（暂存，先不回牌堆）
+  // Step 1: remove selected cards from the hand (temporarily stored, not returned to the deck yet)
   const discarded = hand.filter(c => cardIds.includes(c.id));
   const remaining = hand.filter(c => !cardIds.includes(c.id));
   
-  // Step 2：从现有牌堆（不含刚弃置的牌）抽等量
+  // Step 2: draw the same number from the current deck (excluding the cards just discarded)
   const n = discarded.length;
   let workingDeck = [...deck];
   let workingDiscard = [...discardPile];
@@ -183,14 +183,14 @@ function shuffleHand(state: DeckState, cardIds: CardId[]): DeckState {
   const drawn     = workingDeck.splice(0, n);
   const newHand   = [...remaining, ...drawn];
   
-  // Step 3：刚弃置的牌现在才回牌堆（加入弃牌堆）
+  // Step 3: only now do the just-discarded cards return to the card flow (added to the discard pile)
   const newDiscard = [...workingDiscard, ...discarded];
   
   return { deck: workingDeck, discardPile: newDiscard, hand: newHand };
 }
 
-// ── 技能：变色 ───────────────────────────────────────────────────
-// 从完整牌库找同费用+目标颜色的牌替换；找不到则找目标颜色费用最接近的
+// -- Skill: change color -----------------------------------
+// Replace with a card from the full pool that has the same rank and target color; if unavailable, use the closest rank in the target color
 function skillChangeColor(
   state: DeckState,
   cardId: CardId,
@@ -199,32 +199,32 @@ function skillChangeColor(
   const target = state.hand.find(c => c.id === cardId);
   if (!target) return state;
   
-  // 所有牌（牌堆 + 弃牌堆中的牌）作为候选
+  // All cards in the deck and discard pile are candidate replacements
   const pool = [...state.deck, ...state.discardPile];
   
-  // 优先：同 rank + 目标颜色
+  // Preferred: same rank + target color
   let replacement = pool.find(c => c.element === newElement && c.rank === target.rank);
   
-  // 退而求其次：目标颜色中 rank 最接近的
+  // Fallback: closest rank within the target color
   if (!replacement) {
     const candidates = pool.filter(c => c.element === newElement);
     candidates.sort((a, b) => Math.abs(a.rank - target.rank) - Math.abs(b.rank - target.rank));
     replacement = candidates[0];
   }
   
-  if (!replacement) return state; // 目标颜色无牌可用（极端情况）
+  if (!replacement) return state; // No card of the target color is available (extreme case)
   
   const newHand = state.hand.map(c => c.id === cardId ? replacement! : c);
   const newDeck = state.deck.filter(c => c.id !== replacement!.id);
   const newDiscard = state.discardPile.filter(c => c.id !== replacement!.id);
-  // 原卡进弃牌堆
+  // Move the original card into the discard pile
   const finalDiscard = [...newDiscard, target];
   
   return { deck: newDeck, discardPile: finalDiscard, hand: newHand };
 }
 
-// ── 技能：变费 ───────────────────────────────────────────────────
-// 从完整牌库找同颜色+目标 rank 的牌替换
+// -- Skill: change rank ------------------------------------
+// Replace with a card from the full pool that has the same color and target rank
 function skillChangeCost(
   state: DeckState,
   cardId: CardId,
@@ -248,13 +248,13 @@ function skillChangeCost(
 
 ---
 
-## 5. 牌型识别
+## 5. Hand Detection
 
 ```typescript
 interface HandResult {
   type: HandType;
-  chips: number;   // 牌型底分
-  mult:  number;   // 牌型倍率
+  chips: number;   // Base chips for the hand type
+  mult:  number;   // Multiplier for the hand type
 }
 
 const HAND_SCORES: Record<HandType, { chips: number; mult: number }> = {
@@ -269,9 +269,10 @@ const HAND_SCORES: Record<HandType, { chips: number; mult: number }> = {
   HIGH_CARD:       { chips: 5,   mult: 1 },
 };
 
-// 牌型检测基于所有选中牌判定。玩家需自行精选手牌以达成目标牌型；
-// 若选中牌中包含破坏牌型的杂牌（如 5 同花 + 1 杂色），将降级为 High Card。
-// UI 应实时显示当前选中牌的牌型预览，引导玩家调整选择。
+// Hand detection is based on all selected cards.
+// Players must choose their cards carefully to form the target hand type;
+// if the selected cards include off-type filler that breaks the hand (for example, 5 flush cards + 1 off-color card), it will downgrade to High Card.
+// The UI should show a live preview of the current selected hand type to guide player choice.
 function identifyHand(cards: Card[]): HandResult {
   const type = detectHandType(cards);
   return { type, ...HAND_SCORES[type] };
@@ -308,7 +309,7 @@ function getRankCounts(cards: Card[]): Record<number, number> {
 function checkStraight(cards: Card[]): boolean {
   const ranks = [...new Set(cards.map(c => c.rank))].sort((a, b) => a - b);
   if (ranks.length < 5) return false;
-  // 检查是否连续
+  // Check whether the ranks are consecutive
   for (let i = 1; i < ranks.length; i++) {
     if (ranks[i] !== ranks[i - 1] + 1) return false;
   }
@@ -318,26 +319,26 @@ function checkStraight(cards: Card[]): boolean {
 
 ---
 
-## 6. 伤害计算
+## 6. Damage Calculation
 
 ```typescript
 interface ScoreResult {
   handType:   HandType;
-  baseChips:  number;   // 牌型底分
-  cardChips:  number;   // 卡牌点数合计
-  mult:       number;   // 倍率
-  total:      number;   // 最终伤害 = (baseChips + cardChips) × mult
+  baseChips:  number;   // Base chips from the hand type
+  cardChips:  number;   // Total chips from card ranks
+  mult:       number;   // Multiplier
+  total:      number;   // Final damage = (baseChips + cardChips) x mult
 }
 
 function calculateDamage(cards: Card[], buffs: Buff[], isDefending: boolean = false): ScoreResult {
   const hand = identifyHand(cards);
 
-  // Step 1: 从牌型表读取 base chips 和 base mult
+  // Step 1: read base chips and base mult from the hand table
   let baseChips = hand.chips;
   let mult      = hand.mult;
 
-  // Step 2: 应用 HAND_CHIPS_BONUS（匹配牌型时叠加）
-  // Step 3: 应用 HAND_MULT_BONUS（匹配牌型时叠加，加法）
+  // Step 2: apply HAND_CHIPS_BONUS (stack when the hand type matches)
+  // Step 3: apply HAND_MULT_BONUS (stack when the hand type matches, additive)
   for (const buff of buffs) {
     if (buff.type === 'HAND_CHIPS_BONUS' && buff.handType === hand.type) {
       baseChips += buff.bonusChips;
@@ -347,26 +348,26 @@ function calculateDamage(cards: Card[], buffs: Buff[], isDefending: boolean = fa
     }
   }
 
-  // Step 4: 计算每张牌的 chip（按顺序应用 buff）
+  // Step 4: calculate each card's chip value (apply buffs in order)
   let cardChips = 0;
   for (const card of cards) {
     let chip = card.chipValue;
 
-    // 4a: ELEMENT_CHIP_MULT — 属性 chip 倍率
+    // 4a: ELEMENT_CHIP_MULT - element-based chip multiplier
     for (const buff of buffs) {
       if (buff.type === 'ELEMENT_CHIP_MULT' && buff.element === card.element) {
         chip *= buff.mult;
       }
     }
 
-    // 4b: ELEMENT_CHIPS_BONUS — 属性额外 chip
+    // 4b: ELEMENT_CHIPS_BONUS - extra chips for the matching element
     for (const buff of buffs) {
       if (buff.type === 'ELEMENT_CHIPS_BONUS' && buff.element === card.element) {
         chip += buff.bonusChips;
       }
     }
 
-    // 4c: ALL_CHIPS_BONUS — 全牌额外 chip
+    // 4c: ALL_CHIPS_BONUS - extra chips for every played card
     for (const buff of buffs) {
       if (buff.type === 'ALL_CHIPS_BONUS') {
         chip += buff.bonusChips;
@@ -376,10 +377,10 @@ function calculateDamage(cards: Card[], buffs: Buff[], isDefending: boolean = fa
     cardChips += chip;
   }
 
-  // Step 5: 伤害 = floor((baseChips + cardChips) × mult)
+  // Step 5: damage = floor((baseChips + cardChips) x mult)
   let total = Math.floor((baseChips + cardChips) * mult);
 
-  // Step 6: Boss DEFEND 减伤
+  // Step 6: Boss DEFEND damage reduction
   if (isDefending) {
     total = Math.floor(total * 0.5);
   }
@@ -390,140 +391,140 @@ function calculateDamage(cards: Card[], buffs: Buff[], isDefending: boolean = fa
 
 ---
 
-## 7. Buff / 强化系统
+## 7. Buff / Upgrade System
 
 ```typescript
-// Buff 设计为可扩展的 union type
+// Buff is designed as an extensible union type
 type Buff =
-  // 方向A：直接伤害放大
-  | HandMultBonus          // 指定牌型倍率加成
-  | HandChipsBonus         // 指定牌型底分加成
-  | AllChipsBonus          // 全牌 chip 加成
+  // Category A: direct damage amplification
+  | HandMultBonus          // Hand-type multiplier bonus
+  | HandChipsBonus         // Hand-type base-chip bonus
+  | AllChipsBonus          // Global chip bonus for all cards
 
-  // 方向B：属性增伤
-  | ElementChipMult        // 属性 chip 倍率
-  | ElementChipsBonus      // 属性额外 chip
+  // Category B: element-based damage boosts
+  | ElementChipMult        // Element-based chip multiplier
+  | ElementChipsBonus      // Extra chips for a specific element
 
-  // 方向C：操作空间扩展
-  | ElementDrawBuff        // Shuffle 时固定获取某属性牌
-  | HighRankDrawBuff       // Shuffle 时固定获取最高费用牌
+  // Category C: expand operational options
+  | ElementDrawBuff        // Guarantee a specific element on Shuffle
+  | HighRankDrawBuff       // Guarantee the highest-rank card on Shuffle
   // future:
-  // | ShuffleCountBuff     // Shuffle 次数 +N
-  // | ShieldAutoRestoreBuff// 每层开始自动恢复护盾
-  // | HPBonus             // 最大HP提升
+  // | ShuffleCountBuff     // Shuffle count +N
+  // | ShieldAutoRestoreBuff// Automatically restore shield at the start of each layer
+  // | HPBonus             // Increase max HP
 
-// ── 方向A：直接伤害放大 ────────────────────────
+// -- Category A: direct damage amplification ---------------
 interface HandMultBonus {
   type:      'HAND_MULT_BONUS';
   handType:  HandType;
-  bonusMult: number;   // 倍率 += bonusMult（加法叠加）
+  bonusMult: number;   // multiplier += bonusMult (additive stacking)
 }
 
 interface HandChipsBonus {
   type:       'HAND_CHIPS_BONUS';
   handType:   HandType;
-  bonusChips: number;  // 底分 += bonusChips
+  bonusChips: number;  // base chips += bonusChips
 }
 
 interface AllChipsBonus {
   type:       'ALL_CHIPS_BONUS';
-  bonusChips: number;  // 每张打出牌额外 chip
+  bonusChips: number;  // extra chips for every played card
 }
 
-// ── 方向B：属性增伤 ────────────────────────────
+// -- Category B: element-based damage boosts ---------------
 interface ElementChipMult {
   type:    'ELEMENT_CHIP_MULT';
   element: Element;
-  mult:    number;      // chip × mult（第一层专精 buff，mult=1.1）
+  mult:    number;      // chip x mult (first-layer specialization buff, mult=1.1)
 }
 
 interface ElementChipsBonus {
   type:       'ELEMENT_CHIPS_BONUS';
   element:    Element;
-  bonusChips: number;   // 每张匹配属性牌额外 chip
+  bonusChips: number;   // extra chips for each matching-element card
 }
 
-// ── 方向C：操作空间扩展 ────────────────────────
+// -- Category C: expand operational options ----------------
 interface ElementDrawBuff {
   type:    'ELEMENT_DRAW_ON_SHUFFLE';
   element: Element;
-  // 每次 Shuffle 额外保证获取至少一张该属性牌
+  // On each Shuffle, guarantee at least one card of this element
 }
 
 interface HighRankDrawBuff {
   type: 'HIGH_RANK_DRAW_ON_SHUFFLE';
-  // 每次 Shuffle 额外保证获取至少一张 rank=13 的牌
+  // On each Shuffle, guarantee at least one rank-13 card
 }
 
-// ── 强化选项（Upgrade）────────────────────────────────────────────
-// 每层结算时生成候选，玩家 3 选 1
+// -- Upgrade option ----------------------------------------
+// Generate candidates after each layer settlement; the player chooses 1 out of 3
 interface Upgrade {
   id:          string;
-  label:       string;    // 展示文字
-  description: string;    // 效果描述
-  buff:        Buff;      // 应用的 Buff
+  label:       string;    // Display text
+  description: string;    // Effect description
+  buff:        Buff;      // Applied buff
 }
 
-// 第一层：固定 3 选 1（选属性专精）
+// First layer: fixed 3-choice selection (choose an element specialization)
 const FIRST_LAYER_UPGRADES: Upgrade[] = [
-  { id: 'water_spec', label: '水系专精', description: '水系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'WATER', mult: 1.1 } },
-  { id: 'fire_spec',  label: '火系专精', description: '火系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'FIRE',  mult: 1.1 } },
-  { id: 'grass_spec', label: '草系专精', description: '草系牌 chip ×1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'GRASS', mult: 1.1 } },
+  { id: 'water_spec', label: 'Water Specialization', description: 'Water cards chip x1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'WATER', mult: 1.1 } },
+  { id: 'fire_spec',  label: 'Fire Specialization', description: 'Fire cards chip x1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'FIRE',  mult: 1.1 } },
+  { id: 'grass_spec', label: 'Grass Specialization', description: 'Grass cards chip x1.1', buff: { type: 'ELEMENT_CHIP_MULT', element: 'GRASS', mult: 1.1 } },
 ];
 
-// 根据已选属性生成后续强化候选池
-// TODO: expand pool to 6+ before implementation（当前池子仅 3 个，3 选 3 无实际选择）
+// Generate the follow-up upgrade candidate pool based on the chosen element
+// TODO: expand pool to 6+ before implementation (the current pool only has 3 options, so a 3-choice pick has no real choice)
 function generateUpgradePool(chosenElement: Element, layer: number): Upgrade[] {
   const pool: Upgrade[] = [
     {
       id: `${chosenElement}_dmg_${layer}`,
-      label: `${chosenElement} 强化`,
-      description: `${chosenElement} 系牌 chip ×1.1（可叠加）`,
+      label: `${chosenElement} Enhancement`,
+      description: `${chosenElement} cards chip x1.1 (stackable)`,
       buff: { type: 'ELEMENT_CHIP_MULT', element: chosenElement, mult: 1.1 }
     },
     {
       id: `${chosenElement}_draw_${layer}`,
-      label: 'Shuffle 保底',
-      description: `每次 Shuffle 保证获得一张 ${chosenElement} 系牌`,
+      label: 'Shuffle Guarantee',
+      description: `Each Shuffle guarantees one ${chosenElement} card`,
       buff: { type: 'ELEMENT_DRAW_ON_SHUFFLE', element: chosenElement }
     },
     {
       id: `high_rank_draw_${layer}`,
-      label: '高费保底',
-      description: '每次 Shuffle 保证获得一张 K（13点）牌',
+      label: 'High-Rank Guarantee',
+      description: 'Each Shuffle guarantees one K (rank 13) card',
       buff: { type: 'HIGH_RANK_DRAW_ON_SHUFFLE' }
     },
   ];
-  // 随机打乱后取 3 个（当池子扩大后）
+  // Shuffle randomly, then take 3 options (after the pool is expanded)
   return shuffle(pool).slice(0, 3);
 }
 ```
 
 ---
 
-## 8. Boss 数值结构
+## 8. Boss Stat Structure
 
 ```typescript
 interface Boss {
   id:           string;
   layer:        number;
-  element:      Element;   // 属性（未来相克用）
+  element:      Element;   // Element (reserved for future advantage/disadvantage rules)
   hp:           number;
   maxHp:        number;
   attackPerRound: number;
 }
 
-// 占位数值生成（待数值策划）
+// Placeholder stat generation (pending game balance design)
 const BASE_BOSS_HP     = 300;
 const BASE_BOSS_ATTACK = 5;
 const BASE_PLAYER_HP   = 20;
 
-// layer 从 1 开始计数，传入 ≤0 将产生错误数值
+// layer starts counting from 1; passing <=0 will produce invalid values
 function createBoss(layer: number): Boss {
   return {
     id:             `boss_layer_${layer}`,
     layer,
-    element:        ALL_ELEMENTS[(layer - 1) % 3],  // 循环属性
+    element:        ALL_ELEMENTS[(layer - 1) % 3],  // Rotating elements
     hp:             Math.floor(BASE_BOSS_HP     * (1 + 0.3 * (layer - 1))),
     maxHp:          Math.floor(BASE_BOSS_HP     * (1 + 0.3 * (layer - 1))),
     attackPerRound: Math.floor(BASE_BOSS_ATTACK * (1 + 0.2 * (layer - 1))),
@@ -533,7 +534,7 @@ function createBoss(layer: number): Boss {
 
 ---
 
-## 9. 文件组织建议
+## 9. Suggested File Organization
 
 ```
 src/
@@ -541,16 +542,16 @@ src/
 │   ├── card.ts          // Card, Element, Rank, HandType, CardId
 │   ├── state.ts         // GameState, BattleState, RoundState
 │   ├── buff.ts          // Buff union types, Upgrade
-│   └── events.ts        // 所有 Action/Event 类型
+│   └── events.ts        // All Action/Event types
 ├── lib/
 │   ├── deck.ts          // createFullDeck, initDeckState, drawCards, playCards, shuffleHand
-│   ├── cards.ts         // createCard, rankToDisplay, rankToChipValue（已迁入 types/card.ts）
+│   ├── cards.ts         // createCard, rankToDisplay, rankToChipValue (moved into types/card.ts)
 │   ├── hand.ts          // identifyHand, detectHandType, calculateDamage
 │   ├── skills.ts        // skillChangeColor, skillChangeCost
-│   ├── boss.ts          // createBoss, Boss 数值（待实现，Step 6）
-│   └── upgrades.ts      // generateUpgradePool, FIRST_LAYER_UPGRADES（已迁入 types/buff.ts）
+│   ├── boss.ts          // createBoss, Boss stats (to be implemented, Step 6)
+│   └── upgrades.ts      // generateUpgradePool, FIRST_LAYER_UPGRADES (moved into types/buff.ts)
 └── store/
     ├── gameStore.ts     // Zustand: GameState slice
     ├── battleStore.ts   // Zustand: BattleState slice
-    └── roundStore.ts    // Zustand: RoundState slice + 事件处理
+    └── roundStore.ts    // Zustand: RoundState slice + event handling
 ```

@@ -1,8 +1,8 @@
-# Socket.io 事件协议文档
+# Socket.io Event Protocol Document
 
-**连接地址**：`http://localhost:3000`  
-**连接时机**：用户登录后进入大厅时建立连接，对局结束后断开  
-**认证**：连接时在 `auth` 选项中携带 JWT Token
+**Connection URL**: `http://localhost:3000`  
+**Connection Timing**: establish the socket after the user logs in and enters the lobby; disconnect after the match ends  
+**Authentication**: pass the JWT token in the `auth` option when connecting
 
 ```js
 const socket = io('http://localhost:3000', {
@@ -12,35 +12,35 @@ const socket = io('http://localhost:3000', {
 
 ---
 
-## 客户端 → 服务端
+## Client -> Server
 
-### PvE（当前后端已接入的最小骨架）
+### PvE (minimum backend skeleton currently wired up)
 
 #### `startPveGame`
-创建一个 PvE 房间并启动 PvE 状态机（服务端内存态）。前端点击“Start PvE”按钮时直接发送此事件即可。
+Create a PvE room and start the PvE state machine (server-side in-memory state). The frontend should send this event directly when the user clicks the "Start PvE" button.
 
-**发送**：无参数
+**Send**: no parameters
 
-**服务端响应**：`gameState`（见下方服务端 → 客户端 `gameState`，PvE 最小骨架版本）
+**Server response**: `gameState` (see the server -> client `gameState` below, PvE minimum skeleton version)
 
 ---
 
 #### `selectSkills`
-确认技能选择（进入房间后、发牌前）。
+Confirm the skill selection (after entering the room, before dealing cards).
 
-**发送**
+**Send**
 ```json
-{ "skills": ["线索嗅探", "翻倍协议"] }
+{ "skills": ["Clue Sniff", "Double Up"] }
 ```
 
-> 必须从技能池中选择恰好 2 个技能。
+> Exactly 2 skills must be selected from the skill pool.
 
 ---
 
 #### `playerAction`
-执行下注操作。
+Execute a betting action.
 
-**发送**
+**Send**
 ```json
 {
   "action": "raise",
@@ -48,26 +48,26 @@ const socket = io('http://localhost:3000', {
 }
 ```
 
-| action 值 | 说明 | amount 是否必填 |
+| action value | Description | Is amount required |
 |-----------|------|-----------------|
-| `check` | 过牌 | ❌ |
-| `bet` | 下注 | ✅ |
-| `call` | 跟注 | ❌ |
-| `raise` | 加注 | ✅ |
-| `fold` | 弃牌 | ❌ |
-| `allin` | 全押 | ❌ |
+| `check` | Check | No |
+| `bet` | Bet | Yes |
+| `call` | Call | No |
+| `raise` | Raise | Yes |
+| `fold` | Fold | No |
+| `allin` | All in | No |
 
 ---
 
-## 服务端 → 客户端
+## Server -> Client
 
-### 游戏状态
+### Game State
 
 #### `gameState`
-**最核心的事件**。每次游戏状态变更后服务端广播全量状态，前端以此驱动所有渲染。
+**The most important event.** After each game state change, the server broadcasts the full state, and the frontend uses it to drive all rendering.
 
-##### PvE（最小骨架版本，当前后端实现）
-当前后端在 PvE 骨架阶段推送的 `gameState` payload 结构为：
+##### PvE (minimum skeleton version, current backend implementation)
+The `gameState` payload structure currently pushed by the backend in the PvE skeleton stage is:
 
 ```json
 {
@@ -83,21 +83,21 @@ const socket = io('http://localhost:3000', {
 }
 ```
 
-说明：
-- `phase` 是 XState 的当前状态（也等价于 `gameState.phase`）。
-- `gameState` 是 XState context（当前只包含最小字段，后续任务会逐步扩展）。
+Notes:
+- `phase` is the current XState state (equivalent to `gameState.phase`).
+- `gameState` is the XState context (currently only the minimum fields are included; later tasks will expand it step by step).
 
-前端最小接入方式：
-- 连接 socket 后监听 `gameState` 事件
-- 点击按钮时 `socket.emit('startPveGame')`
-- 以 `phase` 或 `gameState.phase` 驱动 UI（例如在 `SKILL_SELECT` 展示技能选择界面）
+Minimum frontend integration:
+- Listen for the `gameState` event after connecting the socket
+- Emit `socket.emit('startPveGame')` when the button is clicked
+- Drive the UI with `phase` or `gameState.phase` (for example, show the skill-selection UI during `SKILL_SELECT`)
 
 ---
 
 #### `gameOver`
-对局结束事件。在 PvE 骨架阶段，当状态机进入 `GAME_OVER` 时服务端发送此事件，并清理对应的内存房间 actor。
+Match end event. In the PvE skeleton stage, when the state machine enters `GAME_OVER`, the server sends this event and clears the corresponding in-memory room actor.
 
-**接收**
+**Receive**
 ```json
 {
   "reason": "PLAYER_DIED",

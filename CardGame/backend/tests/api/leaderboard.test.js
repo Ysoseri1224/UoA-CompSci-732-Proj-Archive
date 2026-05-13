@@ -61,11 +61,12 @@ describe('GET /api/leaderboard Integration Tests (Native Fetch)', () => {
     return { status: res.status, body };
   }
 
-  it('1. Default behavior (winRate desc)', async () => {
+  it('1. Default behavior sorts by totalGames first, then winRate', async () => {
     const { status, body } = await fetchLeaderboard();
     assert.strictEqual(status, 200);
     assert.strictEqual(body.data.total, 2); 
     assert.strictEqual(body.data.rankings[0].username, 'player_B'); 
+    assert.strictEqual(body.data.rankings[1].username, 'player_A');
   });
 
   it('2. Invalid sort returns 400', async () => {

@@ -1,199 +1,199 @@
-# 游戏规则提示词 — Elemental Poker (v0.1)
+# Game Rules Prompt - Elemental Poker (v0.1)
 
-> 本文档用于向 Claude / AI 描述游戏规则，供生成 Bot 决策、强化选项、Boss 行为等场景使用。
-> 所有字段名与代码保持一致。
-
----
-
-## 1. 世界观与核心概念
-
-这是一款结合 Roguelike 成长性的卡牌对战游戏。玩家与 Boss 轮流行动，通过手牌组成牌型发动攻击。游戏包含水（WATER）、火（FIRE）、草（GRASS）三种属性，属性相克关系（水→火→草→水）为未来特性，当前阶段不影响伤害计算。
+> This document is used to describe the game rules to Claude / AI for generating bot decisions, enhancement options, boss behavior, and related scenarios.
+> All field names remain aligned with the code.
 
 ---
 
-## 2. 牌库结构
+## 1. World and Core Concepts
 
-```
-总牌数：39 张（无重复）
-构成：水(WATER) 1–13，火(FIRE) 1–13，草(GRASS) 1–13
-点数映射（视觉）：
-  1  → A（Ace）
-  2–10 → 2–10
-  11 → J
-  12 → Q
-  13 → K
-点数计分值：
-  A(1)=1, 2–10=面值, J(11)=11, Q(12)=12, K(13)=13
-```
-
-牌堆规则：
-- 牌堆无重复；手牌与弃牌堆的牌从总池中扣除。
-- 牌堆耗尽时，弃牌堆自动洗回牌堆，继续抽取。
-- Shuffle 弃掉的牌，须等本次 Shuffle 完成后才回到牌堆（防止抽回自己刚弃掉的牌）。
+This is a card battler with roguelike progression. The player and the boss take turns, and the player attacks by forming poker hands from their cards. The game uses three elements: Water (WATER), Fire (FIRE), and Grass (GRASS). Element advantage (Water -> Fire -> Grass -> Water) is reserved for future features and does not affect damage calculation in the current stage.
 
 ---
 
-## 3. 单回合流程（严格顺序）
+## 2. Deck Structure
 
+```txt
+Total cards: 39 (no duplicates)
+Composition: Water (WATER) 1-13, Fire (FIRE) 1-13, Grass (GRASS) 1-13
+Visual rank mapping:
+  1  -> A (Ace)
+  2-10 -> 2-10
+  11 -> J
+  12 -> Q
+  13 -> K
+Rank scoring value:
+  A(1)=1, 2-10=face value, J(11)=11, Q(12)=12, K(13)=13
 ```
-[回合开始]
-  │
-  ├─ 补牌阶段：从牌堆补充手牌至 7 张（填补上回合缺口）
-  │     若牌堆不足，先洗入弃牌堆再补
-  │
-  ├─ Boss 意图展示阶段（自动）：
-  │     系统根据 Boss 行为权重随机决定本回合意图（ATTACK / CHARGE / DEFEND）
-  │     若上回合蓄力未发，本回合强制 ATTACK（释放蓄力爆发）
-  │     意图对玩家可见，影响玩家决策
-  │
-  ├─ 技能 / Shuffle 阶段（玩家可选，顺序自由，可交替）：
-  │     ├─ skillChangeColor(cardId, newColor)  [每回合限1次]
-  │     ├─ skillChangeRank(cardId, newRank)    [每回合限1次]
-  │     ├─ skillShield()                       [见冷却规则]
-  │     └─ Shuffle：选任意张手牌弃置 → 从牌堆等量补入
-  │          每回合最多 2 次；次数每回合重置
-  │
-  ├─ 出牌阶段：
-  │     选 1–7 张手牌打出（必须出牌，不可跳过）；打出 N 张则下回合补 N 张
-  │     系统识别牌型 → 计算伤害 → 扣除 Boss HP
-  │     打出的牌进入弃牌堆
-  │     若 Boss HP ≤ 0 → 胜利，跳过 Boss 攻击
-  │
-  └─ Boss 攻击阶段：
-        Boss 每回合造成固定伤害（该值随层数增长）
-        若护盾激活 → 免疫本次伤害，护盾碎裂
-        若玩家 HP ≤ 0 → 失败
-[回合结束，进入下一回合]
+
+Deck rules:
+- The deck has no duplicates; cards in hand and discard pile are removed from the total pool.
+- When the deck runs out, the discard pile is automatically shuffled back into the deck and drawing continues.
+- Cards discarded by Shuffle must only return to the deck after that Shuffle action completes, to prevent drawing back cards that were just discarded.
+
+---
+
+## 3. Single-Turn Flow (Strict Order)
+
+```txt
+[Turn starts]
+  |
+  |- Draw phase: refill the hand to 7 cards from the deck (fill the previous turn's gap)
+  |     If the deck is short, shuffle the discard pile in first and then draw
+  |
+  |- Boss intent display phase (automatic):
+  |     The system randomly determines the boss intent for this turn according to its behavior weights (ATTACK / CHARGE / DEFEND)
+  |     If the previous turn's charge was not released, this turn is forced to ATTACK (release the charged burst)
+  |     The intent is visible to the player and affects their decision-making
+  |
+  |- Skill / Shuffle phase (player choice, free order, can alternate):
+  |     |- skillChangeColor(cardId, newColor)  [once per turn]
+  |     |- skillChangeRank(cardId, newRank)    [once per turn]
+  |     |- skillShield()                       [see cooldown rules]
+  |     |- Shuffle: discard any number of cards from hand -> draw the same number from the deck
+  |          At most 2 times per turn; count resets each turn
+  |
+  |- Play phase:
+  |     Play 1-7 cards from hand (must play; cannot skip); if N cards are played, draw N next turn
+  |     The system recognizes the hand type -> calculates damage -> reduces boss HP
+  |     Played cards go to the discard pile
+  |     If Boss HP <= 0 -> victory, skip boss attack
+  |
+  `- Boss attack phase:
+        Boss deals fixed damage each turn (this value grows with layers)
+        If shield is active -> negate this damage and break the shield
+        If player HP <= 0 -> defeat
+[Turn ends, next turn begins]
 ```
 
 ---
 
-## 4. 技能详细规则
+## 4. Skill Rules in Detail
 
-> 技能名中的 "Cost"（费用）在数据模型中对应牌的 `rank`（点数 1–13），两者等价。
+> In the data model, "Cost" corresponds to the card's `rank` (1-13). The two are equivalent.
 
-### 4.1 变色 skillChangeColor(cardId, newColor)
-- 将一张手牌替换为目标颜色的同 rank 牌。
-- 查找顺序：① 同 rank + 目标颜色；② 目标颜色中 rank 最接近的牌。
-- 替换牌不得已在当前手牌中（防止重复牌）。
-- 找到的牌替换原牌（含图片）。
-- **每回合限用 1 次，回合结束自动重置。**
+### 4.1 Change Color skillChangeColor(cardId, newColor)
+- Replace one hand card with the same-rank card of the target color.
+- Search order: 1) same rank + target color; 2) the closest rank within the target color.
+- The replacement card must not already be in the current hand (to prevent duplicate cards).
+- Replace the original card with the found card (including the image).
+- **Once per turn, automatically resets at turn end.**
 
-### 4.2 变费 skillChangeRank(cardId, newRank)
-- 将一张手牌替换为同颜色的目标 rank 牌。
-- 从牌库找同颜色 + 目标 rank 的牌替换原牌（含图片）。
-- 替换牌不得已在当前手牌中（防止重复牌）。
-- **每回合限用 1 次，回合结束自动重置。**
-- 变色与变费在同一回合内可各用一次（互相独立）。
+### 4.2 Change Rank skillChangeRank(cardId, newRank)
+- Replace one hand card with the target-rank card of the same color.
+- Find the same color + target rank card in the deck and replace the original card (including the image).
+- The replacement card must not already be in the current hand (to prevent duplicate cards).
+- **Once per turn, automatically resets at turn end.**
+- Change Color and Change Rank can each be used once in the same turn and are independent.
 
-### 4.3 护盾 skillShield()
-- 激活后免疫 Boss 下一次伤害，伤害发生时护盾碎裂。
-- **护盾跨回合保留**，直到被打碎才进入冷却。
-- 例外：若当回合 Boss 被打死（玩家胜利），护盾**不保留**，视为作废。
-- 冷却：护盾碎裂后进入冷却，冷却期间不可再次激活（冷却时长待数值策划）。
-- **不自动重置**，必须等碎裂后才可重新激活。
-- Boss 不具备击碎护盾的技能（护盾仅对 Boss 攻击伤害生效）。
-
----
-
-## 5. 牌型识别与计分
-
-### 5.1 牌型表（优先级从高到低）
-
-| 牌型               | 条件               | 底分 chips | 倍率 mult |
-|--------------------|--------------------|-----------|----------|
-| Straight Flush     | 同花 + 顺子        | 100       | 8        |
-| Four of a Kind     | 4张同点数          | 60        | 7        |
-| Full House         | 三条 + 对子        | 40        | 6        |
-| Flush              | 5张同花色          | 35        | 4        |
-| Straight           | 5张连续点数        | 30        | 4        |
-| Three of a Kind    | 3张同点数          | 30        | 3        |
-| Two Pair           | 两组对子           | 20        | 2        |
-| Pair               | 2张同点数          | 10        | 2        |
-| High Card          | 无以上牌型         | 5         | 1        |
-
-> 底分数值为占位值，待数值策划调整。
-
-### 5.2 计分公式（当前阶段）
-
-```
-伤害 = floor((牌型底分 + Σ 打出牌的点数计分值) × 牌型倍率)
-若 Boss 本回合 DEFEND，伤害 × 0.5
-```
-
-示例：打出 [FIRE-7, FIRE-9, FIRE-3, WATER-7, GRASS-7]（三条）
-- 牌型底分 = 30，倍率 = 3
-- 点数计分 = 7 + 9 + 3 + 7 + 7 = 33
-- 伤害 = (30 + 33) × 3 = 189
-
-Boss 攻击：
-  普通攻击：扣玩家 HP = boss.attackPerRound
-  蓄力爆发：扣玩家 HP = boss.chargeAttack（≈ attackPerRound × 2.2）
-  CHARGE / DEFEND 回合：Boss 不攻击
-  护盾可拦截攻击伤害
-
-### 5.3 未来扩展（暂不实现）
-- 更多 Buff 类型（属性额外 chip、全牌 chip 加成、牌型底分/倍率加成）
-- 卡牌强化效果（奖励牌、倍率牌、玻璃牌等）
-- 小丑牌系统
-- 蜡封效果
+### 4.3 Shield skillShield()
+- After activation, the next boss damage is negated and the shield breaks when damage is taken.
+- **The shield persists across turns** until it is broken, then it enters cooldown.
+- Exception: if the boss is killed that turn (player victory), the shield does **not** persist and is treated as void.
+- Cooldown: after the shield breaks, it enters cooldown and cannot be activated again while cooling down (cooldown length pending numeric tuning).
+- **It does not reset automatically**; it can only be used again after breaking.
+- The boss has no shield-breaking skill (the shield only applies to boss attack damage).
 
 ---
 
-## 6. Roguelike 成长系统
+## 5. Hand Recognition and Scoring
 
-### 6.1 层结构
-- 每打败一个 Boss = 通过一层/关。
-- 第一层结束后选择强化路线（水/火/草专精）。
-- 从第二层起，每层结束必得一个强化选项（3选1）。
-- 强化效果永久累积，贯穿整个 run。
-- 每层结束自动存档；失败后可从上一层存档继续。
+### 5.1 Hand Table (highest priority first)
 
-### 6.2 强化路线
+| Hand Type           | Condition          | Base Chips | Multiplier |
+|--------------------|--------------------|------------|------------|
+| Straight Flush     | Same suit + straight | 100      | 8          |
+| Four of a Kind     | 4 cards of same rank | 60       | 7          |
+| Full House         | Three of a kind + pair | 40     | 6          |
+| Flush              | 5 cards of same suit | 35      | 4          |
+| Straight           | 5 consecutive ranks | 30       | 4          |
+| Three of a Kind    | 3 cards of same rank | 30       | 3          |
+| Two Pair           | Two pairs           | 20       | 2          |
+| Pair               | 2 cards of same rank | 10       | 2          |
+| High Card          | None of the above   | 5        | 1          |
 
-**第一层奖励（固定）：选择属性专精**
-```
-选择 WATER → 水系牌造成的伤害 × 1.1（永久）
-选择 FIRE  → 火系牌造成的伤害 × 1.1（永久）
-选择 GRASS → 草系牌造成的伤害 × 1.1（永久）
-```
-注：属性伤害加成仅计算打出牌中属于该属性的牌的贡献点数部分（具体应用方式待数值策划确认）。
+> The base chip values are placeholders and will be tuned by numeric design.
 
-**第二层起（3选1，仅显示已选属性的强化）：**
+### 5.2 Scoring Formula (Current Stage)
 
-示例强化池（待扩展）：
-```
-- [属性]伤害 × 1.1（可叠加）
-- 每次 Shuffle 固定获取一张[属性]牌
-- 每次 Shuffle 固定获取一张最高费用(13)牌
-- 护盾每层开始自动恢复（future）
-- Shuffle 次数 +1（future）
+```txt
+Damage = floor((hand base chips + Σ rank scoring values of played cards) x hand multiplier)
+If the boss DEFENDs this turn, damage x 0.5
 ```
 
-### 6.3 Boss 数值缩放（占位，待数值策划）
+Example: play [FIRE-7, FIRE-9, FIRE-3, WATER-7, GRASS-7] (Three of a Kind)
+- Base chips = 30, multiplier = 3
+- Rank score = 7 + 9 + 3 + 7 + 7 = 33
+- Damage = (30 + 33) x 3 = 189
+
+Boss attack:
+  Normal attack: player HP reduction = boss.attackPerRound
+  Charged burst: player HP reduction = boss.chargeAttack (approx. attackPerRound x 2.2)
+  CHARGE / DEFEND turns: Boss does not attack
+  Shield can block attack damage
+
+### 5.3 Future Expansion (Not Implemented Yet)
+- More buff types (extra elemental chip, global chip bonus, hand base / multiplier buffs)
+- Card upgrade effects (reward cards, multiplier cards, glass cards, etc.)
+- Joker system
+- Seal effects
+
+---
+
+## 6. Roguelike Progression System
+
+### 6.1 Layer Structure
+- Defeating one boss = clearing one layer / floor.
+- After the first layer, choose a progression path (Water / Fire / Grass specialization).
+- From the second layer onward, each cleared layer grants one enhancement choice (pick 1 of 3).
+- Enhancement effects stack permanently and persist through the whole run.
+- Progress is saved automatically after each layer; after defeat, the player can continue from the previous layer save.
+
+### 6.2 Progression Paths
+
+**First-layer reward (fixed): choose an element specialization**
+```txt
+Choose WATER  -> Water cards deal x 1.1 damage (permanent)
+Choose FIRE   -> Fire cards deal x 1.1 damage (permanent)
+Choose GRASS  -> Grass cards deal x 1.1 damage (permanent)
+```
+Note: elemental damage bonuses only count the contribution of cards of that element in the played hand (the exact application method still needs numeric design confirmation).
+
+**From layer 2 onward (pick 1 of 3, only show enhancements matching the chosen element):**
+
+Example enhancement pool (to be extended):
+```txt
+- [Element] damage x 1.1 (stackable)
+- Gain one [Element] card on every Shuffle
+- Gain one highest-cost (13) card on every Shuffle
+- Shield automatically recovers at the start of each layer (future)
+- Shuffle count +1 (future)
+```
+
+### 6.3 Boss Stat Scaling (Placeholder, Pending Numeric Design)
 ```javascript
-// 每层 Boss 数值参考公式（待调整）
+// Reference formula for boss stats per layer (subject to tuning)
 bossHP     = BASE_BOSS_HP     * (1 + 0.3 * (layer - 1))
 bossAttack = BASE_BOSS_ATTACK * (1 + 0.2 * (layer - 1))
-playerHP   = BASE_PLAYER_HP   // 暂定不随层数增长，靠强化弥补
+playerHP   = BASE_PLAYER_HP   // currently assumed not to grow with layers; compensated by enhancements
 ```
 
 ---
 
-## 7. 胜负判定
+## 7. Victory / Defeat Conditions
 
-| 条件              | 结果     | 后续                     |
-|-------------------|----------|--------------------------|
-| Boss HP ≤ 0       | 本层胜利 | 进入强化选择 → 下一层    |
-| 玩家 HP ≤ 0       | 本层失败 | 读取上一层存档（第一层失败则 Run 直接结束）|
+| Condition         | Result      | Next Step |
+|------------------|-------------|-----------|
+| Boss HP <= 0     | Clear layer | Enter enhancement selection -> next layer |
+| Player HP <= 0   | Fail layer  | Load the previous layer save (if the first layer fails, the run ends immediately) |
 
 ---
 
-## 8. 未来特性（当前不实现，架构预留）
+## 8. Future Features (Not Implemented Yet, Architecture Reserved)
 
-- 属性相克（水→火→草→水）伤害加成
-- Boss 护甲 / 减免 / 抗性
-- Bot 出牌 AI（手牌 + 牌型 + 下注逻辑）
-- PVP 异步轮流制对战（双方完成行动后统一结算）
-- 技能窗口系统（Pre-Flop / Flop 分阶段）
-- 更多技能类型（可配置架构已预留）
+- Element advantage (Water -> Fire -> Grass -> Water) damage bonus
+- Boss armor / reduction / resistance
+- Bot play AI (hand + hand type + betting logic)
+- Asynchronous turn-based PvP (both sides resolve actions before final settlement)
+- Skill window system (pre-flop / flop phases)
+- More skill types (configurable architecture already reserved)
