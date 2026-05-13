@@ -128,9 +128,9 @@ Detailed project documentation is available in `CardGame/docs/`:
 
 ## Team
 
-- Manqi Wang
-- Sheng Xiao
-- Yi Lin
-- Zengguang Feng
-- Zihan Zhao
-- Zhixuan Wei
+- **Zhixuan Wei** — Full-Stack Developer, Game Systems Engineer, Documentation Maintainer
+- **Sheng Xiao** — Full-Stack Developer, DevOps Engineer, Repository Maintainer
+- **Yi Lin** — Data Modeling Engineer, Audio Systems Developer
+- **Zengguang Feng** — Lead Frontend Engineer, UX Designer
+- **Zihan Zhao** — Game UI Developer, Visual Effects Designer
+- **Manqi Wang** — QA & Integration Lead, Rogue Mode Specialist
