@@ -51,6 +51,13 @@ function buffKey(b: Buff): string {
   return `${b.type}:${el}`;
 }
 
+// Buff types that can only be chosen once (non-stackable)
+const ONE_TIME_BUFF_TYPES = new Set([
+  'HP_BONUS',
+  'SKILL_ENERGY_MAX',
+  'HIGH_RANK_DRAW_ON_SHUFFLE',
+]);
+
 // ══════════════════════════════════════════════════════════════════
 //  注册 Socket 事件处理器
 // ══════════════════════════════════════════════════════════════════
@@ -357,8 +364,10 @@ export function registerPveHandlers(socket: Socket): void {
 
     const layer = ctx.boss.layer;
     const chosenElement = ctx.player.chosenElement ?? (['WATER', 'FIRE', 'GRASS'] as const)[(layer - 1) % 3];
-    const ownedTypes = (ctx.player.buffs ?? []).map(b => b.type);
-    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer, ownedTypes);
+    const ownedOneTimeTypes = (ctx.player.buffs ?? [])
+      .filter(b => ONE_TIME_BUFF_TYPES.has(b.type))
+      .map(b => b.type);
+    const options = layer === 1 ? FIRST_LAYER_UPGRADES : generateUpgradePool(chosenElement, layer, ownedOneTimeTypes);
     socket.emit('upgradeOptions', { options });
     logger.info({ roomId, layer }, 'rogue: upgrade options sent');
   });
@@ -414,6 +423,7 @@ export function registerPveHandlers(socket: Socket): void {
     bossHp: number;
     buffs?: Buff[];
     shuffleCount: number;
+    fullHeal?: boolean;
   }) => {
     const roomId = getRoomId(socket.id);
     if (!roomId) { emitError('No active room'); return; }
@@ -428,7 +438,7 @@ export function registerPveHandlers(socket: Socket): void {
     const shuffleCount = Math.max(2, Math.floor(payload.shuffleCount ?? 2));
     const buffs = Array.isArray(payload.buffs) ? payload.buffs : (ctx.player.buffs ?? []);
     const { skillEnergyMax, maxHp } = applyPlayerBuffs(buffs, baseMaxHp, 3);
-    const playerHp = Math.max(1, Math.floor(payload.playerHp ?? maxHp));
+    const playerHp = payload.fullHeal ? maxHp : Math.max(1, Math.floor(payload.playerHp ?? maxHp));
 
     const restoredCtx: GameContext = {
       ...ctx,

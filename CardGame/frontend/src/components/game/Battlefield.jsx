@@ -500,46 +500,6 @@ export default function Battlefield({
               </div>
             </div>
 
-            {/* Boss intent indicator */}
-            {bossRound ? (
-              <div style={{
-                marginTop: 'clamp(4px, 1vmin, 8px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '4px 14px',
-                borderRadius: 12,
-                background: bossRound.intent === 'CHARGE'
-                  ? 'rgba(255,100,20,0.18)'
-                  : bossRound.intent === 'DEFEND'
-                    ? 'rgba(60,140,255,0.18)'
-                    : 'rgba(255,200,60,0.14)',
-                border: `1px solid ${bossRound.intent === 'CHARGE'
-                  ? 'rgba(255,100,20,0.5)'
-                  : bossRound.intent === 'DEFEND'
-                    ? 'rgba(60,140,255,0.5)'
-                    : 'rgba(255,200,60,0.4)'}`,
-                color: bossRound.intent === 'CHARGE'
-                  ? '#ffa45e'
-                  : bossRound.intent === 'DEFEND'
-                    ? '#7eb8ff'
-                    : '#f0d060',
-                fontSize: 'clamp(10px, 1.8vmin, 12px)',
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                letterSpacing: 1.5,
-                textShadow: '0 0 8px rgba(0,0,0,0.8)',
-              }}>
-                <span>
-                  {bossRound.intent === 'ATTACK' ? '⚔' : bossRound.intent === 'CHARGE' ? '⚡' : '\u{1F6E1}'}
-                </span>
-                <span>{bossRound.intent}</span>
-                {bossRound.willReleaseCharge ? <span>NEXT: BURST</span> : null}
-                {bossRound.isDefending ? <span>DMG -50%</span> : null}
-              </div>
-            ) : null}
-
           </div>
         </div>
 
