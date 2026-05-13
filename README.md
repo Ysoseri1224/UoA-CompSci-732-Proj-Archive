@@ -19,6 +19,12 @@ The repository contains the application source code, tests, configuration, and s
 - Profile, leaderboard, and match-related backend support
 - Local full-stack development with Docker Compose and CI-backed backend validation
 
+## Online Demo
+
+A live demo is available at **[45.32.246.24:5173](http://45.32.246.24:5173)** 
+
+simply register and log in. This instance runs on Vultr.
+
 ## Quick Start
 
 ### Clone the Repository
@@ -100,14 +106,18 @@ npm test
 
 ## Documentation
 
-Detailed project documentation is available in the repository:
+Detailed project documentation is available in `CardGame/docs/`:
 
-- [Requirements](requirement.md) - project requirements specification
-- [API documentation](CardGame/docs/api.md) - REST API documentation
-- [Socket protocol](CardGame/docs/socket.md) - Socket.io event protocol
-- [Testing](CardGame/docs/testing.md) - testing workflow and conventions
-- [State machine notes](CardGame/docs/state-machine.md) - gameplay state design notes
-- [Implementation plans](CardGame/docs/plans/) - implementation planning documents
+- [API documentation](CardGame/docs/api.md) - implemented backend REST API reference, including auth, leaderboard, match, achievement, and rogue endpoints
+- [Socket protocol](CardGame/docs/socket.md) - Socket.io event contract between frontend and backend for PvE and lobby flows
+- [Testing workflow](CardGame/docs/testing.md) - backend test layout, entry points, and database test conventions
+- [State machine notes](CardGame/docs/state-machine.md) - gameplay state and turn-flow design for the card battle loop
+- [Card abstractions](CardGame/docs/card-abstractions.md) - shared card, deck, hand, buff, and boss data model design
+- [Backend game logic plan](CardGame/docs/GameLogic_backend.md) - step-by-step backend implementation roadmap and status notes
+- [Language convention](CardGame/docs/language.md) - project rule that all user-facing text must be in English
+- [Logging API](CardGame/docs/logger.md) - manual logging conventions for route handlers, middleware, and global flows
+- [i18n glossary](CardGame/docs/i18n-glossary.md) - canonical English terminology for user-facing game text
+- [Frontend specification](CardGame/docs/frontend-spec.md) - frontend architecture, route map, state ownership, and user-facing page flows
 
 ## Repository Structure
 

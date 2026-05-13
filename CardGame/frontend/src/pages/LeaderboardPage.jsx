@@ -214,7 +214,7 @@ export default function LeaderboardPage() {
                   <div className="min-w-0 flex-1 pt-0.5">
                     <h1 className="lb-ft-display lb-dash-ft-display-tight">PVE Leaderboard</h1>
                     <p className="lb-dash-hero-sub mt-1 max-w-xl font-sans leading-relaxed text-[#a0aec8] text-sm lg:text-base">
-                      See how you rank against other players.
+                      Rankings prioritize games played, then win rate.
                     </p>
                   </div>
                 </div>
@@ -238,9 +238,9 @@ export default function LeaderboardPage() {
                     {myRank.kind === 'guest' && 'Sign in to track your rank'}
                     {myRank.kind === 'loading' && 'Loading your standing…'}
                     {myRank.kind === 'listed' &&
-                      `${formatWinRate(myRank.winRate)} win rate · ${myRank.totalGames} games`}
+                      `${myRank.totalGames} games · ${formatWinRate(myRank.winRate)} win rate`}
                     {myRank.kind === 'outside_top' &&
-                      `Qualified · not on this page (${formatWinRate(myRank.winRate)} · ${myRank.totalGames} games)`}
+                      `Qualified · not on this page (${myRank.totalGames} games · ${formatWinRate(myRank.winRate)})`}
                     {myRank.kind === 'ineligible' &&
                       (myRank.totalGames === 0
                         ? `No ranked games yet — play ${myRank.needGames} more to qualify`
@@ -278,7 +278,7 @@ export default function LeaderboardPage() {
                           Climb the ranks and prove your mastery!
                         </h2>
                         <p className="lb-dash-eligibility-rules mt-1.5 font-sans leading-relaxed text-[#9aa8cb] text-sm lg:text-base">
-                          Only players with 10 or more games are ranked.
+                          Only players with 10 or more games are ranked. Higher game counts rank first, then win rate breaks ties.
                         </p>
                       </div>
                     </div>
@@ -344,7 +344,7 @@ export default function LeaderboardPage() {
                     {!leaderboardLoading && !leaderboardError && rankings.length === 0 && (
                       <tr className="border-b border-[#c89b3c]/[0.08] bg-[rgba(12,11,14,0.42)]">
                         <td className="lb-table-cell lb-rankings-message text-center font-sans leading-relaxed text-[#9aa8cb]" colSpan={5}>
-                          No eligible players yet. Win rate rankings require at least 10 finished games per player.
+                          No eligible players yet. Rankings require at least 10 finished games per player.
                         </td>
                       </tr>
                     )}
@@ -416,10 +416,10 @@ export default function LeaderboardPage() {
 
               <p className="lb-ft-footnote lb-dash-table-footnote mt-4 px-3 text-center sm:px-4">
                 {leaderboardLoading
-                  ? `Loading · Top ${LEADERBOARD_PAGE_LIMIT} by win rate · Minimum 10 games required`
+                  ? `Loading · Ranked by games played, then win rate · Minimum 10 games required`
                   : leaderboardError
-                    ? `Showing top ${LEADERBOARD_PAGE_LIMIT} by win rate · Minimum 10 games required`
-                    : `Showing ${rankings.length} of ${rankedTotal} ranked player${rankedTotal === 1 ? '' : 's'} (page capped at ${LEADERBOARD_PAGE_LIMIT}) · Minimum 10 games required`}
+                    ? `Showing ranked players by games played, then win rate · Minimum 10 games required`
+                    : `Showing ${rankings.length} of ${rankedTotal} ranked player${rankedTotal === 1 ? '' : 's'} (page capped at ${LEADERBOARD_PAGE_LIMIT}) · Ranked by games played, then win rate`}
               </p>
             </div>
           </section>

@@ -34,16 +34,16 @@ router.get('/leaderboard', async (req, res, next) => {
 
     if (sort === 'winrate') {
       sortStage = {
+        'stats.totalGames': -1,
         winRate: -1,
         'stats.totalWins': -1,
-        'stats.totalGames': -1,
         createdAt: 1,
       };
     } else if (sort === 'totalwins') {
       sortStage = {
+        'stats.totalGames': -1,
         'stats.totalWins': -1,
         winRate: -1,
-        'stats.totalGames': -1,
         createdAt: 1,
       };
     } else {

@@ -1,39 +1,39 @@
-# 数值策划设计记录 — Elemental Poker v1.0
+# Numeric Design Notes - Elemental Poker v1.0
 
-> 从零到一的完整数值设计过程。Player HP=20，专精属性，9 种 buff 类型（3 种接入升级池、6 种已定义待接入），2 种工具 buff 未实现。
+> A complete end-to-end numeric design process from scratch. Player HP = 20, element specialization, 9 buff types (3 already connected to the upgrade pool, 6 defined but not yet connected), and 2 utility buffs not implemented yet.
 
 ---
 
-## 一、基础约束
+## 1. Base Constraints
 
-| 参数 | 值 | 说明 |
+| Parameter | Value | Notes |
 |---|---|---|
-| 总牌数 | 39 张（水/火/草各 13） | 固定 |
-| 手牌数 | 7 张 | 固定 |
-| 点数映射 | A=1, 2-10=面值, J=11, Q=12, K=13 | rank 即 chipValue |
-| 伤害公式 | `(底分 + ΣcardChip) × 倍率`，向下取整 | Boss DEFEND 时 ×0.5 |
-| 回合锚定 | 3-5 回合击杀 Boss | 所有 Boss HP 围绕此设计 |
-| 存活下限 | ≥3.5 回合 | 保证至少出 3 手牌 |
+| Total cards | 39 (13 each of Water / Fire / Grass) | Fixed |
+| Hand size | 7 | Fixed |
+| Rank mapping | A=1, 2-10=face value, J=11, Q=12, K=13 | rank is the chipValue |
+| Damage formula | `(base chips + ΣcardChip) x multiplier`, rounded down | x0.5 if the boss DEFENDs |
+| Turn target | Kill the boss in 3-5 turns | All boss HP is designed around this |
+| Minimum survival | >= 3.5 turns | Ensures the player can play at least 3 hands |
 
 ---
 
-## 二、玩家 HP 成长
+## 2. Player HP Growth
 
-| 层数 | 基础 HP |
+| Layer | Base HP |
 |---|---|
 | 1-3 | 20 |
 | 4-6 | 30 |
 | 7-10 | 40 |
 
-- 升层时自动回满，不继承
-- 可选 HP+5 buff，永久提升上限
-- 过层自动增长 → 整数档位 → 不依赖 buff 存活
+- HP fully restores when moving to the next layer; it does not carry over
+- Optional HP+5 buff that permanently increases max HP
+- Layer progression grows in integer steps and does not rely on buffs to stay alive
 
 ---
 
-## 三、牌型出现率与计分
+## 3. Hand Frequency and Scoring
 
-| 牌型 | 出现率 | 底分 | 倍率 |
+| Hand Type | Frequency | Base Chips | Multiplier |
 |---|---|---|---|
 | STRAIGHT_FLUSH | 0.1% | 100 | 8 |
 | FOUR_OF_A_KIND | ~0% | 60 | 7 |
@@ -45,59 +45,59 @@
 | PAIR | 42.5% | 10 | 2 |
 | HIGH_CARD | 18.8% | 5 | 1 |
 
-基准 DPS（裸打，蒙特卡洛 20000 次）：avg=143, p50=124, p90=272
+Baseline DPS (raw play, 20,000 Monte Carlo runs): avg=143, p50=124, p90=272
 
 ---
 
-## 四、Buff 池实现现状（v1.0）
+## 4. Current Buff Pool Implementation (v1.0)
 
-当前代码（`backend/src/types/buff.ts`）定义了 9 种 Buff 类型。其中增强升级池实际可选的为 6 种（第一层固定 3 选 1 属性专精，后续层从 3 种中随机出 3 选 1），其余类型已定义但暂未接入升级池，保留供后续迭代。
+The current code (`backend/src/types/buff.ts`) defines 9 buff types. Among them, the upgrade pool currently offers 6 in practice (the first layer gives a fixed 1-of-3 specialization choice, and later layers randomly draw 3 choices from 3 types). The remaining types are defined but not yet connected to the upgrade pool and are reserved for future iterations.
 
-### 已接入升级池
+### Already Connected to the Upgrade Pool
 
-| Buff 接口 | 数值 | 说明 |
+| Buff Interface | Value | Notes |
 |---|---|---|
-| `ELEMENT_CHIP_MULT` | ×1.1（可叠加） | 专精属性牌 chip 乘以倍率。第一层固定三选一（水/火/草专精） |
-| `ELEMENT_DRAW_ON_SHUFFLE` | 每次 Shuffle 保证一张专精属性牌 | Shuffle 牌型可控性上升 |
-| `HIGH_RANK_DRAW_ON_SHUFFLE` | 每次 Shuffle 保证一张 K（13 点）牌 | 稳定高点数来源 |
+| `ELEMENT_CHIP_MULT` | x1.1 (stackable) | Multiplies chip value for specialized element cards. The first layer is a fixed 3-way choice (Water / Fire / Grass specialization) |
+| `ELEMENT_DRAW_ON_SHUFFLE` | One guaranteed specialized-element card per Shuffle | Improves Shuffle control |
+| `HIGH_RANK_DRAW_ON_SHUFFLE` | One guaranteed K (rank 13) card per Shuffle | Stable source of high ranks |
 
-### 已定义类型，未接入升级池
+### Defined but Not Yet Connected to the Upgrade Pool
 
-| Buff 接口 | 预期数值 | 说明 |
+| Buff Interface | Expected Value | Notes |
 |---|---|---|
-| `HAND_CHIPS_BONUS` | 常见+10 / 稀有+20 / 史诗+35 | 按牌型稀有度分层加底分，类型已定义 |
-| `HAND_MULT_BONUS` | 常见+0 / 稀有+2 / 史诗+3 | 按牌型稀有度分层加倍率，类型已定义 |
-| `ELEMENT_CHIPS_BONUS` | 专精属性牌每张 +5 | 稳定 DPS 增益，类型已定义 |
-| `ALL_CHIPS_BONUS` | 每张牌 +N chip | 通用伤害加成，类型已定义 |
-| `HP_BONUS` | 最大生命值 +5 | 生存向，类型已定义 |
-| `SKILL_ENERGY_MAX` | 技能充能上限 +1 | 充能池扩容，类型已定义 |
+| `HAND_CHIPS_BONUS` | Common +10 / Rare +20 / Epic +35 | Adds base chips by hand rarity; type already defined |
+| `HAND_MULT_BONUS` | Common +0 / Rare +2 / Epic +3 | Adds multiplier by hand rarity; type already defined |
+| `ELEMENT_CHIPS_BONUS` | +5 per specialized-element card | Stable DPS increase; type already defined |
+| `ALL_CHIPS_BONUS` | +N chip per card | Generic damage bonus; type already defined |
+| `HP_BONUS` | Max HP +5 | Survival-focused; type already defined |
+| `SKILL_ENERGY_MAX` | Skill energy cap +1 | Expands the energy pool; type already defined |
 
-### 未实现的工具 Buff
+### Unimplemented Utility Buffs
 
-| Buff | 效果 | 状态 |
+| Buff | Effect | Status |
 |---|---|---|
-| Shuffle +1 | 每回合换牌 3 次 | 未实现，见 7.8 |
-| 手牌 +1 | 手牌上限 8 张 | 未实现，见 7.8 |
+| Shuffle +1 | 3 shuffle actions per turn | Not implemented, see 7.8 |
+| Hand +1 | Hand cap 8 cards | Not implemented, see 7.8 |
 
-当前升级池第一层：专精三选一（`water_spec` / `fire_spec` / `grass_spec`），均为 `ELEMENT_CHIP_MULT ×1.1`。后续层：从 `ELEMENT_CHIP_MULT`（可叠加）、`ELEMENT_DRAW_ON_SHUFFLE`、`HIGH_RANK_DRAW_ON_SHUFFLE` 中洗牌后返回 3 选 1。同一 buff 可重复选（叠加）。
+The current first-layer upgrade pool is the specialization 3-way choice (`water_spec` / `fire_spec` / `grass_spec`), all of which are `ELEMENT_CHIP_MULT x1.1`. Later layers draw from `ELEMENT_CHIP_MULT` (stackable), `ELEMENT_DRAW_ON_SHUFFLE`, and `HIGH_RANK_DRAW_ON_SHUFFLE`, then return 3 choices. The same buff can be picked repeatedly (stacking).
 
 ---
 
-## 五、Boss 行为权重
+## 5. Boss Behavior Weights
 
-| 层数 | ATTACK | CHARGE | DEFEND |
+| Layer | ATTACK | CHARGE | DEFEND |
 |---|---|---|---|
 | 1-3 | 80% | 15% | 5% |
 | 4-6 | 60% | 25% | 15% |
 | 7-10 | 45% | 30% | 25% |
 
-蓄力爆发伤害 = Boss ATK × 2.2（取整）。防御减半玩家伤害。
+Charged burst damage = Boss ATK x 2.2 (rounded down). DEFEND halves player damage.
 
 ---
 
-## 六、10 层 Boss 数值表（最终）
+## 6. Final 10-Layer Boss Stat Table
 
-| 层 | PlayerHP | DPS | BossHP | BossATK | 蓄力 | 击杀轮 | 存活轮 | 比值 | 估算胜率 |
+| Layer | PlayerHP | DPS | BossHP | BossATK | Charge | Kill Turn | Survival Turns | Ratio | Estimated Win Rate |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | 20 | 143 | 543 | 3 | 6 | 3.8 | 8.3 | 2.19 | ~95% |
 | 2 | 20 | 150 | 570 | 4 | 8 | 3.8 | 6.2 | 1.64 | ~85% |
@@ -112,100 +112,100 @@
 
 ---
 
-## 七、设计取舍记录
+## 7. Design Tradeoff Log
 
-### 7.1 ALL_CHIPS_BONUS 保留为类型定义，暂不入池
+### 7.1 Keep ALL_CHIPS_BONUS as a type, but do not include it in the pool for now
 
-**原始方案**：每张打出牌额外 +2 chip，实测 DPS 增益 +20%。
+**Original plan**: each played card gets +2 chip, with a measured DPS gain of about +20%.
 
-**问题**：第一层必须选属性专精（水/火/草），此后所有属性 buff 都围绕专精展开。如果池子里有"全牌 +2"这个不挑属性的通用 buff，选了专精的差异化就消失了——火系专精的玩家和没选专精的玩家拿同一个 buff，专精的价值被稀释。
+**Problem**: the first layer must choose an element specialization (Water / Fire / Grass), and all later buffs revolve around that specialization. If the pool also contains a generic "all cards +2" buff, the specialization difference disappears. A Fire-specialization player and a non-specialized player could receive the same buff, which dilutes the value of the specialization choice.
 
-**决策**：`ALL_CHIPS_BONUS` 接口保留在 `buff.ts` 中供后续使用，当前 `generateUpgradePool` 不返回此类型。v1.0 升级池以 `ELEMENT_CHIP_MULT`（属性专精 ×1.1）作为核心伤害 buff，保证了属性专精的独占价值。玩家选择了火系专精 → 火牌 chip ×1.1 → 更有动力去凑火系牌型，形成闭环。
-
----
-
-### 7.2 单牌型 Buff 被放弃 → 改为全牌型分层 Buff（类型已定义，暂不入池）
-
-**原始方案**：每个牌型一个独立 buff（`HAND_MULT +1 (PAIR)`、`HAND_MULT +2 (FLUSH)`、`HAND_CHIPS +30 (FLUSH)` 等）。
-
-**问题**：
-- 出现率极不均衡：PAIR 42.5%（给 +1 mult 就 +21% DPS），STRAIGHT 4.3%（给 +3 mult 才 +6% DPS）。同一个池子里的 buff 价值差 3-4 倍。
-- 池子占用太多位置：9 个槽位，光牌型 buff 就要占 6-8 个，其他方向没空间。
-
-**决策**：用一个 buff 覆盖全部 9 种牌型，按稀有度分层——常见牌型（一对/两对/三条）给较小的加成，稀有牌型（顺子/同花）给较大的加成，史诗牌型（葫芦/四条/同花顺）给最大的加成。一个 buff = 原来 8 个 buff 的工作量。
-
-**衍生设计**：
-- 分层底分 buff：常见+10 / 稀有+20 / 史诗+35 chip。类型 `HAND_CHIPS_BONUS` 已定义在 `buff.ts`。
-- 分层倍率 buff：常见+0 / 稀有+2 / 史诗+3 mult。类型 `HAND_MULT_BONUS` 已定义在 `buff.ts`。
-- 倍率版的"常见+0"是精心设计的——PAIR 出现率 42.5%，如果给 +1 mult 就变成另一档了（+38%，太强）；给 0 意味着打出常见牌型时吃不到加成，激励玩家去追求更高级的牌型。
-
-**v1.0 状态**：两个分层 buff 接口均已定义并接入 `calculateDamage` 计算流程，但 `generateUpgradePool` 尚未返回它们。当前升级池仅包含 `ELEMENT_CHIP_MULT`、`ELEMENT_DRAW_ON_SHUFFLE`、`HIGH_RANK_DRAW_ON_SHUFFLE` 三种。
+**Decision**: keep `ALL_CHIPS_BONUS` in `buff.ts` for later use, but do not return this type from `generateUpgradePool` for now. In v1.0, the core damage buff in the upgrade pool is `ELEMENT_CHIP_MULT` (element specialization x1.1), which preserves the exclusive value of specialization. A player who chooses Fire specialization gets Fire card chip x1.1 and is therefore more motivated to build Fire-based hands, forming a closed loop.
 
 ---
 
-### 7.3 STRAIGHT 系额外 Buff 被放弃
+### 7.2 Abandon single-hand-type buffs -> replace with layered buffs for all hand types (types defined, not yet in pool)
 
-**原始方案**：给顺子（STRAIGHT）单独做一个强力的搏档 buff。
+**Original plan**: one separate buff per hand type (`HAND_MULT +1 (PAIR)`, `HAND_MULT +2 (FLUSH)`, `HAND_CHIPS +30 (FLUSH)`, etc.).
 
-**问题**：顺子出现率仅 4.3%，是全牌型中除四条和同花顺外最低的。即使把倍率拉到 +3（从未 buff 的 4→7），实测 DPS 增益也只有 +6.2%。对比同花（出现率 8.6%，+2 mult 就有 +8.9%），顺子天然处于劣势。
+**Problem**:
+- Frequency is highly imbalanced: PAIR appears 42.5% of the time (giving +1 mult is about a +21% DPS boost), while STRAIGHT appears 4.3% of the time (even +3 mult only gives about a +6% DPS boost). Buff values inside the same pool differ by 3-4x.
+- It occupies too many slots: with 9 slots, hand-type buffs alone would take 6-8, leaving no space for other directions.
 
-**深层原因**：39 张牌库（3 属性 × 13 点数）中，顺子要求 5 张点数连续的牌，但每张牌随机抽取——你拿到的 7 张手牌里出现 5 张连续点数的概率远低于 5 张同属性。同花可以靠 Shuffle（换牌）和技能（变色）辅助，顺子只能靠 Shuffle（换牌）。
+**Decision**: use one buff to cover all 9 hand types and layer it by rarity: common hands (pair / two pair / three of a kind) get smaller boosts, rare hands (straight / flush) get larger boosts, and epic hands (full house / four of a kind / straight flush) get the largest boosts. One buff = the work of 8 original buffs.
 
-**决策**：不单独做顺子 buff。顺子作为稀有牌型被分层 buff 覆盖即可，不值得占一个独立的 buff 槽位。
+**Derived design**:
+- Layered base-chip buff: common +10 / rare +20 / epic +35 chip. Type `HAND_CHIPS_BONUS` already exists in `buff.ts`.
+- Layered multiplier buff: common +0 / rare +2 / epic +3 mult. Type `HAND_MULT_BONUS` already exists in `buff.ts`.
+- The multiplier version's "common +0" is intentional: PAIR already appears 42.5% of the time; if it got +1 mult, it would move to another tier (+38%, too strong). Giving it 0 means common hands do not receive the bonus, which encourages players to aim for stronger hands.
 
----
-
-### 7.4 反伤被放弃
-
-**原始方案**：Boss 攻击时返还 N% 伤害给 Boss。
-
-**问题**：Boss ATK 设计值为 3-23。即使 50% 反伤，每层大约返还 7.5 伤害（约等于 DPS +2/回合）。而同期固伤 buff 给 +20/回合，差一个数量级。更致命的是反伤和护盾冲突——护盾免疫伤害时反伤也触发不了。
-
-**决策**：不做。Boss ATK 的数值体系天然不适合反伤机制。
+**v1.0 status**: both layered buff interfaces are defined and wired into `calculateDamage`, but `generateUpgradePool` does not yet return them. The current upgrade pool only contains `ELEMENT_CHIP_MULT`, `ELEMENT_DRAW_ON_SHUFFLE`, and `HIGH_RANK_DRAW_ON_SHUFFLE`.
 
 ---
 
-### 7.5 吸血 → 未实现
+### 7.3 Additional Straight-specific buffs were abandoned
 
-**原始方案**：造成伤害时回复伤害值 N% 的 HP。
+**Original plan**: give Straight a dedicated high-power scaling buff.
 
-**问题**：玩家每回合伤害 ~140，HP 只有 20。即使 1% 吸血 = 1.4HP/回合，一局 4 回合 ≈ 5.6HP 回复 ≈ 28% 最大 HP。5% 吸血就是直接回满。HP 和伤害值不在一个量级上，百分比吸血要么太弱（0.1%）毫无感觉，要么太强（1%+）直接无敌。
+**Problem**: Straight only appears 4.3% of the time, which is one of the lowest frequencies among all hands except Four of a Kind and Straight Flush. Even if the multiplier is raised by +3 (from the unbuffed 4 to 7), the measured DPS increase is only about +6.2%. Compared with Flush (8.6% frequency, and +2 mult already gives +8.9%), Straight is naturally weaker.
 
-**v1.0 状态**：吸血及固值回血均未实现。`buff.ts` 中无回血相关 Buff 类型，`calculateDamage` / `doRoundEndConfirm` 等流程中无 HP 回复逻辑。当前生存完全依赖护盾和 Boss ATK 的自然数值平衡（HP 分三档 20→30→40）。回血机制留待后续迭代。
+**Deeper reason**: the 39-card deck (3 elements x 13 ranks) requires 5 consecutive ranks for a straight, and each card is drawn randomly. In 7 cards, the chance of getting 5 consecutive ranks is far lower than getting 5 cards of the same suit. Flush can be helped by Shuffle and Change Color, while Straight can only rely on Shuffle.
 
----
-
-### 7.6 HP 分三档 20→30→40
-
-**原始方案**：玩家 HP 固定 20，靠 buff 增加存活。
-
-**问题**：L7-L10 Boss ATK 高达 19-23，玩家 HP=20 的话存活轮不足 2 轮，连三手牌都打不出来就死了。如果完全依赖 buff（HP+5、回血+2）来保证存活，那不选这些 buff 的玩家就死局——"逼选"不符合肉鸽的设计理念。
-
-**决策**：HP 自然增长，分三档——L1-3=20（教学期）、L4-6=30（成长期）、L7-10=40（高峰）。增长是整数跳档，不是每层 +2 的零碎小数。HP+5 buff 可选，玩家选了更肉（相当于提前拿到下一档的血量），不选也能打。
+**Decision**: do not create a dedicated Straight buff. Straight is a rare hand and can be covered by the layered buffs; it is not worth its own buff slot.
 
 ---
 
-### 7.7 胜率曲线的三次修正
+### 7.4 Reflect damage was abandoned
 
-**第一版**：spec 定义 L1>99%、L4~80%、L10~42%。被指出"双方数值同步提升，胜率不该跌那么快"——确实不合理，如果每层都拿到 buff，玩家变强的速度应该和 Boss 变强的速度大致同步。
+**Original plan**: return N% of boss attack damage back to the boss.
 
-**第二版**：把 L10 修正到 50%，前层依次调整。但使用比值法（survive/kill ratio）估算胜率时发现，比值映射到胜率的粒度太粗——"~90%"到"~95%"一跳就是一档。
+**Problem**: the designed Boss ATK values are 3-23. Even with 50% reflect, the amount returned per layer is about 7.5 damage (roughly equal to DPS +2 per turn). By comparison, the fixed-damage buff gives +20 per turn, an order of magnitude larger. More importantly, reflect conflicts with shield - if the shield negates damage, reflect does not trigger.
 
-**第三版**（最终）：HP 分三档后，survive 轮全程 ≥ 3.5 轮。胜率曲线为 95%→85%→75%→65%→55%→50%→<50%，单调不波动。前 3 层胜率略低于最初 spec（85-95% vs 95-99%），这是因为 HP=20 决定了即使教学关也有极小的翻车可能。实测蒙特卡洛胜率会比比值法估算高 5-10%（因为护盾、回血、玩家选择等未纳入公式）。
+**Decision**: do not implement it. The boss ATK system is not a good fit for a reflect mechanic.
 
 ---
 
-### 7.8 工具 Buff 现状
+### 7.5 Lifesteal -> not implemented
 
-**原始方案**：三个工具 buff（Shuffle+1、充能+1、手牌+1）各只能选一次，选了从池子移除。
+**Original plan**: restore N% of dealt damage as HP.
 
-**v1.0 状态**：
-- **充能+1**：已实现。`SKILL_ENERGY_MAX` 类型定义在 `buff.ts`，接入 `calculateDamage` 和技能充能逻辑。但 `generateUpgradePool` 尚未返回此类型，即玩家无法通过升级池获取。当前充能上限固定为 3。
-- **Shuffle+1**：未实现。`buff.ts` 中无对应 Buff 接口。每回合 Shuffle 次数硬编码为 2（`state.ts:99`：`createShuffleState` 返回 `{ remaining: 2 }`）。
-- **手牌+1**：未实现。`buff.ts` 中无对应 Buff 接口。手牌上限硬编码为 7（`actions.ts:42`：`drawCards(deckState(ctx), 7 - ctx.hand.length)`）。
+**Problem**: player damage is around 140 per turn, while HP is only 20. Even 1% lifesteal means about 1.4 HP per turn, or roughly 5.6 HP per 4-turn run, which is about 28% of max HP. At 5% lifesteal the player would heal to full immediately. HP and damage are not on the same scale, so percentage lifesteal would either be too weak (0.1%) to matter or too strong (1%+) to be balanced.
 
-Shuffle+1 和手牌+1 未实现的原因：
-- Shuffle+1 叠加后换牌次数过多，牌型概率完全失控（见 7.2 中的同花 vs 顺子出现率差异——同花出现率 8.6% 本就被 Shuffle 显著放大，3 次 Shuffle 后几乎"想要什么同花都行"）。
-- 手牌+1（7→8）看似温和，但会显著提高四条/葫芦的出现概率，DPS 曲线偏离原有模拟基线。
+**v1.0 status**: lifesteal and flat healing are not implemented. There is no healing-related buff type in `buff.ts`, and no HP recovery logic in `calculateDamage` / `doRoundEndConfirm` or related flows. Survival currently depends entirely on shield and the boss ATK curve (HP in three tiers: 20 -> 30 -> 40). Healing will be reconsidered in a later iteration.
 
-三个工具 buff 中仅充能+1 在不改变"牌型概率分布"的前提下提供资源弹性，因此优先实现。Shuffle+1 和手牌+1 需要先解决"叠加后牌型概率可控"的问题再接入。
+---
+
+### 7.6 HP grows in three tiers: 20 -> 30 -> 40
+
+**Original plan**: player HP stays fixed at 20 and is extended via buffs.
+
+**Problem**: L7-L10 boss ATK reaches 19-23. If player HP stays 20, survival is under 2 turns, meaning the player cannot even play three hands before dying. If survival depends entirely on buffs (HP+5, healing+2), then players who do not pick them are doomed, which goes against rogue-like design principles.
+
+**Decision**: make HP grow naturally in three tiers - L1-3 = 20 (tutorial), L4-6 = 30 (growth), L7-10 = 40 (peak). Growth is an integer tier jump rather than a noisy +2 every layer. The HP+5 buff remains optional; players who pick it become tankier (similar to getting the next tier early), but players who do not pick it can still win.
+
+---
+
+### 7.7 Three revisions of the win-rate curve
+
+**First version**: the spec said L1 >99%, L4 ~80%, L10 ~42%. It was pointed out that "both sides scale up together, so the win rate should not fall that quickly" - which is correct. If the player picks buffs every layer, their growth speed should roughly track the boss's growth speed.
+
+**Second version**: L10 was adjusted to 50%, with the earlier layers adjusted accordingly. But when win-rate was estimated using a survive/kill ratio, the mapping from ratio to win-rate was too coarse - jumping from "~90%" to "~95%" meant a large tier jump.
+
+**Third version** (final): after HP is split into three tiers, survival turns stay >= 3.5 throughout. The win-rate curve becomes 95% -> 85% -> 75% -> 65% -> 55% -> 50% -> <50%, with no oscillation. The early 3 layers are slightly lower than the original spec (85-95% vs 95-99%), because HP = 20 means even the tutorial has a tiny chance of failure. Monte Carlo testing tends to show 5-10% higher win rates than the ratio-based estimate, because shield, healing, and player decisions are not included in the simple formula.
+
+---
+
+### 7.8 Utility Buff Status
+
+**Original plan**: three utility buffs (Shuffle +1, energy +1, hand +1), each only selectable once and removed from the pool after selection.
+
+**v1.0 status**:
+- **Energy +1**: implemented. `SKILL_ENERGY_MAX` is defined in `buff.ts` and wired into `calculateDamage` and skill-energy logic. However, `generateUpgradePool` does not return this type yet, so players cannot get it from the upgrade pool. The current energy cap is fixed at 3.
+- **Shuffle +1**: not implemented. There is no corresponding buff interface in `buff.ts`. The number of Shuffle actions per turn is hard-coded to 2 (`state.ts:99`: `createShuffleState` returns `{ remaining: 2 }`).
+- **Hand +1**: not implemented. There is no corresponding buff interface in `buff.ts`. The hand cap is hard-coded to 7 (`actions.ts:42`: `drawCards(deckState(ctx), 7 - ctx.hand.length)`).
+
+Why Shuffle +1 and Hand +1 are not implemented:
+- Shuffle +1, when stacked, makes card-finding too easy and completely breaks the hand-type probability distribution (see the flush vs straight frequency difference in 7.2 - flush already gets heavily amplified by shuffle, and after 3 shuffles you can almost "pick any flush you want").
+- Hand +1 (7 -> 8) seems mild, but it significantly increases the odds of Four of a Kind / Full House and shifts the DPS curve away from the simulation baseline.
+
+Among the three utility buffs, only Energy +1 provides resource flexibility without changing the hand-type probability distribution, so it is prioritized. Shuffle +1 and Hand +1 need to wait until we can control how stacking affects hand-type probabilities.
