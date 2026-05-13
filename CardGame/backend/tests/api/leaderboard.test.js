@@ -49,9 +49,9 @@ describe('GET /api/leaderboard Integration Tests (Native Fetch)', () => {
   beforeEach(async () => {
     await clearDatabase();
     await User.insertMany([
-      { username: 'rookie', email: '1@t.com', passwordHash: 'h', stats: { totalGames: 5, totalWins: 5 } }, 
-      { username: 'player_A', email: '2@t.com', passwordHash: 'h', stats: { totalGames: 20, totalWins: 10 } },
-      { username: 'player_B', email: '3@t.com', passwordHash: 'h', stats: { totalGames: 50, totalWins: 40 } }
+      { username: 'rookie', email: '1@t.com', passwordHash: 'password123', stats: { totalGames: 5, totalWins: 5 } }, 
+      { username: 'player_A', email: '2@t.com', passwordHash: 'password123', stats: { totalGames: 20, totalWins: 10 } },
+      { username: 'player_B', email: '3@t.com', passwordHash: 'password123', stats: { totalGames: 50, totalWins: 40 } }
     ]);
   });
 

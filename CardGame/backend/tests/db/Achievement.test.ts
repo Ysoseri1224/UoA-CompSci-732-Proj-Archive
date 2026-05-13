@@ -1,17 +1,20 @@
-import { test, describe, before, afterEach } from 'node:test';
+import { test, describe, before, after, afterEach } from 'node:test';
 import assert from 'node:assert';
 import mongoose from 'mongoose';
 import { Achievement } from '../../src/models/Achievement.js';
+import { connectTestDB, disconnectTestDB } from './setup.js';
 
 describe('Achievement Model DB Tests', () => {
     before(async () => {
-        if (mongoose.connection.readyState === 0) {
-            await mongoose.connect(process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/balatro_test');
-        }
+        await connectTestDB();
     });
 
     afterEach(async () => {
         await Achievement.deleteMany({});
+    });
+
+    after(async () => {
+        await disconnectTestDB({ dropDatabase: true });
     });
 
     test('should create a valid achievement', async () => {

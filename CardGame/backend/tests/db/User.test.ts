@@ -1,18 +1,21 @@
-import { test, describe, before, afterEach } from 'node:test';
+import { test, describe, before, after, afterEach } from 'node:test';
 import assert from 'node:assert';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '../../src/models/User.js';
+import { connectTestDB, disconnectTestDB } from './setup.js';
 
 describe('User Model DB Tests', () => {
     before(async () => {
-        if (mongoose.connection.readyState === 0) {
-            await mongoose.connect(process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/balatro_test');
-        }
+        await connectTestDB();
     });
 
     afterEach(async () => {
         await User.deleteMany({});
+    });
+
+    after(async () => {
+        await disconnectTestDB({ dropDatabase: true });
     });
 
     test('should support password alias for passwordHash', async () => {

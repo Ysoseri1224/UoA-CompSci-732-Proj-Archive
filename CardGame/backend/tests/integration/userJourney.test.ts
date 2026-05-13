@@ -115,7 +115,10 @@ test('获取自己的用户资料', async () => {
   assert.ok(res.status === 200 || res.status === 404,
     `Expected 200 or 404, got ${res.status}`);
   if (res.status === 200) {
-    assert.ok(res.body.data.user);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.data.username, 'journey_test');
+    assert.ok(typeof res.body.data.totalGames === 'number');
+    assert.ok(typeof res.body.data.totalWins === 'number');
   }
 });
 

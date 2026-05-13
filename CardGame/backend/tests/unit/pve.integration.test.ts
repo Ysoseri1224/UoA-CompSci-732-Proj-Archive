@@ -177,7 +177,8 @@ test('Shield blocks charge burst and shatters', () => {
   ctx = sendRoomEvent(roomId, resolveComplete()).ctx!;
 
   if (ctx.roundState.phase === ROUND_PHASE.BOSS_ATTACK) {
-    // Force willReleaseCharge
+    // Force a charged attack so the shield-block path is exercised deterministically.
+    ctx.roundState.bossRound.intent = 'ATTACK';
     ctx.roundState.bossRound.willReleaseCharge = true;
     const hpBefore = ctx.player.hp;
     ctx = sendRoomEvent(roomId, bossAttackComplete()).ctx!;
