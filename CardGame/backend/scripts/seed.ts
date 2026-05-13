@@ -5,7 +5,7 @@ import { Match } from '../src/models/Match.js';
 import { Achievement } from '../src/models/Achievement.js';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/balatro_db';
-const PASSWORD = 'test123456'; // 所有测试用户同一密码
+const PASSWORD = 'testtest'; // 所有测试用户同一密码
 
 // ══════════════════════════════════════════════════════════════════
 //  测试用户数据
@@ -18,14 +18,15 @@ interface SeedUser {
 }
 
 const SEED_USERS: SeedUser[] = [
-  { username: 'test01',   email: 'test01@test.com', stats: { totalGames: 67,  totalWins: 44, winRate: 66, maxDamage: 2500 } },
-  { username: 'test02',   email: 'test02@test.com', stats: { totalGames: 89,  totalWins: 55, winRate: 62, maxDamage: 2100 } },
-  { username: 'test03',   email: 'test03@test.com', stats: { totalGames: 34,  totalWins: 21, winRate: 62, maxDamage: 1800 } },
-  { username: 'player42', email: 'p42@test.com',    stats: { totalGames: 103, totalWins: 71, winRate: 69, maxDamage: 3200 } },
-  { username: 'player77', email: 'p77@test.com',    stats: { totalGames: 56,  totalWins: 38, winRate: 68, maxDamage: 2800 } },
-  { username: 'qwerty',   email: 'qw@test.com',      stats: { totalGames: 41,  totalWins: 16, winRate: 39, maxDamage: 900  } },
-  { username: 'asdfgh',   email: 'as@test.com',      stats: { totalGames: 22,  totalWins: 7,  winRate: 32, maxDamage: 500  } },
-  { username: 'newbie',   email: 'new@test.com',    stats: { totalGames: 5,   totalWins: 2,  winRate: 40, maxDamage: 250  } },
+  { username: 'test01', email: 'test01@test.com', stats: { totalGames: 127, totalWins: 52, winRate: 41, maxDamage: 2419 } },
+  { username: 'test02', email: 'test02@test.com', stats: { totalGames: 51, totalWins: 30, winRate: 59, maxDamage: 3316 } },
+  { username: 'test03', email: 'test03@test.com', stats: { totalGames: 57, totalWins: 39, winRate: 68, maxDamage: 1038 } },
+  { username: 'test04', email: 'test04@test.com', stats: { totalGames: 50, totalWins: 29, winRate: 58, maxDamage: 837 } },
+  { username: 'test05', email: 'test05@test.com', stats: { totalGames: 83, totalWins: 54, winRate: 65, maxDamage: 2717 } },
+  { username: 'test06', email: 'test06@test.com', stats: { totalGames: 149, totalWins: 107, winRate: 72, maxDamage: 2830 } },
+  { username: 'test07', email: 'test07@test.com', stats: { totalGames: 98, totalWins: 73, winRate: 74, maxDamage: 1064 } },
+  { username: 'test08', email: 'test08@test.com', stats: { totalGames: 140, totalWins: 60, winRate: 43, maxDamage: 2598 } },
+  { username: 'test09', email: 'test09@test.com', stats: { totalGames: 75, totalWins: 47, winRate: 63, maxDamage: 2965 } },
 ];
 
 // ══════════════════════════════════════════════════════════════════
